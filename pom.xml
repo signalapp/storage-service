@@ -135,58 +135,18 @@
                 </executions>
             </plugin>
             <plugin>
-                <groupId>com.spotify</groupId>
-                <artifactId>dockerfile-maven-plugin</artifactId>
-                <version>1.4.8</version>
-                <executions>
-                    <execution>
-                        <id>production</id>
-                        <goals>
-                            <goal>build</goal>
-                            <goal>push</goal>
-                        </goals>
-                        <configuration>
-                            <repository>${docker.repo.production}</repository>
-                            <pullNewerImage>false</pullNewerImage>
-                            <tag>${project.version}-production</tag>
-                            <buildArgs>
-                                <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
-                                <CONFIG_FILE>production.yml</CONFIG_FILE>
-                            </buildArgs>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>staging</id>
-                        <goals>
-                            <goal>build</goal>
-                            <goal>push</goal>
-                        </goals>
-                        <configuration>
-                            <repository>${docker.repo.staging}</repository>
-                            <pullNewerImage>false</pullNewerImage>
-                            <tag>${project.version}-staging</tag>
-                            <buildArgs>
-                                <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
-                                <CONFIG_FILE>staging.yml</CONFIG_FILE>
-                            </buildArgs>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-deploy-plugin</artifactId>
+                <version>3.0.0-M1</version>
                 <configuration>
                     <skip>true</skip>
                 </configuration>
             </plugin>
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.0.0-M1</version>
             </plugin>
-
             <plugin>
                 <groupId>org.xolstice.maven.plugins</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
@@ -205,27 +165,78 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <plugin>
-                <groupId>org.codehaus.mojo</groupId>
-                <artifactId>properties-maven-plugin</artifactId>
-                <version>1.0.0</version>
-                <executions>
-                    <execution>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>read-project-properties</goal>
-                        </goals>
-                        <configuration>
-                            <files>
-                                <file>${configuration.path}/build.properties</file>
-                            </files>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
 
+    <profiles>
+        <profile>
+            <id>docker-deploy</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+                <file><exists>${configuration.path}/build.properties</exists></file>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>properties-maven-plugin</artifactId>
+                        <version>1.0.0</version>
+                        <executions>
+                            <execution>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>read-project-properties</goal>
+                                </goals>
+                                <configuration>
+                                    <files>
+                                        <file>${configuration.path}/build.properties</file>
+                                    </files>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.spotify</groupId>
+                        <artifactId>dockerfile-maven-plugin</artifactId>
+                        <version>1.4.8</version>
+                        <executions>
+                            <execution>
+                                <id>production</id>
+                                <goals>
+                                    <goal>build</goal>
+                                    <goal>push</goal>
+                                </goals>
+                                <configuration>
+                                    <repository>${docker.repo.production}</repository>
+                                    <pullNewerImage>false</pullNewerImage>
+                                    <tag>${project.version}-production</tag>
+                                    <buildArgs>
+                                        <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
+                                        <CONFIG_FILE>production.yml</CONFIG_FILE>
+                                    </buildArgs>
+                                </configuration>
+                            </execution>
+                            <execution>
+                                <id>staging</id>
+                                <goals>
+                                    <goal>build</goal>
+                                    <goal>push</goal>
+                                </goals>
+                                <configuration>
+                                    <repository>${docker.repo.staging}</repository>
+                                    <pullNewerImage>false</pullNewerImage>
+                                    <tag>${project.version}-staging</tag>
+                                    <buildArgs>
+                                        <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
+                                        <CONFIG_FILE>staging.yml</CONFIG_FILE>
+                                    </buildArgs>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
 
 </project>
