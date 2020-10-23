@@ -97,7 +97,6 @@ public class GroupsController {
   @Timed
   @GET
   @Produces(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-  @Consumes(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
   public CompletableFuture<Response> getGroup(@Auth GroupUser user) {
     return groupsManager.getGroup(user.getGroupId()).thenApply(group -> {
       if (group.isEmpty()) {
@@ -155,7 +154,6 @@ public class GroupsController {
   @Timed
   @GET
   @Produces(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-  @Consumes(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
   @Path("/logs/{fromVersion}")
   public CompletableFuture<Response> getGroupLogs(@Auth GroupUser user, @PathParam("fromVersion") int fromVersion) {
     return groupsManager.getGroup(user.getGroupId()).thenCompose(group -> {
@@ -199,7 +197,6 @@ public class GroupsController {
   @Timed
   @GET
   @Produces(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-  @Consumes(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
   @Path("/avatar/form")
   public AvatarUploadAttributes getAvatarUploadForm(@Auth GroupUser user) {
     byte[] object = new byte[16];
@@ -410,7 +407,6 @@ public class GroupsController {
   @Timed
   @GET
   @Produces(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-  @Consumes(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
   @Path("/token")
   public CompletableFuture<Response> getToken(@Auth GroupUser user) {
     return groupsManager.getGroup(user.getGroupId()).thenApply(group -> {
