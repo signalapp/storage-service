@@ -39,6 +39,7 @@ import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyList;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -402,4 +403,35 @@ public class StorageControllerTest {
     assertThat(keysCaptor.getValue().contains(queryTwo.getKey())).isTrue();
   }
 
+  @Test
+  public void testDelete() throws IOException {
+    when(storageManager.clearItems(any())).thenReturn(CompletableFuture.completedFuture(null));
+
+    Response response = resources.getJerseyTest()
+            .target("/v1/storage")
+            .request()
+            .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
+            .delete();
+
+    assertThat(response.getStatus()).isEqualTo(202);
+    assertThat(response.hasEntity()).isFalse();
+
+    verify(storageManager).clearItems(eq(new User(UUID.fromString(AuthHelper.VALID_USER))));
+    verifyNoMoreInteractions(storageManager);
+  }
+
+  @Test
+  public void testDeleteUnauthorized() throws IOException {
+    when(storageManager.clearItems(any())).thenReturn(CompletableFuture.completedFuture(null));
+
+    Response response = resources.getJerseyTest()
+            .target("/v1/storage")
+            .request()
+            .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.INVALID_USER, AuthHelper.INVALID_PASSWORD))
+            .delete();
+
+    assertThat(response.getStatus()).isEqualTo(401);
+
+    verify(storageManager, never()).clearItems(any());
+  }
 }

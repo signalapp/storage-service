@@ -16,6 +16,7 @@ import org.signal.storageservice.storage.protos.contacts.StorageManifest;
 import org.signal.storageservice.storage.protos.contacts.WriteOperation;
 
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -92,4 +93,9 @@ public class StorageController {
                          .thenApply(items -> StorageItems.newBuilder().addAllContacts(items).build());
   }
 
+  @Timed
+  @DELETE
+  public CompletableFuture<Response> delete(@Auth User user) {
+    return storageManager.clearItems(user).thenApply(v -> Response.status(Response.Status.ACCEPTED).build());
+  }
 }
