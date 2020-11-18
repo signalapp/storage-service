@@ -144,7 +144,7 @@ public class StorageControllerTest {
     Response response = resources.getJerseyTest()
                                  .target("/v1/storage/manifest")
                                  .request()
-                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.INVVALID_USER, AuthHelper.INVALID_PASSWORD))
+                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.INVALID_USER, AuthHelper.INVALID_PASSWORD))
                                  .get();
 
     assertThat(response.getStatus()).isEqualTo(401);
@@ -277,7 +277,7 @@ public class StorageControllerTest {
     Response response = resources.getJerseyTest()
                                  .target("/v1/storage/")
                                  .request()
-                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.INVVALID_USER, AuthHelper.INVALID_PASSWORD))
+                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.INVALID_USER, AuthHelper.INVALID_PASSWORD))
                                  .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(401);

@@ -54,7 +54,7 @@ public class AuthHelper {
   public static final byte[] VALID_USER_THREE_PROFILE_KEY = new byte[32];
   public static final String VALID_PASSWORD_THREE         = "baz";
 
-  public static final String INVVALID_USER = UUID.randomUUID().toString();
+  public static final String INVALID_USER     = UUID.randomUUID().toString();
   public static final String INVALID_PASSWORD = "bar";
 
   public static ExternalServiceCredentialValidator CREDENTIAL_VALIDATOR = mock(ExternalServiceCredentialValidator.class);
@@ -104,7 +104,7 @@ public class AuthHelper {
 
   public static PolymorphicAuthDynamicFeature getAuthFilter() {
     when(CREDENTIAL_VALIDATOR.isValid(eq(VALID_PASSWORD), eq(VALID_USER), anyLong())).thenReturn(true);
-    when(CREDENTIAL_VALIDATOR.isValid(eq(INVVALID_USER), eq(INVALID_PASSWORD), anyLong())).thenReturn(false);
+    when(CREDENTIAL_VALIDATOR.isValid(eq(INVALID_USER), eq(INVALID_PASSWORD), anyLong())).thenReturn(false);
 
     AuthFilter<BasicCredentials, User>      userAuthFilter      = new BasicCredentialAuthFilter.Builder<User>().setAuthenticator(new UserAuthenticator(CREDENTIAL_VALIDATOR)).buildAuthFilter       ();
     AuthFilter<BasicCredentials, GroupUser> groupUserAuthFilter = new BasicCredentialAuthFilter.Builder<GroupUser>().setAuthenticator(new GroupUserAuthenticator(new ServerZkAuthOperations(GROUPS_SERVER_KEY))).buildAuthFilter();
