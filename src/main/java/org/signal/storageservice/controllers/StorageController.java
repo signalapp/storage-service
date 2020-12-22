@@ -96,6 +96,6 @@ public class StorageController {
   @Timed
   @DELETE
   public CompletableFuture<Response> delete(@Auth User user) {
-    return storageManager.clearItems(user).thenApply(v -> Response.status(Response.Status.ACCEPTED).build());
+    return storageManager.clearItems(user).thenApply(v -> Response.status(Response.Status.OK).build());
   }
 }

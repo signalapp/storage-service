@@ -404,7 +404,7 @@ public class StorageControllerTest {
   }
 
   @Test
-  public void testDelete() throws IOException {
+  public void testDelete() {
     when(storageManager.clearItems(any())).thenReturn(CompletableFuture.completedFuture(null));
 
     Response response = resources.getJerseyTest()
@@ -413,7 +413,7 @@ public class StorageControllerTest {
             .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
             .delete();
 
-    assertThat(response.getStatus()).isEqualTo(202);
+    assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.hasEntity()).isFalse();
 
     verify(storageManager).clearItems(eq(new User(UUID.fromString(AuthHelper.VALID_USER))));
@@ -421,7 +421,7 @@ public class StorageControllerTest {
   }
 
   @Test
-  public void testDeleteUnauthorized() throws IOException {
+  public void testDeleteUnauthorized() {
     when(storageManager.clearItems(any())).thenReturn(CompletableFuture.completedFuture(null));
 
     Response response = resources.getJerseyTest()
