@@ -7,6 +7,7 @@ package org.signal.storageservice.configuration;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import com.google.common.annotations.VisibleForTesting;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 
@@ -19,11 +20,29 @@ public class GroupConfiguration {
   private int maxGroupSize;
 
   @JsonProperty
+  @Positive
+  private int maxGroupTitleLengthBytes;
+
+  @JsonProperty
   @NotEmpty
   private String externalServiceSecret;
 
   public int getMaxGroupSize() {
     return maxGroupSize;
+  }
+
+  @VisibleForTesting
+  public void setMaxGroupSize(int maxGroupSize) {
+    this.maxGroupSize = maxGroupSize;
+  }
+
+  public int getMaxGroupTitleLengthBytes() {
+    return maxGroupTitleLengthBytes;
+  }
+
+  @VisibleForTesting
+  public void setMaxGroupTitleLengthBytes(int maxGroupTitleLengthBytes) {
+    this.maxGroupTitleLengthBytes = maxGroupTitleLengthBytes;
   }
 
   public byte[] getExternalServiceSecret() throws DecoderException {

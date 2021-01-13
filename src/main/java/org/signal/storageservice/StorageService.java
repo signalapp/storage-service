@@ -110,7 +110,7 @@ public class StorageService extends Application<StorageServiceConfiguration> {
     environment.jersey().register(new HealthCheckController());
     environment.jersey().register(new BackupsController(backupsManager));
     environment.jersey().register(new StorageController(storageManager));
-    environment.jersey().register(new GroupsController(groupsManager, serverSecretParams, policySigner, postPolicyGenerator, config.getGroupConfiguration().getMaxGroupSize(), externalGroupCredentialGenerator));
+    environment.jersey().register(new GroupsController(groupsManager, serverSecretParams, policySigner, postPolicyGenerator, config.getGroupConfiguration(), externalGroupCredentialGenerator));
 
     environment.metrics().register(name(CpuUsageGauge.class, "cpu"), new CpuUsageGauge());
     environment.metrics().register(name(FreeMemoryGauge.class, "free_memory"), new FreeMemoryGauge());

@@ -13,6 +13,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.signal.storageservice.auth.ExternalGroupCredentialGenerator;
 import org.signal.storageservice.auth.GroupUser;
+import org.signal.storageservice.configuration.GroupConfiguration;
 import org.signal.storageservice.providers.InvalidProtocolBufferExceptionMapper;
 import org.signal.storageservice.providers.ProtocolBufferMessageBodyProvider;
 import org.signal.storageservice.providers.ProtocolBufferValidationErrorMessageBodyWriter;
@@ -77,11 +78,14 @@ public abstract class BaseGroupsControllerTest {
                                                             .addProvider(new ProtocolBufferValidationErrorMessageBodyWriter())
                                                             .addProvider(new InvalidProtocolBufferExceptionMapper())
                                                             .setMapper(SystemMapper.getMapper())
-                                                            .addResource(new GroupsController(groupsManager, AuthHelper.GROUPS_SERVER_KEY, policySigner, postPolicyGenerator, getMaxGroupSize(), groupCredentialGenerator))
+                                                            .addResource(new GroupsController(groupsManager, AuthHelper.GROUPS_SERVER_KEY, policySigner, postPolicyGenerator, getGroupConfiguration(), groupCredentialGenerator))
                                                             .build();
 
-  protected int getMaxGroupSize() {
-    return 42;
+  protected GroupConfiguration getGroupConfiguration() {
+    final GroupConfiguration groupConfiguration = new GroupConfiguration();
+    groupConfiguration.setMaxGroupSize(42);
+    groupConfiguration.setMaxGroupTitleLengthBytes(1024);
+    return groupConfiguration;
   }
 
   protected String avatarFor(byte[] groupId) {

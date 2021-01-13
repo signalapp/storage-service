@@ -8,6 +8,7 @@ package org.signal.storageservice.groups;
 import com.google.protobuf.ByteString;
 import org.apache.commons.codec.binary.Base64;
 import org.signal.storageservice.auth.GroupUser;
+import org.signal.storageservice.configuration.GroupConfiguration;
 import org.signal.storageservice.controllers.GroupsController;
 import org.signal.storageservice.storage.protos.groups.AccessControl;
 import org.signal.storageservice.storage.protos.groups.Group;
@@ -39,10 +40,12 @@ public class GroupValidator {
 
   private final ServerZkProfileOperations profileOperations;
   private final int maxGroupSize;
+  private final int maxGroupTitleLengthBytes;
 
-  public GroupValidator(ServerZkProfileOperations profileOperations, int maxGroupSize) {
+  public GroupValidator(ServerZkProfileOperations profileOperations, GroupConfiguration groupConfiguration) {
     this.profileOperations = profileOperations;
-    this.maxGroupSize = maxGroupSize;
+    this.maxGroupSize = groupConfiguration.getMaxGroupSize();
+    this.maxGroupTitleLengthBytes = groupConfiguration.getMaxGroupTitleLengthBytes();
   }
 
   public Member validateMember(Group group, Member member) throws BadRequestException {
@@ -252,6 +255,14 @@ public class GroupValidator {
   }
 
   public void validateFinalGroupState(Group group) throws BadRequestException {
+    if (group.getTitle().isEmpty()) {
+      throw new BadRequestException("group title must be non-empty and not too long");
+    }
+
+    if (group.getTitle().size() > maxGroupTitleLengthBytes) {
+      throw new BadRequestException("group title length exceeded");
+    }
+
     if (!group.getInviteLinkPassword().isEmpty() && group.getInviteLinkPassword().size() != INVITE_LINK_PASSWORD_SIZE_BYTES) {
       throw new BadRequestException("group invite link password cannot be set to invalid size");
     }

@@ -8,6 +8,7 @@ package org.signal.storageservice.controllers;
 import com.google.api.client.util.Clock;
 import com.google.protobuf.ByteString;
 import org.junit.Test;
+import org.signal.storageservice.configuration.GroupConfiguration;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;
 import org.signal.storageservice.storage.protos.groups.AccessControl;
 import org.signal.storageservice.storage.protos.groups.Group;
@@ -30,8 +31,10 @@ import static org.mockito.Mockito.when;
 
 public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
   @Override
-  protected int getMaxGroupSize() {
-    return 2;
+  protected GroupConfiguration getGroupConfiguration() {
+    final GroupConfiguration groupConfiguration = super.getGroupConfiguration();
+    groupConfiguration.setMaxGroupSize(2);
+    return groupConfiguration;
   }
 
   @Test

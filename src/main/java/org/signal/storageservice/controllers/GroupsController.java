@@ -14,6 +14,7 @@ import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.signal.storageservice.auth.ExternalGroupCredentialGenerator;
 import org.signal.storageservice.auth.GroupUser;
+import org.signal.storageservice.configuration.GroupConfiguration;
 import org.signal.storageservice.groups.GroupAuth;
 import org.signal.storageservice.groups.GroupChangeApplicator;
 import org.signal.storageservice.groups.GroupValidator;
@@ -82,12 +83,12 @@ public class GroupsController {
                           ServerSecretParams               serverSecretParams,
                           PolicySigner                     policySigner,
                           PostPolicyGenerator              policyGenerator,
-                          int                              maxGroupSize,
+                          GroupConfiguration               groupConfiguration,
                           ExternalGroupCredentialGenerator externalGroupCredentialGenerator)
   {
     this.groupsManager                    = groupsManager;
     this.serverSecretParams               = serverSecretParams;
-    this.groupValidator                   = new GroupValidator       (new ServerZkProfileOperations(serverSecretParams), maxGroupSize);
+    this.groupValidator                   = new GroupValidator       (new ServerZkProfileOperations(serverSecretParams), groupConfiguration);
     this.groupChangeApplicator            = new GroupChangeApplicator(this.groupValidator                                            );
     this.policySigner                     = policySigner;
     this.policyGenerator                  = policyGenerator;
