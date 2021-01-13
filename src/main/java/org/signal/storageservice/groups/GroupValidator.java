@@ -256,7 +256,7 @@ public class GroupValidator {
 
   public void validateFinalGroupState(Group group) throws BadRequestException {
     if (group.getTitle().isEmpty()) {
-      throw new BadRequestException("group title must be non-empty and not too long");
+      throw new BadRequestException("group title must be non-empty");
     }
 
     if (group.getTitle().size() > maxGroupTitleLengthBytes) {
