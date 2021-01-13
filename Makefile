@@ -14,21 +14,27 @@ define HELP
 endef
 
 config/production.yml: $(configuration_repo)/storage/production.yml
+	mkdir -p $(@D)
 	cp "$<" "$@"
 
 config/staging.yml: $(configuration_repo)/storage/staging.yml
+	mkdir -p $(@D)
 	cp "$<" "$@"
 
 config/build.properties: $(configuration_repo)/storage/build.properties
+	mkdir -p $(@D)
 	cp "$<" "$@"
 
 config/deploy.mk: $(configuration_repo)/storage/deploy.mk
+	mkdir -p $(@D)
 	cp "$<" "$@"
 
 config/app.yaml: $(configuration_repo)/storage/app.yaml
+	mkdir -p $(@D)
 	cp "$<" "$@"
 
 config/cron.yaml: $(configuration_repo)/storage/cron.yaml
+	mkdir -p $(@D)
 	cp "$<" "$@"
 
 include config/deploy.mk
