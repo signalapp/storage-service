@@ -1,5 +1,6 @@
 version = $(error version must be set on the command line to make)
 configuration_repo = ../configuration
+configuration_files = config/production.yml config/staging.yml config/build.properties config/deploy.mk config/app-production.yaml config/app-staging.yaml config/cron.yaml
 
 .NOTPARALLEL:
 .PHONY: help copy-config build
@@ -13,28 +14,7 @@ define HELP
 
 endef
 
-config/production.yml: $(configuration_repo)/storage/production.yml
-	mkdir -p $(@D)
-	cp "$<" "$@"
-
-config/staging.yml: $(configuration_repo)/storage/staging.yml
-	mkdir -p $(@D)
-	cp "$<" "$@"
-
-config/build.properties: $(configuration_repo)/storage/build.properties
-	mkdir -p $(@D)
-	cp "$<" "$@"
-
-config/deploy.mk: $(configuration_repo)/storage/deploy.mk
-	mkdir -p $(@D)
-	cp "$<" "$@"
-
-config/app.yaml: $(configuration_repo)/storage/app.yaml
-	mkdir -p $(@D)
-	cp "$<" "$@"
-
-config/cron.yaml: $(configuration_repo)/storage/cron.yaml
-	mkdir -p $(@D)
+$(configuration_files): config/%: $(configuration_repo)/storage/% | config
 	cp "$<" "$@"
 
 include config/deploy.mk
@@ -42,7 +22,9 @@ include config/deploy.mk
 help:
 	@echo "This makefile defines the following targets:"
 	$(HELP)
-copy-config: config/production.yml config/staging.yml config/build.properties config/deploy.mk config/app.yaml config/cron.yaml
+config:
+	mkdir -p config
+copy-config: $(configuration_files)
 build: pom.xml Dockerfile copy-config
 	@echo "Starting build for $(version)"
 	mvn clean package
