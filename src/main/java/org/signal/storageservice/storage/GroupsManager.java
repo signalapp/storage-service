@@ -48,7 +48,7 @@ public class GroupsManager {
 
     return groupLogTable.getRecordsFromVersion(groupId, fromVersionInclusive, toVersionExclusive)
                         .thenApply(groupChangeStates -> {
-                          if (isGroupInRange(group, fromVersionInclusive, toVersionExclusive) && groupVersionMissing(group, groupChangeStates)) {
+                          if (isGroupInRange(group, fromVersionInclusive, toVersionExclusive) && groupVersionMissing(group, groupChangeStates) && toVersionExclusive - 1 == group.getVersion()) {
                             groupChangeStates.add(GroupChangeState.newBuilder().setGroupState(group).build());
                           }
                           return groupChangeStates;
