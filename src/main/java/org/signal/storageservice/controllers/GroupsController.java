@@ -178,7 +178,7 @@ public class GroupsController {
       }
 
       if (latestGroupVersion + 1 - fromVersion > LOG_VERSION_LIMIT) {
-        return groupsManager.getChangeRecords(user.getGroupId(), fromVersion, fromVersion + LOG_VERSION_LIMIT)
+        return groupsManager.getChangeRecords(user.getGroupId(), group.get(), fromVersion, fromVersion + LOG_VERSION_LIMIT)
                             .thenApply(records -> Response.status(HttpStatus.SC_PARTIAL_CONTENT)
                                                           .header(HttpHeaders.CONTENT_RANGE, String.format(Locale.US, "versions %d-%d/%d", fromVersion, fromVersion + LOG_VERSION_LIMIT - 1, latestGroupVersion))
                                                           .entity(GroupChanges.newBuilder()
@@ -186,7 +186,7 @@ public class GroupsController {
                                                                               .build())
                                                           .build());
       } else {
-        return groupsManager.getChangeRecords(user.getGroupId(), fromVersion, latestGroupVersion + 1)
+        return groupsManager.getChangeRecords(user.getGroupId(), group.get(), fromVersion, latestGroupVersion + 1)
                             .thenApply(records -> Response.ok(GroupChanges.newBuilder()
                                                                           .addAllGroupChanges(records)
                                                                           .build())

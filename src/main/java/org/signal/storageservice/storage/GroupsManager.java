@@ -41,13 +41,29 @@ public class GroupsManager {
                       });
   }
 
-  public CompletableFuture<List<GroupChangeState>> getChangeRecords(ByteString groupId, int fromVersionInclusive, int toVersionExclusive) {
-    return groupLogTable.getRecordsFromVersion(groupId, fromVersionInclusive, toVersionExclusive);
+  public CompletableFuture<List<GroupChangeState>> getChangeRecords(ByteString groupId, Group group, int fromVersionInclusive, int toVersionExclusive) {
+    if (fromVersionInclusive >= toVersionExclusive) {
+      throw new IllegalArgumentException("Version to read from (" + fromVersionInclusive + ") must be less than version to read to (" + toVersionExclusive + ")");
+    }
+
+    return groupLogTable.getRecordsFromVersion(groupId, fromVersionInclusive, toVersionExclusive)
+                        .thenApply(groupChangeStates -> {
+                          if (isGroupInRange(group, fromVersionInclusive, toVersionExclusive) && groupVersionMissing(group, groupChangeStates)) {
+                            groupChangeStates.add(GroupChangeState.newBuilder().setGroupState(group).build());
+                          }
+                          return groupChangeStates;
+                        });
   }
 
   public CompletableFuture<Boolean> appendChangeRecord(ByteString groupId, int version, GroupChange change, Group state) {
     return groupLogTable.append(groupId, version, change, state);
   }
 
+  private static boolean isGroupInRange(Group group, int fromVersionInclusive, int toVersionExclusive) {
+    return fromVersionInclusive <= group.getVersion() && group.getVersion() < toVersionExclusive;
+  }
 
+  private static boolean groupVersionMissing(Group group, List<GroupChangeState> groupChangeStates) {
+    return groupChangeStates.stream().noneMatch(groupChangeState -> groupChangeState.getGroupState().getVersion() == group.getVersion());
+  }
 }

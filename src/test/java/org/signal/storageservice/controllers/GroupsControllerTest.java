@@ -2928,7 +2928,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
     }};
 
 
-    when(groupsManager.getChangeRecords(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(1), eq(6)))
+    when(groupsManager.getChangeRecords(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(group), eq(1), eq(6)))
         .thenReturn(CompletableFuture.completedFuture(expectedChanges));
 
     Response response = resources.getJerseyTest()
@@ -2982,7 +2982,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
       expectedChanges.add(generateSubjectChange(group, "New Title #" + i, i));
     }
 
-    when(groupsManager.getChangeRecords(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(6), eq(70)))
+    when(groupsManager.getChangeRecords(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(group), eq(6), eq(70)))
         .thenReturn(CompletableFuture.completedFuture(expectedChanges.subList(0, 64)));
 
     Response response = resources.getJerseyTest()

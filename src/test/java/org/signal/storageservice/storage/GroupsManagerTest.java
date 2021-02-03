@@ -350,6 +350,7 @@ public class GroupsManagerTest {
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
     ByteString        groupId           = ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize());
 
+    Group latestGroupState = null;
     for (int i=1;i<2000;i++) {
       Actions actions = Actions.newBuilder()
                                .setModifyTitle(ModifyTitleAction.newBuilder()
@@ -364,12 +365,14 @@ public class GroupsManagerTest {
       Group groupState = Group.newBuilder()
                               .setTitle(ByteString.copyFromUtf8("Some new title " + i))
                               .build();
+      latestGroupState = groupState;
 
       CompletableFuture<Boolean> insert = groupsManager.appendChangeRecord(groupId, i, change, groupState);
       assertTrue(insert.get());
     }
 
-    List<GroupChangeState> changes = groupsManager.getChangeRecords(groupId, 1, 20).get();
+    assertThat(latestGroupState).isNotNull();
+    List<GroupChangeState> changes = groupsManager.getChangeRecords(groupId, latestGroupState, 1, 20).get();
     assertThat(changes.size()).isEqualTo(19);
 
     for (int i=1;i<20;i++) {
@@ -377,7 +380,7 @@ public class GroupsManagerTest {
       assertThat(changes.get(i-1).getGroupState().getTitle().toStringUtf8()).isEqualTo("Some new title " + i);
     }
 
-    changes = groupsManager.getChangeRecords(groupId, 10, 200).get();
+    changes = groupsManager.getChangeRecords(groupId, latestGroupState, 10, 200).get();
     assertThat(changes.size()).isEqualTo(190);
 
     for (int i=10;i<200;i++) {
