@@ -41,11 +41,13 @@ public class GroupValidator {
   private final ServerZkProfileOperations profileOperations;
   private final int maxGroupSize;
   private final int maxGroupTitleLengthBytes;
+  private final int maxGroupDescriptionLengthBytes;
 
   public GroupValidator(ServerZkProfileOperations profileOperations, GroupConfiguration groupConfiguration) {
     this.profileOperations = profileOperations;
     this.maxGroupSize = groupConfiguration.getMaxGroupSize();
     this.maxGroupTitleLengthBytes = groupConfiguration.getMaxGroupTitleLengthBytes();
+    this.maxGroupDescriptionLengthBytes = groupConfiguration.getMaxGroupDescriptionLengthBytes();
   }
 
   public Member validateMember(Group group, Member member) throws BadRequestException {
@@ -261,6 +263,10 @@ public class GroupValidator {
 
     if (group.getTitle().size() > maxGroupTitleLengthBytes) {
       throw new BadRequestException("group title length exceeded");
+    }
+
+    if (group.getDescription().size() > maxGroupDescriptionLengthBytes) {
+      throw new BadRequestException("group description length exceeded");
     }
 
     if (!group.getInviteLinkPassword().isEmpty() && group.getInviteLinkPassword().size() != INVITE_LINK_PASSWORD_SIZE_BYTES) {

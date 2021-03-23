@@ -49,8 +49,13 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 public class GroupsControllerTest extends BaseGroupsControllerTest {
 
@@ -543,6 +548,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
     groupBuilder.getAccessControlBuilder().setMembers(AccessControl.AccessRequired.MEMBER);
     groupBuilder.getAccessControlBuilder().setAttributes(AccessControl.AccessRequired.MEMBER);
     groupBuilder.setTitle(ByteString.copyFromUtf8("Some title"));
+    groupBuilder.setDescription(ByteString.copyFromUtf8("Some description"));
     final String avatar = avatarFor(groupPublicParams.getGroupIdentifier().serialize());
     groupBuilder.setAvatar(avatar);
     groupBuilder.setVersion(0);
@@ -602,6 +608,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
     GroupJoinInfo groupJoinInfo = GroupJoinInfo.parseFrom(response.readEntity(InputStream.class).readAllBytes());
     assertThat(groupJoinInfo.getPublicKey().toByteArray()).isEqualTo(groupPublicParams.serialize());
     assertThat(groupJoinInfo.getTitle().toByteArray()).isEqualTo("Some title".getBytes(StandardCharsets.UTF_8));
+    assertThat(groupJoinInfo.getDescription().toByteArray()).isEqualTo("Some description".getBytes(StandardCharsets.UTF_8));
     assertThat(groupJoinInfo.getAvatar()).isEqualTo(avatar);
     assertThat(groupJoinInfo.getMemberCount()).isEqualTo(2);
     assertThat(groupJoinInfo.getAddFromInviteLink()).isEqualTo(AccessControl.AccessRequired.ANY);
@@ -656,6 +663,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
     groupJoinInfo = GroupJoinInfo.parseFrom(response.readEntity(InputStream.class).readAllBytes());
     assertThat(groupJoinInfo.getPublicKey().toByteArray()).isEqualTo(groupPublicParams.serialize());
     assertThat(groupJoinInfo.getTitle().toByteArray()).isEqualTo("Some title".getBytes(StandardCharsets.UTF_8));
+    assertThat(groupJoinInfo.getDescription().toByteArray()).isEqualTo("Some description".getBytes(StandardCharsets.UTF_8));
     assertThat(groupJoinInfo.getAvatar()).isEqualTo(avatar);
     assertThat(groupJoinInfo.getMemberCount()).isEqualTo(2);
     assertThat(groupJoinInfo.getAddFromInviteLink()).isEqualTo(AccessControl.AccessRequired.UNSATISFIABLE);
@@ -677,6 +685,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
     groupJoinInfo = GroupJoinInfo.parseFrom(response.readEntity(InputStream.class).readAllBytes());
     assertThat(groupJoinInfo.getPublicKey().toByteArray()).isEqualTo(groupPublicParams.serialize());
     assertThat(groupJoinInfo.getTitle().toByteArray()).isEqualTo("Some title".getBytes(StandardCharsets.UTF_8));
+    assertThat(groupJoinInfo.getDescription().toByteArray()).isEqualTo("Some description".getBytes(StandardCharsets.UTF_8));
     assertThat(groupJoinInfo.getAvatar()).isEqualTo(avatar);
     assertThat(groupJoinInfo.getMemberCount()).isEqualTo(2);
     assertThat(groupJoinInfo.getAddFromInviteLink()).isEqualTo(AccessControl.AccessRequired.UNSATISFIABLE);
@@ -790,7 +799,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testModifyGroupTitle() throws Exception, IOException, InvalidInputException {
+  public void testModifyGroupTitle() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -866,11 +875,10 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
-
   }
 
   @Test
-  public void testModifyGroupTitleUnauthorized() throws Exception, IOException, InvalidInputException {
+  public void testModifyGroupTitleUnauthorized() {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -920,7 +928,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testModifyGroupTitleAndUnknownField() throws Exception, IOException, InvalidInputException {
+  public void testModifyGroupTitleAndUnknownField() {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -1009,9 +1017,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
             .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
 
     StringBuilder newTitle = new StringBuilder(2048);
-    for (int i = 0; i < 2047; ++i) {
-      newTitle.append('A');
-    }
+    newTitle.append("A".repeat(2047));
     GroupChange.Actions groupChange = Actions.newBuilder()
                                              .setVersion(1)
                                              .setModifyTitle(ModifyTitleAction.newBuilder()
@@ -1031,7 +1037,88 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testModifyGroupAvatarAndTitle() throws Exception, IOException, InvalidInputException {
+  public void testModifyGroupDescription() throws Exception {
+    GroupSecretParams groupSecretParams = GroupSecretParams.generate();
+    GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
+
+    ProfileKeyCredentialPresentation validUserPresentation    = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL    );
+    ProfileKeyCredentialPresentation validUserTwoPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
+
+    Group group = Group.newBuilder()
+                       .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
+                       .setAccessControl(AccessControl.newBuilder()
+                                                      .setMembers(AccessControl.AccessRequired.MEMBER)
+                                                      .setAttributes(AccessControl.AccessRequired.MEMBER))
+                       .setTitle(ByteString.copyFromUtf8("Some title"))
+                       .setDescription(ByteString.copyFromUtf8("Some description"))
+                       .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
+                       .setVersion(0)
+                       .addMembers(Member.newBuilder()
+                                         .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
+                                         .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
+                                         .setRole(Member.Role.ADMINISTRATOR)
+                                         .build())
+                       .addMembers(Member.newBuilder()
+                                         .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
+                                         .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
+                                         .setRole(Member.Role.DEFAULT)
+                                         .build())
+                       .build();
+
+
+    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
+            .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
+
+    when(groupsManager.updateGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), any(Group.class)))
+            .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+
+    when(groupsManager.appendChangeRecord(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(1), any(GroupChange.class), any(Group.class)))
+            .thenReturn(CompletableFuture.completedFuture(true));
+
+    GroupChange.Actions groupChange = Actions.newBuilder()
+                                             .setVersion(1)
+                                             .setModifyDescription(Actions.ModifyDescriptionAction.newBuilder()
+                                                                                                  .setDescription(ByteString.copyFromUtf8("Another description")))
+                                             .build();
+
+    Response response = resources.getJerseyTest()
+                                 .target("/v1/groups/")
+                                 .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+                                 .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
+                                 .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    assertThat(response.hasEntity()).isTrue();
+    assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
+
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
+
+    ArgumentCaptor<Group> captor = ArgumentCaptor.forClass(Group.class);
+    ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
+
+    verify(groupsManager).updateGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), captor.capture());
+    verify(groupsManager).appendChangeRecord(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(1), changeCaptor.capture(), any(Group.class));
+
+    assertThat(captor.getValue().getDescription().toStringUtf8()).isEqualTo("Another description");
+    assertThat(captor.getValue().getVersion()).isEqualTo(1);
+
+    assertThat(captor.getValue().toBuilder()
+                     .setDescription(ByteString.copyFromUtf8("Some description"))
+                     .setVersion(0)
+                     .build()).isEqualTo(group);
+
+    assertThat(signedChange).isEqualTo(changeCaptor.getValue());
+    assertThat(signedChange.getChangeEpoch()).isEqualTo(2);
+    assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
+    assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
+    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
+
+    AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
+                                                                   new NotarySignature(signedChange.getServerSignature().toByteArray()));
+  }
+
+  @Test
+  public void testModifyGroupAvatarAndTitle() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 

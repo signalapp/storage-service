@@ -353,6 +353,18 @@ public class GroupChangeApplicator {
     modifiedGroupBuilder.setTitle(modifyTitle.getTitle());
   }
 
+  public void applyModifyDescription(GroupUser user, byte[] inviteLinkPassword, Group group, Group.Builder modifiedGroupBuilder, GroupChange.Actions.ModifyDescriptionAction modifyDescription) {
+    if (modifyDescription == null) {
+      return;
+    }
+
+    if (!GroupAuth.isModifyAttributesAllowed(user, group)) {
+      throw new ForbiddenException("modify description forbidden");
+    }
+
+    modifiedGroupBuilder.setDescription(modifyDescription.getDescription());
+  }
+
   public void applyModifyAvatar(GroupUser user, byte[] inviteLinkPassword, Group group, Group.Builder modifiedGroupBuilder, GroupChange.Actions.ModifyAvatarAction modifyAvatar)
           throws ForbiddenException, BadRequestException {
     if (modifyAvatar == null) {

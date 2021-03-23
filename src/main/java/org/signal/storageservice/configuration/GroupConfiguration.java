@@ -24,6 +24,10 @@ public class GroupConfiguration {
   private int maxGroupTitleLengthBytes;
 
   @JsonProperty
+  @Positive
+  private int maxGroupDescriptionLengthBytes;
+
+  @JsonProperty
   @NotEmpty
   private String externalServiceSecret;
 
@@ -43,6 +47,15 @@ public class GroupConfiguration {
   @VisibleForTesting
   public void setMaxGroupTitleLengthBytes(int maxGroupTitleLengthBytes) {
     this.maxGroupTitleLengthBytes = maxGroupTitleLengthBytes;
+  }
+
+  public int getMaxGroupDescriptionLengthBytes() {
+    return maxGroupDescriptionLengthBytes;
+  }
+
+  @VisibleForTesting
+  public void setMaxGroupDescriptionLengthBytes(int maxGroupDescriptionLengthBytes) {
+    this.maxGroupDescriptionLengthBytes = maxGroupDescriptionLengthBytes;
   }
 
   public byte[] getExternalServiceSecret() throws DecoderException {

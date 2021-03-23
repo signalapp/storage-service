@@ -68,6 +68,7 @@ import java.util.stream.Stream;
 public class GroupsController {
   private static final int LOG_VERSION_LIMIT = 64;
   private static final int INVITE_LINKS_CHANGE_EPOCH = 1;
+  private static final int DESCRIPTION_CHANGE_EPOCH = 2;
 
   private final GroupsManager             groupsManager;
   private final ServerSecretParams        serverSecretParams;
@@ -143,6 +144,7 @@ public class GroupsController {
       GroupJoinInfo.Builder groupJoinInfoBuilder = GroupJoinInfo.newBuilder();
       groupJoinInfoBuilder.setPublicKey(group.get().getPublicKey());
       groupJoinInfoBuilder.setTitle(group.get().getTitle());
+      groupJoinInfoBuilder.setDescription(group.get().getDescription());
       groupJoinInfoBuilder.setAvatar(group.get().getAvatar());
       groupJoinInfoBuilder.setMemberCount(group.get().getMembersCount());
       groupJoinInfoBuilder.setAddFromInviteLink(accessRequired);
@@ -365,6 +367,10 @@ public class GroupsController {
       if (actions.hasModifyInviteLinkPassword()) {
         groupChangeApplicator.applyModifyInviteLinkPassword(user, inviteLinkPassword, group.get(), modifiedGroupBuilder, actions.getModifyInviteLinkPassword());
         changeEpoch = Math.max(changeEpoch, INVITE_LINKS_CHANGE_EPOCH);
+      }
+      if (actions.hasModifyDescription()) {
+        groupChangeApplicator.applyModifyDescription(user, inviteLinkPassword, group.get(), modifiedGroupBuilder, actions.getModifyDescription());
+        changeEpoch = Math.max(changeEpoch, DESCRIPTION_CHANGE_EPOCH);
       }
 
       ByteString sourceUuid = Stream.of((Supplier<Optional<ByteString>>) () -> GroupAuth.getMember(user, group.get()).map(Member::getUserId),

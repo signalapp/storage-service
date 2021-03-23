@@ -85,6 +85,7 @@ public abstract class BaseGroupsControllerTest {
     final GroupConfiguration groupConfiguration = new GroupConfiguration();
     groupConfiguration.setMaxGroupSize(42);
     groupConfiguration.setMaxGroupTitleLengthBytes(1024);
+    groupConfiguration.setMaxGroupDescriptionLengthBytes(8192);
     return groupConfiguration;
   }
 
