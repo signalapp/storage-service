@@ -13,6 +13,7 @@ import com.google.cloud.bigtable.data.v2.models.Filters;
 import com.google.cloud.bigtable.data.v2.models.Mutation;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
+import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.protobuf.ByteString;
 import org.signal.storageservice.auth.User;
 import org.signal.storageservice.metrics.StorageMetrics;
@@ -35,6 +36,7 @@ public class StorageManifestsTable extends Table {
   private final Timer          getTimer             = metricRegistry.timer(name(GroupsTable.class, "get"            ));
   private final Timer          setTimer             = metricRegistry.timer(name(GroupsTable.class, "create"         ));
   private final Timer          getIfNotVersionTimer = metricRegistry.timer(name(GroupsTable.class, "getIfNotVersion"));
+  private final Timer          deleteManifestTimer  = metricRegistry.timer(name(StorageManifestsTable.class, "delete"));
 
   public StorageManifestsTable(BigtableDataClient client, String tableId) {
     super(client, tableId);
@@ -61,6 +63,10 @@ public class StorageManifestsTable extends Table {
                                                                                             .then(Filters.FILTERS.block())
                                                                                             .otherwise(Filters.FILTERS.pass())),
                     getIfNotVersionTimer).thenApply(this::getManifestFromRow);
+  }
+
+  public CompletableFuture<Void> clear(final User user) {
+    return toFuture(client.mutateRowAsync(RowMutation.create(tableId, getRowKeyForManifest(user)).deleteRow()), deleteManifestTimer);
   }
 
   private ByteString getRowKeyForManifest(User user) {

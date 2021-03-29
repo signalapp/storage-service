@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 
+import static junit.framework.TestCase.assertFalse;
 import static junit.framework.TestCase.assertTrue;
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -339,6 +340,95 @@ public class StorageManagerTest {
     }
 
     assertThat(i).isEqualTo(100);
+  }
+
+  @Test
+  public void testDelete() throws ExecutionException, InterruptedException {
+    UUID userId = UUID.randomUUID();
+    User user   = new User(userId);
+
+    UUID secondUserId = UUID.randomUUID();
+    User secondUser   = new User(secondUserId);
+
+    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+
+    client.mutateRow(RowMutation.create(MANIFESTS_TABLE_ID, userId.toString() + "#manifest",
+            Mutation.create()
+                    .setCell(StorageManifestsTable.FAMILY, StorageManifestsTable.COLUMN_VERSION, "1")
+                    .setCell(StorageManifestsTable.FAMILY, StorageManifestsTable.COLUMN_DATA, "A manifest")));
+
+    client.mutateRow(RowMutation.create(MANIFESTS_TABLE_ID, secondUserId.toString() + "#manifest",
+            Mutation.create()
+                    .setCell(StorageManifestsTable.FAMILY, StorageManifestsTable.COLUMN_VERSION, "1")
+                    .setCell(StorageManifestsTable.FAMILY, StorageManifestsTable.COLUMN_DATA, "A different manifest")));
+
+    for (int i=0;i<100;i++) {
+      client.mutateRow(RowMutation.create(CONTACTS_TABLE_ID, userId.toString() + "#contact#somekey" + String.format("%03d", i),
+              Mutation.create()
+                      .setCell(StorageItemsTable.FAMILY, StorageItemsTable.COLUMN_DATA, "data" + String.format("%03d", i))
+                      .setCell(StorageItemsTable.FAMILY, StorageItemsTable.COLUMN_KEY, "somekey" + String.format("%03d", i))));
+    }
+
+    for (int i=0;i<100;i++) {
+      client.mutateRow(RowMutation.create(CONTACTS_TABLE_ID, secondUserId.toString() + "#contact#somekey" + String.format("%03d", i),
+              Mutation.create()
+                      .setCell(StorageItemsTable.FAMILY, StorageItemsTable.COLUMN_DATA, "seconddata" + String.format("%03d", i))
+                      .setCell(StorageItemsTable.FAMILY, StorageItemsTable.COLUMN_KEY, "somekey" + String.format("%03d", i))));
+    }
+
+    ServerStream<Row> rows = client.readRows(Query.create(CONTACTS_TABLE_ID).prefix(userId.toString() + "#contact#"));
+    int i=0;
+
+    for (Row row : rows) {
+      List<RowCell> cells = row.getCells(StorageItemsTable.FAMILY, StorageItemsTable.COLUMN_DATA);
+      assertThat(cells.size()).isEqualTo(1);
+      assertThat(cells.get(0).getValue().toStringUtf8()).isEqualTo("data" + String.format("%03d", i));
+      i++;
+    }
+
+    assertThat(i).isEqualTo(100);
+
+    rows = client.readRows(Query.create(CONTACTS_TABLE_ID).prefix(secondUserId.toString() + "#contact#"));
+    i=0;
+
+    for (Row row : rows) {
+      List<RowCell> cells = row.getCells(StorageItemsTable.FAMILY, StorageItemsTable.COLUMN_DATA);
+      assertThat(cells.size()).isEqualTo(1);
+      assertThat(cells.get(0).getValue().toStringUtf8()).isEqualTo("seconddata" + String.format("%03d", i));
+      i++;
+    }
+
+    assertThat(i).isEqualTo(100);
+
+    contactsManager.delete(user).join();
+
+    rows = client.readRows(Query.create(CONTACTS_TABLE_ID).prefix(userId.toString() + "#contact#"));
+    i=0;
+
+    for (Row row : rows) {
+      i++;
+    }
+
+    assertThat(i).isEqualTo(0);
+
+    rows = client.readRows(Query.create(CONTACTS_TABLE_ID).prefix(secondUserId.toString() + "#contact#"));
+    i=0;
+
+    for (Row row : rows) {
+      List<RowCell> cells = row.getCells(StorageItemsTable.FAMILY, StorageItemsTable.COLUMN_DATA);
+      assertThat(cells.size()).isEqualTo(1);
+      assertThat(cells.get(0).getValue().toStringUtf8()).isEqualTo("seconddata" + String.format("%03d", i));
+      i++;
+    }
+
+    assertThat(i).isEqualTo(100);
+
+    assertFalse(contactsManager.getManifest(user).join().isPresent());
+
+    Optional<StorageManifest> manifest = contactsManager.getManifest(secondUser).join();
+    assertTrue(manifest.isPresent());
+    assertThat(manifest.get().getVersion()).isEqualTo(1);
+    assertThat(manifest.get().getValue().toStringUtf8()).isEqualTo("A different manifest");
   }
 
 }

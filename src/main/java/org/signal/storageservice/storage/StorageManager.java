@@ -52,4 +52,7 @@ public class StorageManager {
     return itemsTable.clear(user);
   }
 
+  public CompletableFuture<Void> delete(User user) {
+    return CompletableFuture.allOf(itemsTable.clear(user), manifestsTable.clear(user));
+  }
 }
