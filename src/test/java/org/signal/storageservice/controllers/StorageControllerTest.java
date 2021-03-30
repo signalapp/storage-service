@@ -405,7 +405,7 @@ public class StorageControllerTest {
 
   @Test
   public void testDelete() {
-    when(storageManager.clearItems(any())).thenReturn(CompletableFuture.completedFuture(null));
+    when(storageManager.delete(any())).thenReturn(CompletableFuture.completedFuture(null));
 
     Response response = resources.getJerseyTest()
             .target("/v1/storage")
@@ -416,7 +416,7 @@ public class StorageControllerTest {
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.hasEntity()).isFalse();
 
-    verify(storageManager).clearItems(eq(new User(UUID.fromString(AuthHelper.VALID_USER))));
+    verify(storageManager).delete(eq(new User(UUID.fromString(AuthHelper.VALID_USER))));
     verifyNoMoreInteractions(storageManager);
   }
 
