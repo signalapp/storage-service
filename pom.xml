@@ -6,7 +6,7 @@
 
     <groupId>org.signal.storage</groupId>
     <artifactId>StorageService</artifactId>
-    <version>1.66</version>
+    <version>1.67</version>
 
     <properties>
         <dropwizard.version>2.0.8</dropwizard.version>
