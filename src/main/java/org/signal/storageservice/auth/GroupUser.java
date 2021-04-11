@@ -61,7 +61,7 @@ public class GroupUser implements Principal {
 
   @Override
   public boolean equals(Object other) {
-    if (other == null || !(other instanceof GroupUser)) return false;
+    if (!(other instanceof GroupUser)) return false;
 
     GroupUser that = (GroupUser)other;
 
