@@ -15,7 +15,7 @@ define HELP
 endef
 
 $(configuration_files): config/%: $(configuration_repo)/storage/% | config
-	cp "$<" "$@"
+	cp -v "$<" "$@"
 
 include config/deploy.mk
 
