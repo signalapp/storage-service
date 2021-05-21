@@ -6,7 +6,7 @@
 
     <groupId>org.signal.storage</groupId>
     <artifactId>StorageService</artifactId>
-    <version>1.70</version>
+    <version>JGITVER</version>
 
     <properties>
         <dropwizard.version>2.0.8</dropwizard.version>
@@ -98,7 +98,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.0</version>
+                <version>3.8.1</version>
                 <configuration>
                     <source>11</source>
                     <target>11</target>
@@ -107,7 +107,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
-                <version>3.1.1</version>
+                <version>3.2.0</version>
                 <configuration>
                     <archive>
                         <manifest>
@@ -121,7 +121,7 @@
             </plugin>
             <plugin>
                 <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.1.1</version>
+                <version>3.1.2</version>
                 <executions>
                     <execution>
                         <phase>initialize</phase>
@@ -143,6 +143,14 @@
                 <configuration>
                     <skip>true</skip>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+              <artifactId>maven-install-plugin</artifactId>
+              <version>3.0.0-M1</version>
+              <configuration>
+                <skip>true</skip>
+              </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -238,6 +246,68 @@
                     </plugin>
                 </plugins>
             </build>
+        </profile>
+
+        <profile>
+          <id>appengine-deploy</id>
+          <activation>
+            <activeByDefault>false</activeByDefault>
+            <file><exists>${configuration.path}/build.properties</exists></file>
+          </activation>
+          <build>
+           <plugins>
+             <plugin>
+               <groupId>org.codehaus.mojo</groupId>
+               <artifactId>properties-maven-plugin</artifactId>
+               <version>1.0.0</version>
+               <executions>
+                 <execution>
+                   <phase>initialize</phase>
+                   <goals>
+                     <goal>read-project-properties</goal>
+                   </goals>
+                   <configuration>
+                     <files>
+                       <file>${configuration.path}/build.properties</file>
+                     </files>
+                   </configuration>
+                 </execution>
+               </executions>
+             </plugin>
+             <plugin>
+               <groupId>com.google.cloud.tools</groupId>
+               <artifactId>appengine-maven-plugin</artifactId>
+               <version>2.4.0</version>
+               <executions>
+                 <execution>
+                   <id>staging</id>
+                   <goals>
+                     <goal>deployAll</goal>
+                   </goals>
+                   <configuration>
+                     <appEngineDirectory>${configuration.path}/appengine-staging</appEngineDirectory>
+                     <projectId>${appengine.projectid.staging}</projectId>
+                     <imageUrl>${docker.repo.staging}:${project.version}-staging</imageUrl>
+                     <version>GCLOUD_CONFIG</version>
+                   </configuration>
+                 </execution>
+                 <execution>
+                   <id>production</id>
+                   <phase>none</phase>
+                   <goals>
+                     <goal>deployAll</goal>
+                   </goals>
+                   <configuration>
+                     <appEngineDirectory>${configuration.path}/appengine-production</appEngineDirectory>
+                     <projectId>${appengine.projectid.production}</projectId>
+                     <imageUrl>${docker.repo.production}:${project.version}-production</imageUrl>
+                     <version>GCLOUD_CONFIG</version>
+                   </configuration>
+                 </execution>
+               </executions>
+             </plugin>
+           </plugins>
+          </build>
         </profile>
     </profiles>
 

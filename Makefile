@@ -1,31 +1,21 @@
-version = $(error version must be set on the command line to make)
 configuration_repo = ../configuration
-configuration_files = config/production.yml config/staging.yml config/build.properties config/deploy.mk config/app-production.yaml config/app-staging.yaml config/cron.yaml
+configuration_files = config/production.yml config/staging.yml config/build.properties config/appengine-production/app.yaml config/appengine-production/cron.yaml config/appengine-staging/app.yaml config/appengine-staging/cron.yaml
 
 .NOTPARALLEL:
-.PHONY: help copy-config build
-
-define HELP
-	@echo "  * help: Show this message"
-	@echo "  * build: Runs the maven build to build the Java and both production and staging docker images"
-	@echo "  * copy-config: Copies configuration from the configuration repo into the config directory"
-	@echo "                 + configuration_repo variable may be set to control where to read from"
-	@echo "                   (defaults to $(configuration_repo))"
-
-endef
-
-$(configuration_files): config/%: $(configuration_repo)/storage/% | config
-	cp -v "$<" "$@"
-
-include config/deploy.mk
+.PHONY: help copy-config deploy-staging deploy
 
 help:
 	@echo "This makefile defines the following targets:"
-	$(HELP)
+	@echo "  * help: Show this message"
+	@echo "  * copy-config: Copies configuration from the configuration repo into the config directory"
+	@echo "                 + configuration_repo variable may be set to control where to read from"
+	@echo "                   (defaults to $(configuration_repo))"
 config:
 	mkdir -p config
+$(configuration_files): config/%: $(configuration_repo)/storage/% | config
+	cp "$<" "$@"
 copy-config: $(configuration_files)
-build: pom.xml Dockerfile copy-config
-	@echo "Starting build for $(version)"
-	mvn clean package
-	@echo "Finished build for $(version)"
+deploy-staging: copy-config
+	mvn clean deploy
+deploy: copy-config
+	mvn clean deploy appengine:deployAll@production
