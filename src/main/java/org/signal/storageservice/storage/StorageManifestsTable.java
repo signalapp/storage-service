@@ -33,10 +33,10 @@ public class StorageManifestsTable extends Table {
   static final String COLUMN_DATA    = "dat";
 
   private final MetricRegistry metricRegistry       = SharedMetricRegistries.getOrCreate(StorageMetrics.NAME);
-  private final Timer          getTimer             = metricRegistry.timer(name(GroupsTable.class, "get"            ));
-  private final Timer          setTimer             = metricRegistry.timer(name(GroupsTable.class, "create"         ));
-  private final Timer          getIfNotVersionTimer = metricRegistry.timer(name(GroupsTable.class, "getIfNotVersion"));
-  private final Timer          deleteManifestTimer  = metricRegistry.timer(name(StorageManifestsTable.class, "delete"));
+  private final Timer          getTimer             = metricRegistry.timer(name(StorageManifestsTable.class, "get"            ));
+  private final Timer          setTimer             = metricRegistry.timer(name(StorageManifestsTable.class, "create"         ));
+  private final Timer          getIfNotVersionTimer = metricRegistry.timer(name(StorageManifestsTable.class, "getIfNotVersion"));
+  private final Timer          deleteManifestTimer  = metricRegistry.timer(name(StorageManifestsTable.class, "delete"         ));
 
   public StorageManifestsTable(BigtableDataClient client, String tableId) {
     super(client, tableId);
