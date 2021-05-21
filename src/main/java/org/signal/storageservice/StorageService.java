@@ -5,6 +5,8 @@
 
 package org.signal.storageservice;
 
+import static com.codahale.metrics.MetricRegistry.name;
+
 import com.codahale.metrics.SharedMetricRegistries;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
@@ -23,7 +25,7 @@ import io.dropwizard.auth.basic.BasicCredentialAuthFilter;
 import io.dropwizard.auth.basic.BasicCredentials;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
-
+import java.util.List;
 import org.signal.storageservice.auth.ExternalGroupCredentialGenerator;
 import org.signal.storageservice.auth.ExternalServiceCredentialValidator;
 import org.signal.storageservice.auth.GroupUser;
@@ -51,10 +53,6 @@ import org.signal.storageservice.storage.GroupsManager;
 import org.signal.storageservice.storage.StorageManager;
 import org.signal.zkgroup.ServerSecretParams;
 import org.signal.zkgroup.auth.ServerZkAuthOperations;
-
-import java.util.List;
-
-import static com.codahale.metrics.MetricRegistry.name;
 
 public class StorageService extends Application<StorageServiceConfiguration> {
 
