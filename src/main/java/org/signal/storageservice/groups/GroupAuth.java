@@ -167,6 +167,10 @@ public class GroupAuth {
     return isAdminstrator(user, group);
   }
 
+  public static boolean isModifyAnnouncementsOnlyAllowed(GroupUser user, Group group) {
+    return isAdminstrator(user, group);
+  }
+
   public static boolean isAddMembersPendingAdminApprovalAllowed(GroupUser user, byte[] inviteLinkPassword, Group group) {
     return group.getAccessControl().getAddFromInviteLink() == AccessControl.AccessRequired.ADMINISTRATOR &&
             MessageDigest.isEqual(group.getInviteLinkPassword().toByteArray(), inviteLinkPassword);

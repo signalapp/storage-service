@@ -543,4 +543,12 @@ public class GroupChangeApplicator {
 
     modifiedGroupBuilder.setInviteLinkPassword(modifyInviteLinkPassword.getInviteLinkPassword());
   }
+
+  public void applyModifyAnnouncementsOnly(GroupUser user, byte[] inviteLinkPassword, Group group, Group.Builder modifiedGroupBuilder, GroupChange.Actions.ModifyAnnouncementsOnlyAction modifyAnnouncementsOnly) throws ForbiddenException {
+    if (!GroupAuth.isModifyAnnouncementsOnlyAllowed(user, group)) {
+      throw new ForbiddenException();
+    }
+
+    modifiedGroupBuilder.setAnnouncementsOnly(modifyAnnouncementsOnly.getAnnouncementsOnly());
+  }
 }
