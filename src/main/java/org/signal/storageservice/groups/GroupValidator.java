@@ -284,6 +284,11 @@ public class GroupValidator {
       throw new BadRequestException("group size cannot exceed " + maxGroupSize);
     }
 
+    // put some sort of cap on the maximum number of accounts that can be pending admin review
+    if (group.getMembersPendingAdminApprovalCount() > maxGroupSize) {
+      throw new BadRequestException("members pending admin approval cannot exceed " + maxGroupSize);
+    }
+
     Set<ByteString> membersUserIds = group.getMembersList().stream().map(Member::getUserId).collect(Collectors.toSet());
     Set<ByteString> membersPendingProfileKeyUserIds = group.getMembersPendingProfileKeyList().stream().map(member -> member.getMember().getUserId()).collect(Collectors.toSet());
     Set<ByteString> membersPendingAdminApprovalUserIds = group.getMembersPendingAdminApprovalList().stream().map(MemberPendingAdminApproval::getUserId).collect(Collectors.toSet());
