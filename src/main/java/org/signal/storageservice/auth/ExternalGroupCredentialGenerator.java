@@ -8,8 +8,6 @@ package org.signal.storageservice.auth;
 import com.google.protobuf.ByteString;
 import org.apache.commons.codec.binary.Hex;
 import org.signal.storageservice.util.Util;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
@@ -18,8 +16,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 
 public class ExternalGroupCredentialGenerator {
-
-  private final Logger logger = LoggerFactory.getLogger(ExternalGroupCredentialGenerator.class);
 
   private final byte[]  key;
 
