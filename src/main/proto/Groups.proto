@@ -89,7 +89,8 @@ message GroupJoinInfo {
   AccessControl.AccessRequired addFromInviteLink = 5;
   uint32 version = 6;
   bool pendingAdminApproval = 7;
-  // next: 9
+  bool pendingAdminApprovalFull = 9;
+  // next: 10
 }
 
 // Deltas
