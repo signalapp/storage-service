@@ -117,7 +117,7 @@ public class ProtocolBufferMessageBodyProvider
       final MediaType mediaType) {
 
     if (mediaType.getSubtype().contains("text-format")) {
-      final String formatted = TextFormat.printToUnicodeString(m);
+      final String formatted = TextFormat.printer().escapingNonAscii(false).printToString(m);
       return formatted.getBytes(StandardCharsets.UTF_8).length;
     } else if (mediaType.getSubtype().contains("json-format")) {
       try {
