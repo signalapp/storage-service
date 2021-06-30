@@ -5,10 +5,14 @@
 
 package org.signal.storageservice.controllers;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+
 import com.google.api.client.util.Base64;
 import com.google.protobuf.ByteString;
 import io.dropwizard.auth.AuthValueFactoryProvider;
 import io.dropwizard.testing.junit.ResourceTestRule;
+import java.security.SecureRandom;
 import org.junit.Before;
 import org.junit.Rule;
 import org.signal.storageservice.auth.ExternalGroupCredentialGenerator;
@@ -31,11 +35,6 @@ import org.signal.zkgroup.groups.GroupSecretParams;
 import org.signal.zkgroup.profiles.ClientZkProfileOperations;
 import org.signal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 
-import java.security.SecureRandom;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.reset;
-
 public abstract class BaseGroupsControllerTest {
   protected final ExternalGroupCredentialGenerator groupCredentialGenerator   = new ExternalGroupCredentialGenerator(Util.generateSecretBytes(32));
   protected final GroupSecretParams                groupSecretParams          = GroupSecretParams.generate();
@@ -43,6 +42,7 @@ public abstract class BaseGroupsControllerTest {
   protected final ProfileKeyCredentialPresentation validUserPresentation      = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL);
   protected final ProfileKeyCredentialPresentation validUserTwoPresentation   = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
   protected final ProfileKeyCredentialPresentation validUserThreePresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_THREE_PROFILE_CREDENTIAL);
+  protected final ProfileKeyCredentialPresentation validUserFourPresentation  = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_FOUR_PROFILE_CREDENTIAL);
   protected final GroupsManager                    groupsManager              = mock(GroupsManager.class);
   protected final PostPolicyGenerator              postPolicyGenerator        = new PostPolicyGenerator("us-west-1", "profile-bucket", "accessKey");
   protected final PolicySigner                     policySigner               = new PolicySigner("accessSecret", "us-west-1");

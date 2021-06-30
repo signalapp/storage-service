@@ -5,11 +5,19 @@
 
 package org.signal.storageservice.util;
 
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.google.common.collect.ImmutableMap;
 import io.dropwizard.auth.AuthFilter;
 import io.dropwizard.auth.PolymorphicAuthDynamicFeature;
 import io.dropwizard.auth.basic.BasicCredentialAuthFilter;
 import io.dropwizard.auth.basic.BasicCredentials;
+import java.security.SecureRandom;
+import java.util.Base64;
+import java.util.UUID;
 import org.apache.commons.codec.binary.Hex;
 import org.signal.storageservice.auth.ExternalServiceCredentialValidator;
 import org.signal.storageservice.auth.GroupUser;
@@ -32,15 +40,6 @@ import org.signal.zkgroup.profiles.ProfileKeyCredentialRequestContext;
 import org.signal.zkgroup.profiles.ProfileKeyCredentialResponse;
 import org.signal.zkgroup.profiles.ServerZkProfileOperations;
 
-import java.security.SecureRandom;
-import java.util.Base64;
-import java.util.UUID;
-
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
 public class AuthHelper {
   public static final String VALID_USER             = UUID.randomUUID().toString();
   public static final byte[] VALID_USER_PROFILE_KEY = new byte[32];
@@ -54,6 +53,10 @@ public class AuthHelper {
   public static final byte[] VALID_USER_THREE_PROFILE_KEY = new byte[32];
   public static final String VALID_PASSWORD_THREE         = "baz";
 
+  public static final String VALID_USER_FOUR             = UUID.randomUUID().toString();
+  public static final byte[] VALID_USER_FOUR_PROFILE_KEY = new byte[32];
+  public static final String VALID_PASSWORD_FOUR         = "password";
+
   public static final String INVALID_USER     = UUID.randomUUID().toString();
   public static final String INVALID_PASSWORD = "bar";
 
@@ -63,10 +66,12 @@ public class AuthHelper {
   public static final AuthCredential         VALID_USER_AUTH_CREDENTIAL;
   public static final AuthCredential         VALID_USER_TWO_AUTH_CREDENTIAL;
   public static final AuthCredential         VALID_USER_THREE_AUTH_CREDENTIAL;
+  public static final AuthCredential         VALID_USER_FOUR_AUTH_CREDENTIAL;
 
   public static final ProfileKeyCredential   VALID_USER_PROFILE_CREDENTIAL;
   public static final ProfileKeyCredential   VALID_USER_TWO_PROFILE_CREDENTIAL;
   public static final ProfileKeyCredential   VALID_USER_THREE_PROFILE_CREDENTIAL;
+  public static final ProfileKeyCredential   VALID_USER_FOUR_PROFILE_CREDENTIAL;
 
   static {
     try {
@@ -74,29 +79,38 @@ public class AuthHelper {
       AuthCredentialResponse validUserResponse    = new ServerZkAuthOperations(GROUPS_SERVER_KEY).issueAuthCredential(UUID.fromString(VALID_USER    ), redemptionTime);
       AuthCredentialResponse validUserTwoResponse = new ServerZkAuthOperations(GROUPS_SERVER_KEY).issueAuthCredential(UUID.fromString(VALID_USER_TWO), redemptionTime);
       AuthCredentialResponse validUserThreeResponse = new ServerZkAuthOperations(GROUPS_SERVER_KEY).issueAuthCredential(UUID.fromString(VALID_USER_THREE), redemptionTime);
+      AuthCredentialResponse validUserFourResponse = new ServerZkAuthOperations(GROUPS_SERVER_KEY).issueAuthCredential(UUID.fromString(VALID_USER_FOUR), redemptionTime);
 
       VALID_USER_AUTH_CREDENTIAL = new ClientZkAuthOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveAuthCredential(UUID.fromString(VALID_USER), redemptionTime, validUserResponse);
       VALID_USER_TWO_AUTH_CREDENTIAL = new ClientZkAuthOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveAuthCredential(UUID.fromString(VALID_USER_TWO), redemptionTime, validUserTwoResponse);
       VALID_USER_THREE_AUTH_CREDENTIAL = new ClientZkAuthOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveAuthCredential(UUID.fromString(VALID_USER_THREE), redemptionTime, validUserThreeResponse);
+      VALID_USER_FOUR_AUTH_CREDENTIAL = new ClientZkAuthOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveAuthCredential(UUID.fromString(VALID_USER_FOUR), redemptionTime, validUserFourResponse);
 
-      new SecureRandom().nextBytes(VALID_USER_PROFILE_KEY);
-      new SecureRandom().nextBytes(VALID_USER_TWO_PROFILE_KEY);
+      final SecureRandom secureRandom = new SecureRandom();
+      secureRandom.nextBytes(VALID_USER_PROFILE_KEY);
+      secureRandom.nextBytes(VALID_USER_TWO_PROFILE_KEY);
+      secureRandom.nextBytes(VALID_USER_THREE_PROFILE_KEY);
+      secureRandom.nextBytes(VALID_USER_FOUR_PROFILE_KEY);
 
       ProfileKey validUserProfileKey    = new ProfileKey(VALID_USER_PROFILE_KEY    );
       ProfileKey validUserTwoProfileKey = new ProfileKey(VALID_USER_TWO_PROFILE_KEY);
       ProfileKey validUserThreeProfileKey = new ProfileKey(VALID_USER_THREE_PROFILE_KEY);
+      ProfileKey validUserFourProfileKey = new ProfileKey(VALID_USER_FOUR_PROFILE_KEY);
 
       ProfileKeyCredentialRequestContext validUserProfileKeyCredentialRequestContext = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialRequestContext(UUID.fromString(VALID_USER), validUserProfileKey);
       ProfileKeyCredentialRequestContext validUserTwoProfileKeyCredentialRequestContext = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialRequestContext(UUID.fromString(VALID_USER_TWO), validUserTwoProfileKey);
       ProfileKeyCredentialRequestContext validUserThreeProfileKeyCredentialRequestContext = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialRequestContext(UUID.fromString(VALID_USER_THREE), validUserThreeProfileKey);
+      ProfileKeyCredentialRequestContext validUserFourProfileKeyCredentialRequestContext = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialRequestContext(UUID.fromString(VALID_USER_FOUR), validUserFourProfileKey);
 
       ProfileKeyCredentialResponse       validUserProfileKeyCredentialResponse       = new ServerZkProfileOperations(GROUPS_SERVER_KEY).issueProfileKeyCredential(validUserProfileKeyCredentialRequestContext.getRequest(), UUID.fromString(VALID_USER), validUserProfileKey.getCommitment(UUID.fromString(VALID_USER)));
       ProfileKeyCredentialResponse       validUserTwoProfileKeyCredentialResponse    = new ServerZkProfileOperations(GROUPS_SERVER_KEY).issueProfileKeyCredential(validUserTwoProfileKeyCredentialRequestContext.getRequest(), UUID.fromString(VALID_USER_TWO), validUserTwoProfileKey.getCommitment(UUID.fromString(VALID_USER_TWO)));
       ProfileKeyCredentialResponse       validUserThreeProfileKeyCredentialResponse    = new ServerZkProfileOperations(GROUPS_SERVER_KEY).issueProfileKeyCredential(validUserThreeProfileKeyCredentialRequestContext.getRequest(), UUID.fromString(VALID_USER_THREE), validUserThreeProfileKey.getCommitment(UUID.fromString(VALID_USER_THREE)));
+      ProfileKeyCredentialResponse       validUserFourProfileKeyCredentialResponse = new ServerZkProfileOperations(GROUPS_SERVER_KEY).issueProfileKeyCredential(validUserFourProfileKeyCredentialRequestContext.getRequest(), UUID.fromString(VALID_USER_FOUR), validUserFourProfileKey.getCommitment(UUID.fromString(VALID_USER_FOUR)));
 
       VALID_USER_PROFILE_CREDENTIAL     = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveProfileKeyCredential(validUserProfileKeyCredentialRequestContext, validUserProfileKeyCredentialResponse      );
       VALID_USER_TWO_PROFILE_CREDENTIAL = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveProfileKeyCredential(validUserTwoProfileKeyCredentialRequestContext, validUserTwoProfileKeyCredentialResponse);
       VALID_USER_THREE_PROFILE_CREDENTIAL = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveProfileKeyCredential(validUserThreeProfileKeyCredentialRequestContext, validUserThreeProfileKeyCredentialResponse);
+      VALID_USER_FOUR_PROFILE_CREDENTIAL = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveProfileKeyCredential(validUserFourProfileKeyCredentialRequestContext, validUserFourProfileKeyCredentialResponse);
     } catch (VerificationFailedException | InvalidInputException e) {
       throw new AssertionError(e);
     }

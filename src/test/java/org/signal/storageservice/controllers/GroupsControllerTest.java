@@ -611,6 +611,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(groupJoinInfo.getAddFromInviteLink()).isEqualTo(AccessControl.AccessRequired.ANY);
     assertThat(groupJoinInfo.getVersion()).isEqualTo(42);
     assertThat(groupJoinInfo.getPendingAdminApproval()).isFalse();
+    assertThat(groupJoinInfo.getPendingAdminApprovalFull()).isFalse();
 
     groupBuilder.setVersion(0);
 
@@ -666,6 +667,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(groupJoinInfo.getAddFromInviteLink()).isEqualTo(AccessControl.AccessRequired.UNSATISFIABLE);
     assertThat(groupJoinInfo.getVersion()).isEqualTo(0);
     assertThat(groupJoinInfo.getPendingAdminApproval()).isTrue();
+    assertThat(groupJoinInfo.getPendingAdminApprovalFull()).isFalse();
 
     when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
             .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
@@ -688,6 +690,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(groupJoinInfo.getAddFromInviteLink()).isEqualTo(AccessControl.AccessRequired.UNSATISFIABLE);
     assertThat(groupJoinInfo.getVersion()).isEqualTo(0);
     assertThat(groupJoinInfo.getPendingAdminApproval()).isTrue();
+    assertThat(groupJoinInfo.getPendingAdminApprovalFull()).isFalse();
   }
 
   @Test

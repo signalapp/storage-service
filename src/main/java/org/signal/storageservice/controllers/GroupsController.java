@@ -151,6 +151,7 @@ public class GroupsController {
       groupJoinInfoBuilder.setAddFromInviteLink(accessRequired);
       groupJoinInfoBuilder.setVersion(group.get().getVersion());
       groupJoinInfoBuilder.setPendingAdminApproval(pendingAdminApproval);
+      groupJoinInfoBuilder.setPendingAdminApprovalFull(groupValidator.isPendingAdminApprovalFull(group.get()));
       return Response.ok(groupJoinInfoBuilder.build()).build();
     });
   }

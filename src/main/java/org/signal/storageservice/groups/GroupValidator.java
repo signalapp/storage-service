@@ -256,6 +256,10 @@ public class GroupValidator {
     return object.length == 16;
   }
 
+  public boolean isPendingAdminApprovalFull(Group group) {
+    return group.getMembersPendingAdminApprovalCount() >= maxGroupSize;
+  }
+
   public void validateFinalGroupState(Group group) throws BadRequestException {
     if (group.getTitle().isEmpty()) {
       throw new BadRequestException("group title must be non-empty");
