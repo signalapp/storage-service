@@ -2,3 +2,6 @@
 /config
 /target
 *.iml
+.classpath
+.settings
+.project
