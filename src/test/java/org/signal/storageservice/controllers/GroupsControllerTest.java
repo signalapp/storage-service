@@ -3289,7 +3289,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
     ExternalGroupCredential credential = ExternalGroupCredential.parseFrom(entity);
 
     assertThat(credential.getToken()).isNotBlank();
-    assertThat(credential.getToken().split(":").length).isEqualTo(4);
+    assertThat(credential.getToken().split(":").length).isEqualTo(6);
   }
 
   @Test

@@ -13,6 +13,7 @@ import com.google.protobuf.ByteString;
 import io.dropwizard.auth.AuthValueFactoryProvider;
 import io.dropwizard.testing.junit.ResourceTestRule;
 import java.security.SecureRandom;
+import java.time.Clock;
 import org.junit.Before;
 import org.junit.Rule;
 import org.signal.storageservice.auth.ExternalGroupCredentialGenerator;
@@ -36,7 +37,8 @@ import org.signal.zkgroup.profiles.ClientZkProfileOperations;
 import org.signal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 
 public abstract class BaseGroupsControllerTest {
-  protected final ExternalGroupCredentialGenerator groupCredentialGenerator   = new ExternalGroupCredentialGenerator(Util.generateSecretBytes(32));
+  protected final ExternalGroupCredentialGenerator groupCredentialGenerator   = new ExternalGroupCredentialGenerator(
+      Util.generateSecretBytes(32), Clock.systemUTC());
   protected final GroupSecretParams                groupSecretParams          = GroupSecretParams.generate();
   protected final GroupPublicParams                groupPublicParams          = groupSecretParams.getPublicParams();
   protected final ProfileKeyCredentialPresentation validUserPresentation      = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL);

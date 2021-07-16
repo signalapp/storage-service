@@ -430,7 +430,8 @@ public class GroupsController {
       Optional<Member> member = GroupAuth.getMember(user, group.get());
 
       if (member.isPresent()) {
-        String                  token      = externalGroupCredentialGenerator.generateFor(member.get().getUserId(), user.getGroupId());
+        String token = externalGroupCredentialGenerator.generateFor(
+            member.get().getUserId(), user.getGroupId(), GroupAuth.isAllowedToInitiateGroupCall(user, group.get()));
         ExternalGroupCredential credential = ExternalGroupCredential.newBuilder().setToken(token).build();
 
         return Response.ok(credential).build();

@@ -183,4 +183,8 @@ public class GroupAuth {
   public static boolean isPromoteMembersPendingAdminApprovalAllowed(GroupUser user, Group group) {
     return isAdminstrator(user, group);
   }
+
+  public static boolean isAllowedToInitiateGroupCall(GroupUser user, Group group) {
+    return !group.getAnnouncementsOnly() || isAdminstrator(user, group);
+  }
 }
