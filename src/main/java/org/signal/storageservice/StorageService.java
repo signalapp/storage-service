@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 Signal Messenger, LLC
+ * Copyright 2020-2021 Signal Messenger, LLC
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
@@ -52,6 +52,7 @@ import org.signal.storageservice.s3.PostPolicyGenerator;
 import org.signal.storageservice.storage.BackupsManager;
 import org.signal.storageservice.storage.GroupsManager;
 import org.signal.storageservice.storage.StorageManager;
+import org.signal.storageservice.util.UncaughtExceptionHandler;
 import org.signal.zkgroup.ServerSecretParams;
 import org.signal.zkgroup.auth.ServerZkAuthOperations;
 
@@ -63,6 +64,8 @@ public class StorageService extends Application<StorageServiceConfiguration> {
   @Override
   public void run(StorageServiceConfiguration config, Environment environment) throws Exception {
     SharedMetricRegistries.add(StorageMetrics.NAME, environment.metrics());
+
+    UncaughtExceptionHandler.register();
 
     BigtableTableAdminSettings bigtableTableAdminSettings = BigtableTableAdminSettings.newBuilder()
                                                                                       .setProjectId(config.getBigTableConfiguration().getProjectId())
