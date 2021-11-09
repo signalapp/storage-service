@@ -64,9 +64,9 @@
             <version>0.9.30</version>
         </dependency>
         <dependency>
-            <groupId>org.signal</groupId>
-            <artifactId>zkgroup-java</artifactId>
-            <version>0.8.1</version>
+            <groupId>org.whispersystems</groupId>
+            <artifactId>libsignal-server</artifactId>
+            <version>0.14.0</version>
         </dependency>
         <dependency>
             <groupId>net.logstash.logback</groupId>

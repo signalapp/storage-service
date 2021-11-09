@@ -474,7 +474,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
                                          .setRole(Member.Role.ADMINISTRATOR)
                                          .build())
                        .addMembers(Member.newBuilder()
-                                         .setPresentation(ByteString.copyFrom(new byte[ProfileKeyCredentialPresentation.SIZE]))
+                                         .setPresentation(ByteString.copyFrom(new byte[5]))
                                          .setRole(Member.Role.DEFAULT)
                                          .build())
                        .build();
