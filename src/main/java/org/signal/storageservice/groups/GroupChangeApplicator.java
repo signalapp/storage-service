@@ -14,10 +14,12 @@ import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.CollectionUtil;
+import org.signal.zkgroup.profiles.PniCredentialPresentation;
 import org.signal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ForbiddenException;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -175,7 +177,7 @@ public class GroupChangeApplicator {
     List<ProfileKeyCredentialPresentation> presentations = new LinkedList<>();
 
     for (GroupChange.Actions.ModifyMemberProfileKeyAction action : modifyMembers) {
-      presentations.add(groupValidator.validatePresentationUpdate(user, group, action.getPresentation()));
+      presentations.add(groupValidator.validateProfileKeyPresentationUpdate(user, group, action.getPresentation()));
     }
 
     if (CollectionUtil.containsDuplicates(presentations.stream().map(presentation -> ByteString.copyFrom(presentation.getUuidCiphertext().serialize())).collect(Collectors.toList()))) {
@@ -305,7 +307,7 @@ public class GroupChangeApplicator {
     List<ProfileKeyCredentialPresentation> presentations = new LinkedList<>();
 
     for (GroupChange.Actions.PromoteMemberPendingProfileKeyAction action : promoteMembersPendingProfileKey) {
-      presentations.add(groupValidator.validatePresentationUpdate(user, group, action.getPresentation()));
+      presentations.add(groupValidator.validateProfileKeyPresentationUpdate(user, group, action.getPresentation()));
     }
 
     if (CollectionUtil.containsDuplicates(presentations.stream()
@@ -333,6 +335,50 @@ public class GroupChangeApplicator {
                                                              .clearProfileKey()
                                                              .setProfileKey(ByteString.copyFrom(presentation.getProfileKeyCiphertext().serialize()))
                                                              .setJoinedAtVersion(group.getVersion() + 1));
+    }
+  }
+
+  public void applyPromoteMembersPendingPniAciProfileKey(GroupUser user, byte[] inviteLinkPassword, Group group, Group.Builder modifiedGroupBuilder, List<GroupChange.Actions.PromoteMemberPendingPniAciProfileKeyAction> promoteMembersPendingPniAciProfileKey)
+      throws BadRequestException, ForbiddenException {
+    if (promoteMembersPendingPniAciProfileKey.isEmpty()) {
+      return;
+    }
+
+    List<PniCredentialPresentation> presentations = new LinkedList<>();
+
+    for (GroupChange.Actions.PromoteMemberPendingPniAciProfileKeyAction action : promoteMembersPendingPniAciProfileKey) {
+      presentations.add(groupValidator.validatePniCredentialPresentationUpdate(user, group, action.getPresentation()));
+    }
+
+    if (CollectionUtil.containsDuplicates(Stream.concat(
+            presentations.stream().map(PniCredentialPresentation::getAciCiphertext),
+            presentations.stream().map(PniCredentialPresentation::getPniCiphertext))
+        .collect(Collectors.toList()))) {
+      throw new BadRequestException("Duplicate user id");
+    }
+
+    for (PniCredentialPresentation presentation : presentations) {
+      ByteString                    presentationPni          = ByteString.copyFrom(presentation.getPniCiphertext().serialize());
+      ByteString                    presentationAci          = ByteString.copyFrom(presentation.getAciCiphertext().serialize());
+      List<MemberPendingProfileKey> membersPendingProfileKey = modifiedGroupBuilder.getMembersPendingProfileKeyList();
+      MemberPendingProfileKey memberPendingProfileKey = membersPendingProfileKey.stream()
+          .filter(candidate -> candidate.getMember().getUserId().equals(presentationPni))
+          .findFirst()
+          .orElseThrow(ForbiddenException::new);
+
+      modifiedGroupBuilder.clearMembersPendingProfileKey()
+          .addAllMembersPendingProfileKey(membersPendingProfileKey.stream()
+              .filter(candidate -> !(candidate.getMember().getUserId().equals(presentationPni) || candidate.getMember().getUserId().equals(presentationAci)))
+              .collect(Collectors.toList()));
+
+      modifiedGroupBuilder.addMembers(memberPendingProfileKey.getMember()
+          .toBuilder()
+          .clearPresentation()
+          .clearProfileKey()
+          .clearUserId()
+          .setUserId(ByteString.copyFrom(presentation.getAciCiphertext().serialize()))
+          .setProfileKey(ByteString.copyFrom(presentation.getProfileKeyCiphertext().serialize()))
+          .setJoinedAtVersion(group.getVersion() + 1));
     }
   }
 

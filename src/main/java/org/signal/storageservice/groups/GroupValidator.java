@@ -20,6 +20,7 @@ import org.signal.storageservice.util.CollectionUtil;
 import org.signal.zkgroup.InvalidInputException;
 import org.signal.zkgroup.VerificationFailedException;
 import org.signal.zkgroup.groups.GroupPublicParams;
+import org.signal.zkgroup.profiles.PniCredentialPresentation;
 import org.signal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 import org.signal.zkgroup.profiles.ServerZkProfileOperations;
 import org.slf4j.Logger;
@@ -216,7 +217,7 @@ public class GroupValidator {
     return validatedActions;
   }
 
-  public ProfileKeyCredentialPresentation validatePresentationUpdate(GroupUser source, Group group, ByteString presentationData) throws BadRequestException, ForbiddenException {
+  public ProfileKeyCredentialPresentation validateProfileKeyPresentationUpdate(GroupUser source, Group group, ByteString presentationData) throws BadRequestException, ForbiddenException {
     try {
       GroupPublicParams publicParams = new GroupPublicParams(group.getPublicKey().toByteArray());
 
@@ -231,6 +232,28 @@ public class GroupValidator {
       }
 
       profileOperations.verifyProfileKeyCredentialPresentation(publicParams, presentation);
+
+      return presentation;
+    } catch (InvalidInputException | VerificationFailedException e) {
+      throw new BadRequestException(e);
+    }
+  }
+
+  public PniCredentialPresentation validatePniCredentialPresentationUpdate(GroupUser source, Group group, ByteString presentationData) throws BadRequestException, ForbiddenException {
+    try {
+      GroupPublicParams publicParams = new GroupPublicParams(group.getPublicKey().toByteArray());
+
+      if (presentationData == null || presentationData.isEmpty()) {
+        throw new BadRequestException();
+      }
+
+      PniCredentialPresentation presentation = new PniCredentialPresentation(presentationData.toByteArray());
+
+      if (!source.isMember(ByteString.copyFrom(presentation.getAciCiphertext().serialize()), group.getPublicKey())) {
+        throw new ForbiddenException();
+      }
+
+      profileOperations.verifyPniCredentialPresentation(publicParams, presentation);
 
       return presentation;
     } catch (InvalidInputException | VerificationFailedException e) {

@@ -34,6 +34,9 @@ import org.signal.zkgroup.auth.ClientZkAuthOperations;
 import org.signal.zkgroup.auth.ServerZkAuthOperations;
 import org.signal.zkgroup.groups.GroupSecretParams;
 import org.signal.zkgroup.profiles.ClientZkProfileOperations;
+import org.signal.zkgroup.profiles.PniCredential;
+import org.signal.zkgroup.profiles.PniCredentialRequestContext;
+import org.signal.zkgroup.profiles.PniCredentialResponse;
 import org.signal.zkgroup.profiles.ProfileKey;
 import org.signal.zkgroup.profiles.ProfileKeyCredential;
 import org.signal.zkgroup.profiles.ProfileKeyCredentialRequestContext;
@@ -46,6 +49,7 @@ public class AuthHelper {
   public static final String VALID_PASSWORD         = "foo";
 
   public static final String VALID_USER_TWO             = UUID.randomUUID().toString();
+  public static final UUID   VALID_USER_TWO_PNI         = UUID.randomUUID();
   public static final byte[] VALID_USER_TWO_PROFILE_KEY = new byte[32];
   public static final String VALID_PASSWORD_TWO         = "bar";
 
@@ -72,6 +76,8 @@ public class AuthHelper {
   public static final ProfileKeyCredential   VALID_USER_TWO_PROFILE_CREDENTIAL;
   public static final ProfileKeyCredential   VALID_USER_THREE_PROFILE_CREDENTIAL;
   public static final ProfileKeyCredential   VALID_USER_FOUR_PROFILE_CREDENTIAL;
+
+  public static final PniCredential VALID_USER_TWO_PNI_CREDENTIAL;
 
   static {
     try {
@@ -102,15 +108,21 @@ public class AuthHelper {
       ProfileKeyCredentialRequestContext validUserThreeProfileKeyCredentialRequestContext = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialRequestContext(UUID.fromString(VALID_USER_THREE), validUserThreeProfileKey);
       ProfileKeyCredentialRequestContext validUserFourProfileKeyCredentialRequestContext = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialRequestContext(UUID.fromString(VALID_USER_FOUR), validUserFourProfileKey);
 
+      PniCredentialRequestContext        validUserTwoPniCredentialRequestContext = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).createPniCredentialRequestContext(UUID.fromString(VALID_USER_TWO), VALID_USER_TWO_PNI, validUserTwoProfileKey);
+
       ProfileKeyCredentialResponse       validUserProfileKeyCredentialResponse       = new ServerZkProfileOperations(GROUPS_SERVER_KEY).issueProfileKeyCredential(validUserProfileKeyCredentialRequestContext.getRequest(), UUID.fromString(VALID_USER), validUserProfileKey.getCommitment(UUID.fromString(VALID_USER)));
       ProfileKeyCredentialResponse       validUserTwoProfileKeyCredentialResponse    = new ServerZkProfileOperations(GROUPS_SERVER_KEY).issueProfileKeyCredential(validUserTwoProfileKeyCredentialRequestContext.getRequest(), UUID.fromString(VALID_USER_TWO), validUserTwoProfileKey.getCommitment(UUID.fromString(VALID_USER_TWO)));
       ProfileKeyCredentialResponse       validUserThreeProfileKeyCredentialResponse    = new ServerZkProfileOperations(GROUPS_SERVER_KEY).issueProfileKeyCredential(validUserThreeProfileKeyCredentialRequestContext.getRequest(), UUID.fromString(VALID_USER_THREE), validUserThreeProfileKey.getCommitment(UUID.fromString(VALID_USER_THREE)));
       ProfileKeyCredentialResponse       validUserFourProfileKeyCredentialResponse = new ServerZkProfileOperations(GROUPS_SERVER_KEY).issueProfileKeyCredential(validUserFourProfileKeyCredentialRequestContext.getRequest(), UUID.fromString(VALID_USER_FOUR), validUserFourProfileKey.getCommitment(UUID.fromString(VALID_USER_FOUR)));
 
+      PniCredentialResponse              validUserTwoPniCredentialResponse = new ServerZkProfileOperations(GROUPS_SERVER_KEY).issuePniCredential(validUserTwoPniCredentialRequestContext.getRequest(), UUID.fromString(VALID_USER_TWO), VALID_USER_TWO_PNI, validUserTwoProfileKey.getCommitment(UUID.fromString(VALID_USER_TWO)));
+
       VALID_USER_PROFILE_CREDENTIAL     = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveProfileKeyCredential(validUserProfileKeyCredentialRequestContext, validUserProfileKeyCredentialResponse      );
       VALID_USER_TWO_PROFILE_CREDENTIAL = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveProfileKeyCredential(validUserTwoProfileKeyCredentialRequestContext, validUserTwoProfileKeyCredentialResponse);
       VALID_USER_THREE_PROFILE_CREDENTIAL = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveProfileKeyCredential(validUserThreeProfileKeyCredentialRequestContext, validUserThreeProfileKeyCredentialResponse);
       VALID_USER_FOUR_PROFILE_CREDENTIAL = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveProfileKeyCredential(validUserFourProfileKeyCredentialRequestContext, validUserFourProfileKeyCredentialResponse);
+
+      VALID_USER_TWO_PNI_CREDENTIAL = new ClientZkProfileOperations(GROUPS_SERVER_KEY.getPublicParams()).receivePniCredential(validUserTwoPniCredentialRequestContext, validUserTwoPniCredentialResponse);
     } catch (VerificationFailedException | InvalidInputException e) {
       throw new AssertionError(e);
     }
