@@ -159,6 +159,30 @@ public class GroupsController {
   @Timed
   @GET
   @Produces(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+  @Path("/joined_at_version")
+  public CompletableFuture<Response> getJoinedAtVersion(@Auth GroupUser user) {
+    return groupsManager.getGroup(user.getGroupId()).thenCompose(group -> {
+      if (group.isEmpty()) {
+        return CompletableFuture.completedFuture(Response.status(Response.Status.NOT_FOUND).build());
+      }
+
+      Optional<Member> member = GroupAuth.getMember(user, group.get());
+
+      if (member.isEmpty()) {
+        return CompletableFuture.completedFuture(Response.status(Response.Status.FORBIDDEN).build());
+      }
+
+      return CompletableFuture.completedFuture(Response.ok(
+            Member.newBuilder()
+                  .setJoinedAtVersion(member.get().getJoinedAtVersion())
+                  .build())
+          .build());
+    });
+  }
+
+  @Timed
+  @GET
+  @Produces(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
   @Path("/logs/{fromVersion}")
   public CompletableFuture<Response> getGroupLogs(@Auth GroupUser user, @PathParam("fromVersion") int fromVersion) {
     return groupsManager.getGroup(user.getGroupId()).thenCompose(group -> {

@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -3218,6 +3219,88 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isFalse();
 
     verify(groupsManager).getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())));
+    verifyNoMoreInteractions(groupsManager);
+  }
+
+  @Test
+  public void testGetGroupJoinedAtVersion() throws IOException {
+    GroupSecretParams groupSecretParams = GroupSecretParams.generate();
+    GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
+
+    ProfileKeyCredentialPresentation validUserPresentation    = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.
+            VALID_USER_PROFILE_CREDENTIAL    );
+    ProfileKeyCredentialPresentation validUserTwoPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
+
+    Group group = Group.newBuilder()
+                       .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
+                       .setAccessControl(AccessControl.newBuilder()
+                                                      .setMembers(AccessControl.AccessRequired.MEMBER)
+                                                      .setAttributes(AccessControl.AccessRequired.MEMBER))
+                       .setTitle(ByteString.copyFromUtf8("Some title"))
+                       .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
+                       .setVersion(5)
+                       .addMembers(Member.newBuilder()
+                                         .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
+                                         .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
+                                         .setRole(Member.Role.DEFAULT)
+                                         .setJoinedAtVersion(3)
+                                         .build())
+                       .addMembers(Member.newBuilder()
+                                         .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
+                                         .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
+                                         .setRole(Member.Role.ADMINISTRATOR)
+                                         .build())
+                       .build();
+
+    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
+        .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
+
+    // Verify that non-admin member has correct `joinedAtVersion`
+    {
+      Response response = resources.getJerseyTest()
+                                   .target("/v1/groups/joined_at_version")
+                                   .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+                                   .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
+                                   .get();
+
+      assertThat(response.getStatus()).isEqualTo(200);
+      assertThat(response.hasEntity()).isTrue();
+
+      Member member = Member.parseFrom(response.readEntity(InputStream.class).readAllBytes());
+      assertThat(member.getJoinedAtVersion()).isEqualTo(3);
+    }
+
+    // Verify that admin member has correct `joinedAtVersion`
+    {
+      Response response = resources.getJerseyTest()
+                                   .target("/v1/groups/joined_at_version")
+                                   .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+                                   .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
+                                   .get();
+
+      assertThat(response.getStatus()).isEqualTo(200);
+
+      // NOTE: since `joinedAtVersion` is 0, the protobuf encoding is just an
+      // empty byte array and we have no entity here.
+      assertThat(response.hasEntity()).isFalse();
+
+      Member member = Member.parseFrom(response.readEntity(InputStream.class).readAllBytes());
+      assertThat(member.getJoinedAtVersion()).isEqualTo(0);
+    }
+
+    // Verify that non-member don't get 200
+    {
+      Response response = resources.getJerseyTest()
+                                   .target("/v1/groups/joined_at_version")
+                                   .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+                                   .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_THREE_AUTH_CREDENTIAL))
+                                   .get();
+
+      assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(response.hasEntity()).isFalse();
+    }
+
+    verify(groupsManager, times(3)).getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())));
     verifyNoMoreInteractions(groupsManager);
   }
 
