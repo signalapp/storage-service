@@ -10,6 +10,7 @@ import io.dropwizard.Configuration;
 import org.signal.storageservice.configuration.AuthenticationConfiguration;
 import org.signal.storageservice.configuration.BigTableConfiguration;
 import org.signal.storageservice.configuration.CdnConfiguration;
+import org.signal.storageservice.configuration.DatadogConfiguration;
 import org.signal.storageservice.configuration.GroupConfiguration;
 import org.signal.storageservice.configuration.ZkConfiguration;
 
@@ -43,6 +44,11 @@ public class StorageServiceConfiguration extends Configuration {
   @NotNull
   private GroupConfiguration group;
 
+  @JsonProperty
+  @Valid
+  @NotNull
+  private DatadogConfiguration datadog;
+
   public BigTableConfiguration getBigTableConfiguration() {
     return bigtable;
   }
@@ -61,5 +67,9 @@ public class StorageServiceConfiguration extends Configuration {
 
   public GroupConfiguration getGroupConfiguration() {
     return group;
+  }
+
+  public DatadogConfiguration getDatadogConfiguration() {
+    return datadog;
   }
 }

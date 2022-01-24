@@ -25,6 +25,9 @@ import io.dropwizard.auth.basic.BasicCredentialAuthFilter;
 import io.dropwizard.auth.basic.BasicCredentials;
 import io.dropwizard.setup.Bootstrap;
 import io.dropwizard.setup.Environment;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Tags;
+import io.micrometer.datadog.DatadogMeterRegistry;
 import java.time.Clock;
 import java.util.List;
 import org.signal.storageservice.auth.ExternalGroupCredentialGenerator;
@@ -40,6 +43,7 @@ import org.signal.storageservice.controllers.StorageController;
 import org.signal.storageservice.metrics.CpuUsageGauge;
 import org.signal.storageservice.metrics.FileDescriptorGauge;
 import org.signal.storageservice.metrics.FreeMemoryGauge;
+import org.signal.storageservice.metrics.MetricsApplicationEventListener;
 import org.signal.storageservice.metrics.NetworkReceivedGauge;
 import org.signal.storageservice.metrics.NetworkSentGauge;
 import org.signal.storageservice.metrics.StorageMetrics;
@@ -52,7 +56,9 @@ import org.signal.storageservice.s3.PostPolicyGenerator;
 import org.signal.storageservice.storage.BackupsManager;
 import org.signal.storageservice.storage.GroupsManager;
 import org.signal.storageservice.storage.StorageManager;
+import org.signal.storageservice.util.HostnameUtil;
 import org.signal.storageservice.util.UncaughtExceptionHandler;
+import org.signal.storageservice.util.logging.LoggingUnhandledExceptionMapper;
 import org.signal.zkgroup.ServerSecretParams;
 import org.signal.zkgroup.auth.ServerZkAuthOperations;
 
@@ -64,6 +70,20 @@ public class StorageService extends Application<StorageServiceConfiguration> {
   @Override
   public void run(StorageServiceConfiguration config, Environment environment) throws Exception {
     SharedMetricRegistries.add(StorageMetrics.NAME, environment.metrics());
+
+    {
+      final DatadogMeterRegistry datadogMeterRegistry = new DatadogMeterRegistry(
+          config.getDatadogConfiguration(), io.micrometer.core.instrument.Clock.SYSTEM);
+
+      datadogMeterRegistry.config().commonTags(
+              Tags.of(
+                  "service", "storage",
+                  "host", HostnameUtil.getLocalHostname(),
+                  "version", StorageServiceVersion.getServiceVersion(),
+                  "env", config.getDatadogConfiguration().getEnvironment()));
+
+      Metrics.addRegistry(datadogMeterRegistry);
+    }
 
     UncaughtExceptionHandler.register();
 
@@ -95,6 +115,7 @@ public class StorageService extends Application<StorageServiceConfiguration> {
     environment.jersey().register(ProtocolBufferValidationErrorMessageBodyWriter.class);
     environment.jersey().register(InvalidProtocolBufferExceptionMapper.class);
     environment.jersey().register(CompletionExceptionMapper.class);
+    environment.jersey().register(LoggingUnhandledExceptionMapper.class);
 
     UserAuthenticator      userAuthenticator      = new UserAuthenticator(new ExternalServiceCredentialValidator(config.getAuthenticationConfiguration().getKey()));
     GroupUserAuthenticator groupUserAuthenticator = new GroupUserAuthenticator(new ServerZkAuthOperations(serverSecretParams));
@@ -114,6 +135,8 @@ public class StorageService extends Application<StorageServiceConfiguration> {
     environment.jersey().register(new BackupsController(backupsManager));
     environment.jersey().register(new StorageController(storageManager));
     environment.jersey().register(new GroupsController(groupsManager, serverSecretParams, policySigner, postPolicyGenerator, config.getGroupConfiguration(), externalGroupCredentialGenerator));
+
+    environment.jersey().register(new MetricsApplicationEventListener());
 
     environment.metrics().register(name(CpuUsageGauge.class, "cpu"), new CpuUsageGauge());
     environment.metrics().register(name(FreeMemoryGauge.class, "free_memory"), new FreeMemoryGauge());
