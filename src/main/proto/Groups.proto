@@ -129,10 +129,6 @@ message GroupChange {
       bytes presentation = 1;
     }
 
-    message PromoteMemberPendingPniAciProfileKeyAction {
-      bytes presentation = 1;
-    }
-
     message AddMemberPendingAdminApprovalAction {
       MemberPendingAdminApproval added = 1;
     }
@@ -204,7 +200,6 @@ message GroupChange {
     ModifyInviteLinkPasswordAction modifyInviteLinkPassword = 19;  // change epoch = 1
     ModifyDescriptionAction modifyDescription = 20;  // change epoch = 2
     ModifyAnnouncementsOnlyAction modify_announcements_only = 21;  // change epoch = 3
-    repeated PromoteMemberPendingPniAciProfileKeyAction promoteMembersPendingPniAciProfileKey = 22;  // change epoch = 4
   }
 
   bytes actions = 1;

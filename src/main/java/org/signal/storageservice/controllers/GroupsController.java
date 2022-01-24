@@ -70,7 +70,6 @@ public class GroupsController {
   private static final int INVITE_LINKS_CHANGE_EPOCH = 1;
   private static final int DESCRIPTION_CHANGE_EPOCH = 2;
   private static final int ANNOUNCEMENTS_ONLY_CHANGE_EPOCH = 3;
-  private static final int JOIN_BY_PNI_EPOCH = 4;
 
   private final GroupsManager             groupsManager;
   private final ServerSecretParams        serverSecretParams;
@@ -378,10 +377,6 @@ public class GroupsController {
       if (actions.hasModifyAnnouncementsOnly()) {
         groupChangeApplicator.applyModifyAnnouncementsOnly(user, inviteLinkPassword, group.get(), modifiedGroupBuilder, actions.getModifyAnnouncementsOnly());
         changeEpoch = Math.max(changeEpoch, ANNOUNCEMENTS_ONLY_CHANGE_EPOCH);
-      }
-      if (actions.getPromoteMembersPendingPniAciProfileKeyCount() != 0) {
-        groupChangeApplicator.applyPromoteMembersPendingPniAciProfileKey(user, inviteLinkPassword, group.get(), modifiedGroupBuilder, actions.getPromoteMembersPendingPniAciProfileKeyList());
-        changeEpoch = Math.max(changeEpoch, JOIN_BY_PNI_EPOCH);
       }
 
       ByteString sourceUuid = Stream.of((Supplier<Optional<ByteString>>) () -> GroupAuth.getMember(user, group.get()).map(Member::getUserId),
