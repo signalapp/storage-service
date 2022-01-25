@@ -5,8 +5,8 @@
 
 package org.signal.storageservice.storage;
 
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.Histogram;
+import static com.codahale.metrics.MetricRegistry.name;
+
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
@@ -18,20 +18,16 @@ import com.google.cloud.bigtable.data.v2.models.Mutation;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.protobuf.ByteString;
+import java.util.IntSummaryStatistics;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import org.apache.commons.codec.binary.Hex;
 import org.signal.storageservice.auth.User;
 import org.signal.storageservice.metrics.StorageMetrics;
 import org.signal.storageservice.storage.protos.contacts.StorageItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.IntSummaryStatistics;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.OptionalInt;
-import java.util.concurrent.CompletableFuture;
-
-import static com.codahale.metrics.MetricRegistry.name;
 
 public class StorageItemsTable extends Table {
 
@@ -46,11 +42,6 @@ public class StorageItemsTable extends Table {
   private final Timer          setTimer             = metricRegistry.timer(name(StorageItemsTable.class, "create"         ));
   private final Timer          getKeysToDeleteTimer = metricRegistry.timer(name(StorageItemsTable.class, "getKeysToDelete"));
   private final Timer          deleteKeysTimer      = metricRegistry.timer(name(StorageItemsTable.class, "deleteKeys"     ));
-  private final Histogram      keySizeHistogram     = metricRegistry.histogram(name(StorageItemsTable.class, "getRowKeySize"));
-  private final Histogram      keyListLengthHistogram = metricRegistry.histogram(name(StorageItemsTable.class, "getRowKeyListLength"));
-  private final Counter        oversizeKeyCounter   = metricRegistry.counter(name(StorageItemsTable.class, "oversizeKeys"));
-
-  private static final int MAX_ROW_KEY_SIZE = 4096;
 
   private static final Logger log = LoggerFactory.getLogger(StorageItemsTable.class);
 
@@ -128,18 +119,8 @@ public class StorageItemsTable extends Table {
     List<StorageItem>                    results      = new LinkedList<>();
     Query                                query        = Query.create(tableId);
 
-    keyListLengthHistogram.update(keys.size());
-
     for (ByteString key : keys) {
-      final ByteString rowKey = getRowKeyFor(user, key);
-
-      keySizeHistogram.update(rowKey.size());
-
-      if (rowKey.size() > MAX_ROW_KEY_SIZE) {
-        oversizeKeyCounter.inc();
-      }
-
-      query.rowKey(rowKey);
+      query.rowKey(getRowKeyFor(user, key));
     }
 
     client.readRowsAsync(query, new ResponseObserver<>() {
@@ -161,14 +142,6 @@ public class StorageItemsTable extends Table {
       public void onError(Throwable t) {
         timerContext.close();
         future.completeExceptionally(t);
-
-        final IntSummaryStatistics summaryStatistics = keys.stream()
-            .map(key -> getRowKeyFor(user, key))
-            .mapToInt(ByteString::size)
-            .summaryStatistics();
-
-        log.warn("Read request failed; row keys: {}, max key length: {}, min key length: {}, total row key size: {}",
-            summaryStatistics.getCount(), summaryStatistics.getMax(), summaryStatistics.getMin(), summaryStatistics.getSum());
       }
 
       @Override
