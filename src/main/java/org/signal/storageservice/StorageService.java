@@ -115,7 +115,7 @@ public class StorageService extends Application<StorageServiceConfiguration> {
     environment.jersey().register(ProtocolBufferValidationErrorMessageBodyWriter.class);
     environment.jersey().register(InvalidProtocolBufferExceptionMapper.class);
     environment.jersey().register(CompletionExceptionMapper.class);
-    environment.jersey().register(LoggingUnhandledExceptionMapper.class);
+    environment.jersey().register(new LoggingUnhandledExceptionMapper());
 
     UserAuthenticator      userAuthenticator      = new UserAuthenticator(new ExternalServiceCredentialValidator(config.getAuthenticationConfiguration().getKey()));
     GroupUserAuthenticator groupUserAuthenticator = new GroupUserAuthenticator(new ServerZkAuthOperations(serverSecretParams));

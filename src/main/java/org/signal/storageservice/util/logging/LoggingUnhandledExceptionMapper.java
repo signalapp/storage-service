@@ -16,6 +16,10 @@ public class LoggingUnhandledExceptionMapper extends LoggingExceptionMapper<Thro
   @Context
   private Provider<ContainerRequest> request;
 
+  public LoggingUnhandledExceptionMapper() {
+    super();
+  }
+
   @Override
   protected String formatLogMessage(final long id, final Throwable exception) {
     String requestMethod = "unknown method";
