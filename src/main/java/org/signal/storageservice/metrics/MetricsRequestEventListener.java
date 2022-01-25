@@ -26,6 +26,7 @@ public class MetricsRequestEventListener implements RequestEventListener {
   public static final String REQUEST_COUNTER_NAME = MetricRegistry.name(MetricsRequestEventListener.class, "request");
 
   static final String PATH_TAG = "path";
+  static final String METHOD_TAG = "method";
   static final String STATUS_CODE_TAG = "status";
   static final String PLATFORM_TAG = "platform";
 
@@ -46,6 +47,7 @@ public class MetricsRequestEventListener implements RequestEventListener {
       if (!event.getUriInfo().getMatchedTemplates().isEmpty()) {
         Tags tags = Tags.of(
             PATH_TAG, UriInfoUtil.getPathTemplate(event.getUriInfo()),
+            METHOD_TAG, event.getContainerRequest().getMethod(),
             STATUS_CODE_TAG, String.valueOf(event.getContainerResponse().getStatus()));
 
         final List<String> userAgentValues = event.getContainerRequest().getRequestHeader("User-Agent");
