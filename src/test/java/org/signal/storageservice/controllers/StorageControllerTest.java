@@ -5,9 +5,31 @@
 
 package org.signal.storageservice.controllers;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyList;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
+
 import com.google.protobuf.ByteString;
 import io.dropwizard.auth.AuthValueFactoryProvider;
 import io.dropwizard.testing.junit.ResourceTestRule;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
+import org.apache.commons.lang3.RandomStringUtils;
 import org.glassfish.jersey.client.ClientProperties;
 import org.junit.Rule;
 import org.junit.Test;
@@ -24,26 +46,6 @@ import org.signal.storageservice.storage.protos.contacts.StorageManifest;
 import org.signal.storageservice.storage.protos.contacts.WriteOperation;
 import org.signal.storageservice.util.AuthHelper;
 import org.signal.storageservice.util.SystemMapper;
-
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Response;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyList;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 
 public class StorageControllerTest {
 
@@ -354,6 +356,25 @@ public class StorageControllerTest {
                                  .put(Entity.entity(ReadOperation.newBuilder().build().toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(400);
+    verifyNoMoreInteractions(storageManager);
+  }
+
+  @Test
+  public void testReadOversizeList() {
+    final List<ByteString> keys = new ArrayList<>(StorageController.MAX_READ_KEYS + 1);
+
+    for (int i = 0; i < StorageController.MAX_READ_KEYS + 1; i++) {
+      keys.add(ByteString.copyFromUtf8(RandomStringUtils.randomAlphabetic(16)));
+    }
+
+    Response response = resources.getJerseyTest()
+        .target("/v1/storage/read")
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
+        .put(Entity.entity(ReadOperation.newBuilder().addAllReadKey(keys).build().toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+
+    assertThat(response.getStatus()).isEqualTo(Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode());
+    verifyNoMoreInteractions(storageManager);
   }
 
   @Test

@@ -24,12 +24,15 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 import java.util.concurrent.CompletableFuture;
 
 @Path("/v1/storage")
 public class StorageController {
 
   private final StorageManager storageManager;
+
+  static final int MAX_READ_KEYS = 5120;
 
   public StorageController(StorageManager storageManager) {
     this.storageManager = storageManager;
@@ -87,6 +90,8 @@ public class StorageController {
   public CompletableFuture<StorageItems> read(@Auth User user, ReadOperation readOperation) {
     if (readOperation.getReadKeyList().isEmpty()) {
       return CompletableFuture.failedFuture(new WebApplicationException(Response.Status.BAD_REQUEST));
+    } else if (readOperation.getReadKeyList().size() > MAX_READ_KEYS) {
+      return CompletableFuture.failedFuture(new WebApplicationException(Status.REQUEST_ENTITY_TOO_LARGE));
     }
 
     return storageManager.getItems(user, readOperation.getReadKeyList())
