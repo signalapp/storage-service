@@ -42,6 +42,7 @@ import org.signal.zkgroup.profiles.ServerZkProfileOperations;
 
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.Consumes;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
 import javax.ws.rs.PATCH;
@@ -184,7 +185,10 @@ public class GroupsController {
   @GET
   @Produces(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
   @Path("/logs/{fromVersion}")
-  public CompletableFuture<Response> getGroupLogs(@Auth GroupUser user, @PathParam("fromVersion") int fromVersion) {
+  public CompletableFuture<Response> getGroupLogs(
+      @Auth GroupUser user,
+      @PathParam("fromVersion") int fromVersion,
+      @QueryParam("limit") @DefaultValue("64") int limit) {
     return groupsManager.getGroup(user.getGroupId()).thenCompose(group -> {
       if (group.isEmpty()) {
         return CompletableFuture.completedFuture(Response.status(Response.Status.NOT_FOUND).build());
@@ -205,10 +209,11 @@ public class GroupsController {
         return CompletableFuture.completedFuture(Response.ok(GroupChanges.newBuilder().build()).build());
       }
 
-      if (latestGroupVersion + 1 - fromVersion > LOG_VERSION_LIMIT) {
-        return groupsManager.getChangeRecords(user.getGroupId(), group.get(), fromVersion, fromVersion + LOG_VERSION_LIMIT)
+      final int logVersionLimit = Math.max(1, Math.min(limit, LOG_VERSION_LIMIT)); // 1 ≤ limit ≤ LOG_VERSION_LIMIT
+      if (latestGroupVersion + 1 - fromVersion > logVersionLimit) {
+        return groupsManager.getChangeRecords(user.getGroupId(), group.get(), fromVersion, fromVersion + logVersionLimit)
                             .thenApply(records -> Response.status(HttpStatus.SC_PARTIAL_CONTENT)
-                                                          .header(HttpHeaders.CONTENT_RANGE, String.format(Locale.US, "versions %d-%d/%d", fromVersion, fromVersion + LOG_VERSION_LIMIT - 1, latestGroupVersion))
+                                                          .header(HttpHeaders.CONTENT_RANGE, String.format(Locale.US, "versions %d-%d/%d", fromVersion, fromVersion + logVersionLimit - 1, latestGroupVersion))
                                                           .entity(GroupChanges.newBuilder()
                                                                               .addAllGroupChanges(records)
                                                                               .build())
