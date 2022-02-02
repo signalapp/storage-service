@@ -7,13 +7,13 @@ package org.signal.storageservice.storage;
 
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.protobuf.ByteString;
-import org.signal.storageservice.storage.protos.groups.Group;
-import org.signal.storageservice.storage.protos.groups.GroupChange;
-import org.signal.storageservice.storage.protos.groups.GroupChanges.GroupChangeState;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import org.signal.storageservice.storage.protos.groups.Group;
+import org.signal.storageservice.storage.protos.groups.GroupChange;
+import org.signal.storageservice.storage.protos.groups.GroupChanges.GroupChangeState;
+import javax.annotation.Nullable;
 
 public class GroupsManager {
 
@@ -41,12 +41,13 @@ public class GroupsManager {
                       });
   }
 
-  public CompletableFuture<List<GroupChangeState>> getChangeRecords(ByteString groupId, Group group, int fromVersionInclusive, int toVersionExclusive) {
+  public CompletableFuture<List<GroupChangeState>> getChangeRecords(ByteString groupId, Group group,
+      @Nullable Integer maxSupportedChangeEpoch, int fromVersionInclusive, int toVersionExclusive) {
     if (fromVersionInclusive >= toVersionExclusive) {
       throw new IllegalArgumentException("Version to read from (" + fromVersionInclusive + ") must be less than version to read to (" + toVersionExclusive + ")");
     }
 
-    return groupLogTable.getRecordsFromVersion(groupId, fromVersionInclusive, toVersionExclusive)
+    return groupLogTable.getRecordsFromVersion(groupId, maxSupportedChangeEpoch, fromVersionInclusive, toVersionExclusive)
                         .thenApply(groupChangeStates -> {
                           if (isGroupInRange(group, fromVersionInclusive, toVersionExclusive) && groupVersionMissing(group, groupChangeStates) && toVersionExclusive - 1 == group.getVersion()) {
                             groupChangeStates.add(GroupChangeState.newBuilder().setGroupState(group).build());

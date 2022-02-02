@@ -9,6 +9,30 @@ import com.codahale.metrics.annotation.Timed;
 import com.google.protobuf.ByteString;
 import io.dropwizard.auth.Auth;
 import io.dropwizard.util.Strings;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.function.Supplier;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DefaultValue;
+import javax.ws.rs.ForbiddenException;
+import javax.ws.rs.GET;
+import javax.ws.rs.PATCH;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
+import javax.ws.rs.core.Response;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
@@ -39,31 +63,6 @@ import org.signal.storageservice.util.Pair;
 import org.signal.zkgroup.NotarySignature;
 import org.signal.zkgroup.ServerSecretParams;
 import org.signal.zkgroup.profiles.ServerZkProfileOperations;
-
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.ForbiddenException;
-import javax.ws.rs.GET;
-import javax.ws.rs.PATCH;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Response;
-import java.security.MessageDigest;
-import java.security.SecureRandom;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Locale;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 @Path("/v1/groups")
 public class GroupsController {
@@ -188,7 +187,8 @@ public class GroupsController {
   public CompletableFuture<Response> getGroupLogs(
       @Auth GroupUser user,
       @PathParam("fromVersion") int fromVersion,
-      @QueryParam("limit") @DefaultValue("64") int limit) {
+      @QueryParam("limit") @DefaultValue("64") int limit,
+      @QueryParam("maxSupportedChangeEpoch") Optional<Integer> maxSupportedChangeEpoch) {
     return groupsManager.getGroup(user.getGroupId()).thenCompose(group -> {
       if (group.isEmpty()) {
         return CompletableFuture.completedFuture(Response.status(Response.Status.NOT_FOUND).build());
@@ -211,7 +211,7 @@ public class GroupsController {
 
       final int logVersionLimit = Math.max(1, Math.min(limit, LOG_VERSION_LIMIT)); // 1 ≤ limit ≤ LOG_VERSION_LIMIT
       if (latestGroupVersion + 1 - fromVersion > logVersionLimit) {
-        return groupsManager.getChangeRecords(user.getGroupId(), group.get(), fromVersion, fromVersion + logVersionLimit)
+        return groupsManager.getChangeRecords(user.getGroupId(), group.get(), maxSupportedChangeEpoch.orElse(null), fromVersion, fromVersion + logVersionLimit)
                             .thenApply(records -> Response.status(HttpStatus.SC_PARTIAL_CONTENT)
                                                           .header(HttpHeaders.CONTENT_RANGE, String.format(Locale.US, "versions %d-%d/%d", fromVersion, fromVersion + logVersionLimit - 1, latestGroupVersion))
                                                           .entity(GroupChanges.newBuilder()
@@ -219,7 +219,7 @@ public class GroupsController {
                                                                               .build())
                                                           .build());
       } else {
-        return groupsManager.getChangeRecords(user.getGroupId(), group.get(), fromVersion, latestGroupVersion + 1)
+        return groupsManager.getChangeRecords(user.getGroupId(), group.get(), maxSupportedChangeEpoch.orElse(null), fromVersion, latestGroupVersion + 1)
                             .thenApply(records -> Response.ok(GroupChanges.newBuilder()
                                                                           .addAllGroupChanges(records)
                                                                           .build())

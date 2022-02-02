@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -3104,7 +3105,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
     }};
 
 
-    when(groupsManager.getChangeRecords(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(group), eq(1), eq(6)))
+    when(groupsManager.getChangeRecords(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(group), isNull(), eq(1), eq(6)))
         .thenReturn(CompletableFuture.completedFuture(expectedChanges));
 
     Response response = resources.getJerseyTest()
@@ -3119,6 +3120,119 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
     GroupChanges receivedChanges = GroupChanges.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     assertThat(GroupChanges.newBuilder().addAllGroupChanges(expectedChanges).build()).isEqualTo(receivedChanges);
+  }
+
+  @Test
+  public void testGetGroupLogsClientLimitedTest() throws Exception {
+    GroupSecretParams groupSecretParams = GroupSecretParams.generate();
+    GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
+
+    ProfileKeyCredentialPresentation validUserPresentation    = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL    );
+    ProfileKeyCredentialPresentation validUserTwoPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
+
+    Group group = Group.newBuilder()
+        .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
+        .setAccessControl(AccessControl.newBuilder()
+            .setMembers(AccessControl.AccessRequired.MEMBER)
+            .setAttributes(AccessControl.AccessRequired.MEMBER))
+        .setTitle(ByteString.copyFromUtf8("New Title #10"))
+        .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
+        .setVersion(10)
+        .addMembers(Member.newBuilder()
+            .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
+            .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
+            .setRole(Member.Role.DEFAULT)
+            .setJoinedAtVersion(0)
+            .build())
+        .addMembers(Member.newBuilder()
+            .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
+            .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
+            .setRole(Member.Role.ADMINISTRATOR)
+            .build())
+        .build();
+
+    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
+        .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
+
+    List<GroupChangeState> expectedChanges = new ArrayList<>(5);
+    for (int i = 6; i < 11; i++) {
+      expectedChanges.add(generateSubjectChange(group, "New Title #" + i, i, true));
+    }
+
+    when(groupsManager.getChangeRecords(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(group), isNull(), eq(6), eq(10)))
+        .thenReturn(CompletableFuture.completedFuture(expectedChanges.subList(0, 4)));
+
+    Response response = resources.getJerseyTest()
+        .target("/v1/groups/logs/6")
+        .queryParam("limit", "4")
+        .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
+        .get();
+
+    assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_PARTIAL_CONTENT);
+    assertThat(response.getHeaderString(HttpHeaders.CONTENT_RANGE)).isEqualTo("versions 6-9/10");
+    assertThat(response.hasEntity()).isTrue();
+
+    GroupChanges receivedChanges = GroupChanges.parseFrom(response.readEntity(byte[].class));
+
+    assertThat(GroupChanges.newBuilder().addAllGroupChanges(expectedChanges.subList(0, 4)).build()).isEqualTo(receivedChanges);
+  }
+
+  @Test
+  public void testGetGroupLogsClientLimitedAndChangeEpochProvidedTest() throws Exception {
+    GroupSecretParams groupSecretParams = GroupSecretParams.generate();
+    GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
+
+    ProfileKeyCredentialPresentation validUserPresentation    = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL    );
+    ProfileKeyCredentialPresentation validUserTwoPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
+
+    Group group = Group.newBuilder()
+        .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
+        .setAccessControl(AccessControl.newBuilder()
+            .setMembers(AccessControl.AccessRequired.MEMBER)
+            .setAttributes(AccessControl.AccessRequired.MEMBER))
+        .setTitle(ByteString.copyFromUtf8("New Title #10"))
+        .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
+        .setVersion(10)
+        .addMembers(Member.newBuilder()
+            .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
+            .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
+            .setRole(Member.Role.DEFAULT)
+            .setJoinedAtVersion(0)
+            .build())
+        .addMembers(Member.newBuilder()
+            .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
+            .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
+            .setRole(Member.Role.ADMINISTRATOR)
+            .build())
+        .build();
+
+    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
+        .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
+
+    List<GroupChangeState> expectedChanges = new ArrayList<>(5);
+    for (int i = 6; i < 11; i++) {
+      expectedChanges.add(generateSubjectChange(group, "New Title #" + i, i, false));
+    }
+
+    when(groupsManager.getChangeRecords(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(group), eq(Integer.valueOf(0)), eq(6), eq(10)))
+        .thenReturn(CompletableFuture.completedFuture(expectedChanges.subList(0, 4)));
+
+    Response response = resources.getJerseyTest()
+        .target("/v1/groups/logs/6")
+        .queryParam("limit", "4")
+        .queryParam("maxSupportedChangeEpoch", "0")
+        .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
+        .get();
+
+    assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_PARTIAL_CONTENT);
+    assertThat(response.getHeaderString(HttpHeaders.CONTENT_RANGE)).isEqualTo("versions 6-9/10");
+    assertThat(response.hasEntity()).isTrue();
+
+    GroupChanges receivedChanges = GroupChanges.parseFrom(response.readEntity(byte[].class));
+
+    assertThat(GroupChanges.newBuilder().addAllGroupChanges(expectedChanges.subList(0, 4)).build()).isEqualTo(receivedChanges);
   }
 
   @Test
@@ -3155,10 +3269,10 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
 
     List<GroupChangeState> expectedChanges = new ArrayList<>(65);
     for (int i = 6; i < 71; i++) {
-      expectedChanges.add(generateSubjectChange(group, "New Title #" + i, i));
+      expectedChanges.add(generateSubjectChange(group, "New Title #" + i, i, true));
     }
 
-    when(groupsManager.getChangeRecords(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(group), eq(6), eq(70)))
+    when(groupsManager.getChangeRecords(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(group), isNull(), eq(6), eq(70)))
         .thenReturn(CompletableFuture.completedFuture(expectedChanges.subList(0, 64)));
 
     Response response = resources.getJerseyTest()
@@ -3429,21 +3543,20 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
   }
 
 
-  private GroupChangeState generateSubjectChange(final Group group, final String newTitle, final int version) {
-    return GroupChangeState.newBuilder()
-                           .setGroupChange(GroupChange.newBuilder()
-                                                      .setActions(Actions.newBuilder()
-                                                                         .setVersion(version)
-                                                                         .setModifyTitle(ModifyTitleAction.newBuilder()
-                                                                                                          .setTitle(ByteString.copyFromUtf8(newTitle))
-                                                                                                          .build())
-                                                                         .build()
-                                                      .toByteString()))
-                           .setGroupState(group.toBuilder()
-                                               .setVersion(version)
-                                               .setTitle(ByteString.copyFromUtf8(newTitle))
-                                               .build())
-                           .build();
-
+  private GroupChangeState generateSubjectChange(final Group group, final String newTitle, final int version, final boolean includeGroupState) {
+    GroupChangeState.Builder groupChangeStateBuilder = GroupChangeState.newBuilder()
+        .setGroupChange(GroupChange.newBuilder()
+            .setActions(Actions.newBuilder()
+                .setVersion(version)
+                .setModifyTitle(ModifyTitleAction.newBuilder()
+                    .setTitle(ByteString.copyFromUtf8(newTitle)))
+                .build()
+                .toByteString()));
+    if (includeGroupState) {
+      groupChangeStateBuilder.setGroupState(group.toBuilder()
+          .setVersion(version)
+          .setTitle(ByteString.copyFromUtf8(newTitle)));
+    }
+    return groupChangeStateBuilder.build();
   }
 }

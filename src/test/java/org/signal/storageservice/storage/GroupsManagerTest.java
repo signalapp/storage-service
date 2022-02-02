@@ -5,6 +5,14 @@
 
 package org.signal.storageservice.storage;
 
+import static junit.framework.TestCase.assertTrue;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.junit.Assert.assertFalse;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.google.api.core.ApiFutures;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
@@ -16,6 +24,11 @@ import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.bigtable.emulator.v2.BigtableEmulatorRule;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.io.IOException;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -29,20 +42,6 @@ import org.signal.storageservice.util.AuthHelper;
 import org.signal.storageservice.util.Conversions;
 import org.signal.zkgroup.groups.GroupPublicParams;
 import org.signal.zkgroup.groups.GroupSecretParams;
-
-import java.io.IOException;
-import java.util.List;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-
-import static junit.framework.TestCase.assertTrue;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.junit.Assert.assertFalse;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public class GroupsManagerTest {
 
@@ -360,6 +359,7 @@ public class GroupsManagerTest {
       GroupChange change = GroupChange.newBuilder()
                                       .setActions(actions.toByteString())
                                       .setServerSignature(ByteString.copyFrom(AuthHelper.GROUPS_SERVER_KEY.sign(actions.toByteArray()).serialize()))
+                                      .setChangeEpoch(i%10)  // spread some change epoch versions throughout
                                       .build();
 
       Group groupState = Group.newBuilder()
@@ -372,7 +372,7 @@ public class GroupsManagerTest {
     }
 
     assertThat(latestGroupState).isNotNull();
-    List<GroupChangeState> changes = groupsManager.getChangeRecords(groupId, latestGroupState, 1, 20).get();
+    List<GroupChangeState> changes = groupsManager.getChangeRecords(groupId, latestGroupState, null, 1, 20).get();
     assertThat(changes.size()).isEqualTo(19);
 
     for (int i=1;i<20;i++) {
@@ -380,14 +380,24 @@ public class GroupsManagerTest {
       assertThat(changes.get(i-1).getGroupState().getTitle().toStringUtf8()).isEqualTo("Some new title " + i);
     }
 
-    changes = groupsManager.getChangeRecords(groupId, latestGroupState, 10, 200).get();
+    changes = groupsManager.getChangeRecords(groupId, latestGroupState, null, 10, 200).get();
     assertThat(changes.size()).isEqualTo(190);
 
     for (int i=10;i<200;i++) {
       assertThat(Actions.parseFrom(changes.get(i-10).getGroupChange().getActions()).getModifyTitle().getTitle().toStringUtf8()).isEqualTo("Some new title " + i);
       assertThat(changes.get(i-10).getGroupState().getTitle().toStringUtf8()).isEqualTo("Some new title " + i);
     }
+
+    changes = groupsManager.getChangeRecords(groupId, latestGroupState, 5, 1, 20).get();
+    assertThat(changes.size()).isEqualTo(19);
+    for (int i=1;i<20;i++) {
+      GroupChangeState change = changes.get(i - 1);
+      assertThat(Actions.parseFrom(change.getGroupChange().getActions()).getModifyTitle().getTitle().toStringUtf8()).isEqualTo("Some new title " + i);
+      if (i % 10 > 5) {
+        assertThat(change.getGroupState().getTitle().toStringUtf8()).isEqualTo("Some new title " + i);
+      } else {
+        assertThat(change.hasGroupState()).as("change %d does not have group state set", i).isFalse();
+      }
+    }
   }
-
-
 }
