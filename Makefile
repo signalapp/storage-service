@@ -10,6 +10,8 @@ help:
 	@echo "  * copy-config: Copies configuration from the configuration repo into the config directory"
 	@echo "                 + configuration_repo variable may be set to control where to read from"
 	@echo "                   (defaults to $(configuration_repo))"
+	@echo "  * deploy-staging: Deploys to staging"
+	@echo "  * deploy: Deploys to staging and production"
 config:
 	mkdir -p config
 $(configuration_files): config/%: $(configuration_repo)/storage/% | config
