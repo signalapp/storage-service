@@ -42,12 +42,13 @@ public class GroupsManager {
   }
 
   public CompletableFuture<List<GroupChangeState>> getChangeRecords(ByteString groupId, Group group,
-      @Nullable Integer maxSupportedChangeEpoch, int fromVersionInclusive, int toVersionExclusive) {
+      @Nullable Integer maxSupportedChangeEpoch, boolean includeFirstState, boolean includeLastState,
+      int fromVersionInclusive, int toVersionExclusive) {
     if (fromVersionInclusive >= toVersionExclusive) {
       throw new IllegalArgumentException("Version to read from (" + fromVersionInclusive + ") must be less than version to read to (" + toVersionExclusive + ")");
     }
 
-    return groupLogTable.getRecordsFromVersion(groupId, maxSupportedChangeEpoch, fromVersionInclusive, toVersionExclusive)
+    return groupLogTable.getRecordsFromVersion(groupId, maxSupportedChangeEpoch, includeFirstState, includeLastState, fromVersionInclusive, toVersionExclusive)
                         .thenApply(groupChangeStates -> {
                           if (isGroupInRange(group, fromVersionInclusive, toVersionExclusive) && groupVersionMissing(group, groupChangeStates) && toVersionExclusive - 1 == group.getVersion()) {
                             groupChangeStates.add(GroupChangeState.newBuilder().setGroupState(group).build());

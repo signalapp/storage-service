@@ -54,8 +54,9 @@ public class GroupLogTable extends Table {
                               .setCell(FAMILY, ByteString.copyFromUtf8(COLUMN_STATE), 0L, group.toByteString()));
   }
 
-  public CompletableFuture<List<GroupChangeState>> getRecordsFromVersion(
-      ByteString groupId, @Nullable Integer maxSupportedChangeEpoch, int fromVersionInclusive, int toVersionExclusive) {
+  public CompletableFuture<List<GroupChangeState>> getRecordsFromVersion(ByteString groupId,
+      @Nullable Integer maxSupportedChangeEpoch, boolean includeFirstState, boolean includeLastState,
+      int fromVersionInclusive, int toVersionExclusive) {
 
     Timer.Context                             timerContext = getFromVersionTimer.time();
     CompletableFuture<List<GroupChangeState>> future       = new CompletableFuture<>();
@@ -73,9 +74,11 @@ public class GroupLogTable extends Table {
       public void onResponse(Row response) {
         try {
           GroupChange groupChange = GroupChange.parseFrom(response.getCells(FAMILY, COLUMN_CHANGE).stream().findFirst().orElseThrow().getValue());
+          Group groupState = Group.parseFrom(response.getCells(FAMILY, COLUMN_STATE).stream().findFirst().orElseThrow().getValue());
           GroupChangeState.Builder groupChangeStateBuilder = GroupChangeState.newBuilder().setGroupChange(groupChange);
-          if (maxSupportedChangeEpoch == null || maxSupportedChangeEpoch < groupChange.getChangeEpoch()) {
-            Group groupState = Group.parseFrom(response.getCells(FAMILY, COLUMN_STATE).stream().findFirst().orElseThrow().getValue());
+          if (maxSupportedChangeEpoch == null || maxSupportedChangeEpoch < groupChange.getChangeEpoch()
+              || (includeFirstState && groupState.getVersion() == fromVersionInclusive)
+              || (includeLastState && groupState.getVersion() == toVersionExclusive - 1)) {
             groupChangeStateBuilder.setGroupState(groupState);
           }
           results.add(groupChangeStateBuilder.build());

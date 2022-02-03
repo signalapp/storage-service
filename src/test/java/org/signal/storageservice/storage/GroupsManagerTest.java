@@ -372,7 +372,7 @@ public class GroupsManagerTest {
     }
 
     assertThat(latestGroupState).isNotNull();
-    List<GroupChangeState> changes = groupsManager.getChangeRecords(groupId, latestGroupState, null, 1, 20).get();
+    List<GroupChangeState> changes = groupsManager.getChangeRecords(groupId, latestGroupState, null, false, false, 1, 20).get();
     assertThat(changes.size()).isEqualTo(19);
 
     for (int i=1;i<20;i++) {
@@ -380,7 +380,7 @@ public class GroupsManagerTest {
       assertThat(changes.get(i-1).getGroupState().getTitle().toStringUtf8()).isEqualTo("Some new title " + i);
     }
 
-    changes = groupsManager.getChangeRecords(groupId, latestGroupState, null, 10, 200).get();
+    changes = groupsManager.getChangeRecords(groupId, latestGroupState, null, false, false, 10, 200).get();
     assertThat(changes.size()).isEqualTo(190);
 
     for (int i=10;i<200;i++) {
@@ -388,7 +388,7 @@ public class GroupsManagerTest {
       assertThat(changes.get(i-10).getGroupState().getTitle().toStringUtf8()).isEqualTo("Some new title " + i);
     }
 
-    changes = groupsManager.getChangeRecords(groupId, latestGroupState, 5, 1, 20).get();
+    changes = groupsManager.getChangeRecords(groupId, latestGroupState, 5, false, false, 1, 20).get();
     assertThat(changes.size()).isEqualTo(19);
     for (int i=1;i<20;i++) {
       GroupChangeState change = changes.get(i - 1);

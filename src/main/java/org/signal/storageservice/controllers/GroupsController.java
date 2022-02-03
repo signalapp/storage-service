@@ -188,7 +188,9 @@ public class GroupsController {
       @Auth GroupUser user,
       @PathParam("fromVersion") int fromVersion,
       @QueryParam("limit") @DefaultValue("64") int limit,
-      @QueryParam("maxSupportedChangeEpoch") Optional<Integer> maxSupportedChangeEpoch) {
+      @QueryParam("maxSupportedChangeEpoch") Optional<Integer> maxSupportedChangeEpoch,
+      @QueryParam("includeFirstState") boolean includeFirstState,
+      @QueryParam("includeLastState") boolean includeLastState) {
     return groupsManager.getGroup(user.getGroupId()).thenCompose(group -> {
       if (group.isEmpty()) {
         return CompletableFuture.completedFuture(Response.status(Response.Status.NOT_FOUND).build());
@@ -211,7 +213,7 @@ public class GroupsController {
 
       final int logVersionLimit = Math.max(1, Math.min(limit, LOG_VERSION_LIMIT)); // 1 ≤ limit ≤ LOG_VERSION_LIMIT
       if (latestGroupVersion + 1 - fromVersion > logVersionLimit) {
-        return groupsManager.getChangeRecords(user.getGroupId(), group.get(), maxSupportedChangeEpoch.orElse(null), fromVersion, fromVersion + logVersionLimit)
+        return groupsManager.getChangeRecords(user.getGroupId(), group.get(), maxSupportedChangeEpoch.orElse(null), includeFirstState, includeLastState, fromVersion, fromVersion + logVersionLimit)
                             .thenApply(records -> Response.status(HttpStatus.SC_PARTIAL_CONTENT)
                                                           .header(HttpHeaders.CONTENT_RANGE, String.format(Locale.US, "versions %d-%d/%d", fromVersion, fromVersion + logVersionLimit - 1, latestGroupVersion))
                                                           .entity(GroupChanges.newBuilder()
@@ -219,7 +221,7 @@ public class GroupsController {
                                                                               .build())
                                                           .build());
       } else {
-        return groupsManager.getChangeRecords(user.getGroupId(), group.get(), maxSupportedChangeEpoch.orElse(null), fromVersion, latestGroupVersion + 1)
+        return groupsManager.getChangeRecords(user.getGroupId(), group.get(), maxSupportedChangeEpoch.orElse(null), includeFirstState, includeLastState, fromVersion, latestGroupVersion + 1)
                             .thenApply(records -> Response.ok(GroupChanges.newBuilder()
                                                                           .addAllGroupChanges(records)
                                                                           .build())
