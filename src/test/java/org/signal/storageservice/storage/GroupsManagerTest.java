@@ -364,6 +364,7 @@ public class GroupsManagerTest {
 
       Group groupState = Group.newBuilder()
                               .setTitle(ByteString.copyFromUtf8("Some new title " + i))
+                              .setVersion(i)
                               .build();
       latestGroupState = groupState;
 
@@ -397,6 +398,19 @@ public class GroupsManagerTest {
         assertThat(change.getGroupState().getTitle().toStringUtf8()).isEqualTo("Some new title " + i);
       } else {
         assertThat(change.hasGroupState()).as("change %d does not have group state set", i).isFalse();
+      }
+    }
+
+    changes = groupsManager.getChangeRecords(groupId, latestGroupState, 5, true, true, 2, 5).get();
+    assertThat(changes.size()).isEqualTo(3);
+    for (int i=2;i<5;i++) {
+      GroupChangeState change = changes.get(i - 2);
+      assertThat(Actions.parseFrom(change.getGroupChange().getActions()).getModifyTitle().getTitle().toStringUtf8()).isEqualTo("Some new title " + i);
+      if (i == 3) {
+        assertThat(change.hasGroupState()).as("change %d does not have group state set since it is neither first nor last", i).isFalse();
+      } else {
+        assertThat(change.hasGroupState()).as("change %d has group state set since it is first or last", i).isTrue();
+        assertThat(change.getGroupState().getTitle().toStringUtf8()).isEqualTo("Some new title " + i);
       }
     }
   }
