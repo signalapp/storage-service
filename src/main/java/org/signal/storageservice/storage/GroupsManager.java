@@ -48,9 +48,11 @@ public class GroupsManager {
       throw new IllegalArgumentException("Version to read from (" + fromVersionInclusive + ") must be less than version to read to (" + toVersionExclusive + ")");
     }
 
-    return groupLogTable.getRecordsFromVersion(groupId, maxSupportedChangeEpoch, includeFirstState, includeLastState, fromVersionInclusive, toVersionExclusive)
-                        .thenApply(groupChangeStates -> {
-                          if (isGroupInRange(group, fromVersionInclusive, toVersionExclusive) && groupVersionMissing(group, groupChangeStates) && toVersionExclusive - 1 == group.getVersion()) {
+    return groupLogTable.getRecordsFromVersion(groupId, maxSupportedChangeEpoch, includeFirstState, includeLastState, fromVersionInclusive, toVersionExclusive, group.getVersion())
+                        .thenApply(groupChangeStatesAndSeenCurrentVersion -> {
+                          List<GroupChangeState> groupChangeStates = groupChangeStatesAndSeenCurrentVersion.first();
+                          boolean seenCurrentVersion = groupChangeStatesAndSeenCurrentVersion.second();
+                          if (isGroupInRange(group, fromVersionInclusive, toVersionExclusive) && !seenCurrentVersion && toVersionExclusive - 1 == group.getVersion()) {
                             groupChangeStates.add(GroupChangeState.newBuilder().setGroupState(group).build());
                           }
                           return groupChangeStates;
@@ -63,9 +65,5 @@ public class GroupsManager {
 
   private static boolean isGroupInRange(Group group, int fromVersionInclusive, int toVersionExclusive) {
     return fromVersionInclusive <= group.getVersion() && group.getVersion() < toVersionExclusive;
-  }
-
-  private static boolean groupVersionMissing(Group group, List<GroupChangeState> groupChangeStates) {
-    return groupChangeStates.stream().noneMatch(groupChangeState -> groupChangeState.getGroupState().getVersion() == group.getVersion());
   }
 }

@@ -27,6 +27,7 @@ import org.signal.storageservice.storage.protos.groups.Group;
 import org.signal.storageservice.storage.protos.groups.GroupChange;
 import org.signal.storageservice.storage.protos.groups.GroupChanges.GroupChangeState;
 import org.signal.storageservice.util.Conversions;
+import org.signal.storageservice.util.Pair;
 
 public class GroupLogTable extends Table {
 
@@ -54,18 +55,19 @@ public class GroupLogTable extends Table {
                               .setCell(FAMILY, ByteString.copyFromUtf8(COLUMN_STATE), 0L, group.toByteString()));
   }
 
-  public CompletableFuture<List<GroupChangeState>> getRecordsFromVersion(ByteString groupId,
+  public CompletableFuture<Pair<List<GroupChangeState>, Boolean>> getRecordsFromVersion(ByteString groupId,
       @Nullable Integer maxSupportedChangeEpoch, boolean includeFirstState, boolean includeLastState,
-      int fromVersionInclusive, int toVersionExclusive) {
+      int fromVersionInclusive, int toVersionExclusive, int currentVersion) {
 
-    Timer.Context                             timerContext = getFromVersionTimer.time();
-    CompletableFuture<List<GroupChangeState>> future       = new CompletableFuture<>();
-    Query                                     query        = Query.create(tableId);
+    Timer.Context timerContext = getFromVersionTimer.time();
+    CompletableFuture<Pair<List<GroupChangeState>, Boolean>> future = new CompletableFuture<>();
+    Query query = Query.create(tableId);
 
     query.range(getRowId(groupId, fromVersionInclusive), getRowId(groupId, toVersionExclusive));
 
     client.readRowsAsync(query, new ResponseObserver<>() {
       final List<GroupChangeState> results = new LinkedList<>();
+      boolean seenCurrentVersion = false;
 
       @Override
       public void onStart(StreamController controller) {}
@@ -75,6 +77,9 @@ public class GroupLogTable extends Table {
         try {
           GroupChange groupChange = GroupChange.parseFrom(response.getCells(FAMILY, COLUMN_CHANGE).stream().findFirst().orElseThrow().getValue());
           Group groupState = Group.parseFrom(response.getCells(FAMILY, COLUMN_STATE).stream().findFirst().orElseThrow().getValue());
+          if (groupState.getVersion() == currentVersion) {
+            seenCurrentVersion = true;
+          }
           GroupChangeState.Builder groupChangeStateBuilder = GroupChangeState.newBuilder().setGroupChange(groupChange);
           if (maxSupportedChangeEpoch == null || maxSupportedChangeEpoch < groupChange.getChangeEpoch()
               || (includeFirstState && groupState.getVersion() == fromVersionInclusive)
@@ -96,7 +101,7 @@ public class GroupLogTable extends Table {
       @Override
       public void onComplete() {
         timerContext.close();
-        future.complete(results);
+        future.complete(new Pair<>(results, seenCurrentVersion));
       }
     });
 
