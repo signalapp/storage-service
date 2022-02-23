@@ -6,18 +6,6 @@
 package org.signal.storageservice.groups;
 
 import com.google.protobuf.ByteString;
-import org.signal.storageservice.auth.GroupUser;
-import org.signal.storageservice.storage.protos.groups.AccessControl;
-import org.signal.storageservice.storage.protos.groups.Group;
-import org.signal.storageservice.storage.protos.groups.GroupChange;
-import org.signal.storageservice.storage.protos.groups.Member;
-import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
-import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
-import org.signal.storageservice.util.CollectionUtil;
-import org.signal.zkgroup.profiles.ProfileKeyCredentialPresentation;
-
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.ForbiddenException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -25,6 +13,19 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.ForbiddenException;
+import org.signal.storageservice.auth.GroupUser;
+import org.signal.storageservice.storage.protos.groups.AccessControl;
+import org.signal.storageservice.storage.protos.groups.Group;
+import org.signal.storageservice.storage.protos.groups.GroupChange;
+import org.signal.storageservice.storage.protos.groups.GroupChange.Actions;
+import org.signal.storageservice.storage.protos.groups.Member;
+import org.signal.storageservice.storage.protos.groups.Member.Role;
+import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
+import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
+import org.signal.storageservice.util.CollectionUtil;
+import org.signal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 
 public class GroupChangeApplicator {
   private final GroupValidator groupValidator;
@@ -550,5 +551,44 @@ public class GroupChangeApplicator {
     }
 
     modifiedGroupBuilder.setAnnouncementsOnly(modifyAnnouncementsOnly.getAnnouncementsOnly());
+  }
+
+  public void applyEnsureSomeAdminsExist(Actions.Builder actionsBuilder, Group.Builder modifiedGroupBuilder) {
+    if (modifiedGroupBuilder.getMembersCount() == 0) {
+      return;
+    }
+
+    if (modifiedGroupBuilder.getMembersList().stream().anyMatch(x -> x.getRole() == Role.ADMINISTRATOR)) {
+      return;
+    }
+
+    List<Member> newMembership = new LinkedList<>();
+    for (final Member member : modifiedGroupBuilder.getMembersList()) {
+      if (member.getJoinedAtVersion() == actionsBuilder.getVersion()) {
+        newMembership.add(member);
+        continue;
+      }
+      ByteString userId = member.getUserId();
+      if (actionsBuilder.getModifyMemberRolesList().stream().anyMatch(x -> userId.equals(x.getUserId()))) {
+        newMembership.add(member);
+        continue;
+      }
+      actionsBuilder.addModifyMemberRolesBuilder().setRole(Role.ADMINISTRATOR).setUserId(userId);
+      newMembership.add(member.toBuilder().setRole(Role.ADMINISTRATOR).build());
+    }
+    modifiedGroupBuilder.clearMembers().addAllMembers(newMembership);
+
+    if (modifiedGroupBuilder.getMembersList().stream().noneMatch(x -> x.getRole() == Role.ADMINISTRATOR)) {
+      // worst case the group has only members who are non-admins and had joined the group this change or had their role
+      // edited this change; we have no other option than to subsequently override that portion of the change to ensure
+      // at least one admin exists
+
+      newMembership.clear();
+      for (final Member member : modifiedGroupBuilder.getMembersList()) {
+        actionsBuilder.addModifyMemberRolesBuilder().setRole(Role.ADMINISTRATOR).setUserId(member.getUserId());
+        newMembership.add(member.toBuilder().setRole(Role.ADMINISTRATOR).build());
+      }
+      modifiedGroupBuilder.clearMembers().addAllMembers(newMembership);
+    }
   }
 }

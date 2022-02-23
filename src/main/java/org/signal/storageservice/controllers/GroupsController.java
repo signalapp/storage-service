@@ -410,6 +410,10 @@ public class GroupsController {
         changeEpoch = Math.max(changeEpoch, ANNOUNCEMENTS_ONLY_CHANGE_EPOCH);
       }
 
+      Actions.Builder actionsBuilder = actions.toBuilder();
+      // this must be the last change applied
+      groupChangeApplicator.applyEnsureSomeAdminsExist(actionsBuilder, modifiedGroupBuilder);
+
       ByteString sourceUuid = Stream.of((Supplier<Optional<ByteString>>) () -> GroupAuth.getMember(user, group.get()).map(Member::getUserId),
                                         (Supplier<Optional<ByteString>>) () -> GroupAuth.getMember(user, modifiedGroupBuilder.build()).map(Member::getUserId),
                                         (Supplier<Optional<ByteString>>) () -> GroupAuth.getMemberPendingProfileKey(user, group.get()).map(pending -> pending.getMember().getUserId()),
@@ -421,7 +425,7 @@ public class GroupsController {
                                     .findFirst()
                                     .orElseThrow(ForbiddenException::new);
 
-      actions = actions.toBuilder().setSourceUuid(sourceUuid).build();
+      actions = actionsBuilder.setSourceUuid(sourceUuid).build();
 
       byte[]          serializedActions = actions.toByteArray();
       int             version           = actions.getVersion();
