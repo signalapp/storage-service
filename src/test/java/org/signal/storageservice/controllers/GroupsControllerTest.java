@@ -3543,7 +3543,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testGetGroupLogsAllTheParamsTest() throws Exception {
+  public void testGetGroupLogsAllTheParamsTest() {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
