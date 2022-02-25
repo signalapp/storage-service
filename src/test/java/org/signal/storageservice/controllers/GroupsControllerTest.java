@@ -564,8 +564,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
                 .setRole(Member.Role.DEFAULT)
                 .setJoinedAtVersion(0);
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     Response response = resources.getJerseyTest()
                                  .target("/v1/groups/join/" + inviteLinkPasswordString)
@@ -578,8 +577,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
 
     groupBuilder.setInviteLinkPassword(ByteString.copyFrom(inviteLinkPassword));
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
                                  .target("/v1/groups/join/" + inviteLinkPasswordString)
@@ -593,8 +591,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
     groupBuilder.getAccessControlBuilder().setAddFromInviteLink(AccessControl.AccessRequired.ANY);
     groupBuilder.setVersion(42);
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
                         .target("/v1/groups/join/" + inviteLinkPasswordString)
@@ -618,8 +615,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
 
     groupBuilder.setVersion(0);
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
                         .target("/v1/groups/join/foo" + inviteLinkPasswordString)
@@ -632,8 +628,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
 
     groupBuilder.getAccessControlBuilder().setAddFromInviteLink(AccessControl.AccessRequired.UNSATISFIABLE);
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
                         .target("/v1/groups/join/" + inviteLinkPasswordString)
@@ -649,8 +644,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
                 .setProfileKey(ByteString.copyFrom(validUserThreePresentation.getProfileKeyCiphertext().serialize()))
                 .setTimestamp(System.currentTimeMillis());
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
                         .target("/v1/groups/join/" + inviteLinkPasswordString)
@@ -672,8 +666,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(groupJoinInfo.getPendingAdminApproval()).isTrue();
     assertThat(groupJoinInfo.getPendingAdminApprovalFull()).isFalse();
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
                         .target("/v1/groups/join/")
@@ -3593,41 +3586,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
 
   @Test
   public void testLastAdminLeavesGroup() throws Exception {
-    GroupSecretParams groupSecretParams = GroupSecretParams.generate();
-    GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
-
-    ProfileKeyCredentialPresentation validUserPresentation    = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL    );
-    ProfileKeyCredentialPresentation validUserTwoPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
-
-    Group group = Group.newBuilder()
-        .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
-        .setAccessControl(AccessControl.newBuilder()
-            .setMembers(AccessControl.AccessRequired.MEMBER)
-            .setAttributes(AccessControl.AccessRequired.MEMBER))
-        .setTitle(ByteString.copyFromUtf8("Some title"))
-        .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
-        .setVersion(0)
-        .addMembers(Member.newBuilder()
-            .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
-            .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
-            .setRole(Member.Role.ADMINISTRATOR)
-            .build())
-        .addMembers(Member.newBuilder()
-            .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
-            .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
-            .setRole(Member.Role.DEFAULT)
-            .build())
-        .build();
-
-
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
-
-    when(groupsManager.updateGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), any(Group.class)))
-        .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
-
-    when(groupsManager.appendChangeRecord(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(1), any(GroupChange.class), any(Group.class)))
-        .thenReturn(CompletableFuture.completedFuture(true));
+    setupGroupsManagerBehaviors(group);
 
     GroupChange.Actions actions = GroupChange.Actions.newBuilder()
         .setVersion(1)

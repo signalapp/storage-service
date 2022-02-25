@@ -5,7 +5,19 @@
 
 package org.signal.storageservice.controllers;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
+
 import com.google.protobuf.ByteString;
+import java.io.InputStream;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.function.Function;
+import javax.ws.rs.client.Entity;
+import javax.ws.rs.core.Response;
 import org.apache.commons.codec.binary.Base64;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -19,47 +31,12 @@ import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.AuthHelper;
 import org.signal.zkgroup.NotarySignature;
 
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Response;
-import java.io.InputStream;
-import java.security.SecureRandom;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
-import java.util.function.Function;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
 public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
 
   private byte[] createGroupInviteLinkPassword() {
     byte[] result = new byte[16];
     new SecureRandom().nextBytes(result);
     return result;
-  }
-
-  private void setupGroupsManagerBehaviors(Group group) {
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
-
-    when(groupsManager.updateGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), any(Group.class)))
-            .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
-
-    when(groupsManager.appendChangeRecord(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(1), any(GroupChange.class), any(Group.class)))
-            .thenReturn(CompletableFuture.completedFuture(true));
-  }
-
-  private void verifyNoGroupWrites() {
-    verify(groupsManager, never()).appendChangeRecord(any(), anyInt(), any(), any());
-    verify(groupsManager, never()).createGroup(any(), any());
-    verify(groupsManager, never()).updateGroup(any(), any());
   }
 
   @Test

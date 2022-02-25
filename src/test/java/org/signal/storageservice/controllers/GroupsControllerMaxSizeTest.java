@@ -6,11 +6,9 @@
 package org.signal.storageservice.controllers;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
-import static org.mockito.Mockito.when;
 
 import com.google.api.client.util.Clock;
 import com.google.protobuf.ByteString;
@@ -18,8 +16,6 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Base64;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Response;
 import org.junit.Test;
@@ -43,14 +39,7 @@ public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
 
   @Test
   public void testAddMemberWhenTooMany() {
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
-
-    when(groupsManager.updateGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), any(Group.class)))
-            .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
-
-    when(groupsManager.appendChangeRecord(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(1), any(GroupChange.class), any(Group.class)))
-            .thenReturn(CompletableFuture.completedFuture(true));
+    setupGroupsManagerBehaviors(group);
 
     GroupChange.Actions groupChange = GroupChange.Actions.newBuilder()
                                                          .setVersion(1)
@@ -98,14 +87,7 @@ public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
                                                                            .build())
                        .build();
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-            .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
-
-    when(groupsManager.updateGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), any(Group.class)))
-            .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
-
-    when(groupsManager.appendChangeRecord(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(1), any(GroupChange.class), any(Group.class)))
-            .thenReturn(CompletableFuture.completedFuture(true));
+    setupGroupsManagerBehaviors(group);
 
     GroupChange.Actions groupChange = GroupChange.Actions.newBuilder()
                                                          .setVersion(1)
@@ -150,16 +132,13 @@ public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
     groupBuilder.addMembersPendingAdminApprovalBuilder()
         .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
         .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
-        .setPresentation(ByteString.copyFrom(validUserTwoPresentation.serialize()))
         .setTimestamp(1);
     groupBuilder.addMembersPendingAdminApprovalBuilder()
         .setUserId(ByteString.copyFrom(validUserThreePresentation.getUuidCiphertext().serialize()))
         .setProfileKey(ByteString.copyFrom(validUserThreePresentation.getProfileKeyCiphertext().serialize()))
-        .setPresentation(ByteString.copyFrom(validUserThreePresentation.serialize()))
         .setTimestamp(2);
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     Response response = resources.getJerseyTest()
         .target("/v1/groups/join/" + inviteLinkPasswordString)
@@ -172,8 +151,7 @@ public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
 
     groupBuilder.setInviteLinkPassword(ByteString.copyFrom(inviteLinkPassword));
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
         .target("/v1/groups/join/" + inviteLinkPasswordString)
@@ -187,8 +165,7 @@ public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
     groupBuilder.getAccessControlBuilder().setAddFromInviteLink(AccessControl.AccessRequired.ANY);
     groupBuilder.setVersion(42);
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
         .target("/v1/groups/join/" + inviteLinkPasswordString)
@@ -212,8 +189,7 @@ public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
 
     groupBuilder.setVersion(0);
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
         .target("/v1/groups/join/foo" + inviteLinkPasswordString)
@@ -226,8 +202,7 @@ public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
 
     groupBuilder.getAccessControlBuilder().setAddFromInviteLink(AccessControl.AccessRequired.UNSATISFIABLE);
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
         .target("/v1/groups/join/" + inviteLinkPasswordString)
@@ -243,8 +218,7 @@ public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
         .setProfileKey(ByteString.copyFrom(validUserFourPresentation.getProfileKeyCiphertext().serialize()))
         .setTimestamp(System.currentTimeMillis());
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
         .target("/v1/groups/join/" + inviteLinkPasswordString)
@@ -266,8 +240,7 @@ public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
     assertThat(groupJoinInfo.getPendingAdminApproval()).isTrue();
     assertThat(groupJoinInfo.getPendingAdminApprovalFull()).isTrue();
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
         .target("/v1/groups/join/")
@@ -291,8 +264,7 @@ public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
 
     groupBuilder.removeMembersPendingAdminApproval(0).removeMembersPendingAdminApproval(0);
 
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+    setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
         .target("/v1/groups/join/")

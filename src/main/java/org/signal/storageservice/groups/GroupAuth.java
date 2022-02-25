@@ -10,6 +10,7 @@ import org.signal.storageservice.storage.protos.groups.AccessControl;
 import org.signal.storageservice.storage.protos.groups.Group;
 import org.signal.storageservice.storage.protos.groups.GroupChange.Actions;
 import org.signal.storageservice.storage.protos.groups.Member;
+import org.signal.storageservice.storage.protos.groups.MemberBanned;
 import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 
@@ -80,6 +81,15 @@ public class GroupAuth {
 
   public static boolean isMemberPendingAdminApproval(GroupUser user, Group group) {
     for (MemberPendingAdminApproval member : group.getMembersPendingAdminApprovalList()) {
+      if (user.isMember(member.getUserId(), group.getPublicKey())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  public static boolean isMemberBanned(GroupUser user, Group group) {
+    for (MemberBanned member : group.getMembersBannedList()) {
       if (user.isMember(member.getUserId(), group.getPublicKey())) {
         return true;
       }

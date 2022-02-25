@@ -70,6 +70,7 @@ public class GroupsController {
   private static final int INVITE_LINKS_CHANGE_EPOCH = 1;
   private static final int DESCRIPTION_CHANGE_EPOCH = 2;
   private static final int ANNOUNCEMENTS_ONLY_CHANGE_EPOCH = 3;
+  private static final int BANNED_USERS_CHANGE_EPOCH = 4;
 
   private final GroupsManager             groupsManager;
   private final ServerSecretParams        serverSecretParams;
@@ -140,6 +141,10 @@ public class GroupsController {
         if (accessRequired == AccessControl.AccessRequired.UNSATISFIABLE || accessRequired == AccessControl.AccessRequired.UNKNOWN) {
           return Response.status(Response.Status.FORBIDDEN).build();
         }
+      }
+
+      if (GroupAuth.isMemberBanned(user, group.get())) {
+        return Response.status(Response.Status.FORBIDDEN).header("X-Signal-Forbidden-Reason", "banned").build();
       }
 
       GroupJoinInfo.Builder groupJoinInfoBuilder = GroupJoinInfo.newBuilder();

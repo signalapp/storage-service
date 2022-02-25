@@ -5,8 +5,14 @@
 
 package org.signal.storageservice.controllers;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.api.client.util.Base64;
 import com.google.protobuf.ByteString;
@@ -14,6 +20,8 @@ import io.dropwizard.auth.AuthValueFactoryProvider;
 import io.dropwizard.testing.junit.ResourceTestRule;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import org.junit.Before;
 import org.junit.Rule;
 import org.signal.storageservice.auth.ExternalGroupCredentialGenerator;
@@ -27,6 +35,7 @@ import org.signal.storageservice.s3.PostPolicyGenerator;
 import org.signal.storageservice.storage.GroupsManager;
 import org.signal.storageservice.storage.protos.groups.AccessControl;
 import org.signal.storageservice.storage.protos.groups.Group;
+import org.signal.storageservice.storage.protos.groups.GroupChange;
 import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.util.AuthHelper;
 import org.signal.storageservice.util.SystemMapper;
@@ -37,8 +46,7 @@ import org.signal.zkgroup.profiles.ClientZkProfileOperations;
 import org.signal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 
 public abstract class BaseGroupsControllerTest {
-  protected final ExternalGroupCredentialGenerator groupCredentialGenerator   = new ExternalGroupCredentialGenerator(
-      Util.generateSecretBytes(32), Clock.systemUTC());
+  protected final ExternalGroupCredentialGenerator groupCredentialGenerator   = new ExternalGroupCredentialGenerator(Util.generateSecretBytes(32), Clock.systemUTC());
   protected final GroupSecretParams                groupSecretParams          = GroupSecretParams.generate();
   protected final GroupPublicParams                groupPublicParams          = groupSecretParams.getPublicParams();
   protected final ProfileKeyCredentialPresentation validUserPresentation      = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL);
@@ -59,14 +67,12 @@ public abstract class BaseGroupsControllerTest {
                                                                                      .addMembers(Member.newBuilder()
                                                                                                        .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
                                                                                                        .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
-                                                                                                       .setPresentation(ByteString.copyFrom(validUserPresentation.serialize()))
                                                                                                        .setRole(Member.Role.ADMINISTRATOR)
                                                                                                        .setJoinedAtVersion(0)
                                                                                                        .build())
                                                                                      .addMembers(Member.newBuilder()
                                                                                                        .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
                                                                                                        .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
-                                                                                                       .setPresentation(ByteString.copyFrom(validUserTwoPresentation.serialize()))
                                                                                                        .setRole(Member.Role.DEFAULT)
                                                                                                        .setJoinedAtVersion(0)
                                                                                                        .build())
@@ -101,5 +107,27 @@ public abstract class BaseGroupsControllerTest {
   @Before
   public void resetGroupsManager() {
     reset(groupsManager);
+  }
+
+  protected void setupGroupsManagerBehaviors(Group group) {
+    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
+        .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
+
+    when(groupsManager.updateGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), any(Group.class)))
+        .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+
+    when(groupsManager.appendChangeRecord(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(1), any(GroupChange.class), any(Group.class)))
+        .thenReturn(CompletableFuture.completedFuture(true));
+  }
+
+  protected void verifyNoGroupWrites() {
+    verify(groupsManager, never()).appendChangeRecord(any(), anyInt(), any(), any());
+    verify(groupsManager, never()).createGroup(any(), any());
+    verify(groupsManager, never()).updateGroup(any(), any());
+  }
+
+  protected void setMockGroupState(Group.Builder groupBuilder) {
+    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
+        .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
   }
 }
