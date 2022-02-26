@@ -13,11 +13,13 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Response;
 import org.junit.Test;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;
 import org.signal.storageservice.storage.protos.groups.AccessControl;
 import org.signal.storageservice.storage.protos.groups.Group;
+import org.signal.storageservice.storage.protos.groups.GroupChange;
 import org.signal.storageservice.storage.protos.groups.GroupChanges.GroupChangeState;
 import org.signal.storageservice.util.AuthHelper;
 
@@ -81,6 +83,35 @@ public class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest 
     response = getGroupLogs(0);
     assertThat(response.getStatus()).isEqualTo(403);
     assertThat(response.hasEntity()).isFalse();
+  }
+
+  @Test
+  public void testCreateGroupWithBannedMembers() {
+    final Group.Builder groupBuilder = group.toBuilder();
+
+    when(groupsManager.createGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), isA(Group.class)))
+        .thenReturn(CompletableFuture.completedFuture(true));
+    when(groupsManager.appendChangeRecord(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(0), isA(GroupChange.class), isA(Group.class)))
+        .thenReturn(CompletableFuture.completedFuture(true));
+
+    groupBuilder.getMembersBuilder(0).setPresentation(ByteString.copyFrom(validUserPresentation.serialize()));
+    groupBuilder.getMembersBuilder(1).setPresentation(ByteString.copyFrom(validUserTwoPresentation.serialize()));
+
+    Response response = createGroup(groupBuilder);
+    assertThat(response.getStatus()).isEqualTo(200);
+
+    groupBuilder.addMembersBannedBuilder().setUserId(ByteString.copyFrom(validUserFourPresentation.getUuidCiphertext().serialize()));
+
+    response = createGroup(groupBuilder);
+    assertThat(response.getStatus()).isEqualTo(400);
+  }
+
+  private Response createGroup(Group.Builder groupBuilder) {
+    return resources.getJerseyTest()
+        .target("/v1/groups/")
+        .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
+        .put(Entity.entity(groupBuilder.build().toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
   }
 
   private Response getGroupLogs(int fromVersion) {

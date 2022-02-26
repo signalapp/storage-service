@@ -316,6 +316,10 @@ public class GroupsController {
       throw new BadRequestException("cannot create a group with already pending members");
     }
 
+    if (group.getMembersBannedCount() > 0) {
+      throw new BadRequestException("cannot create a group with already banned members");
+    }
+
     final Group       validatedGroup     = group;
     final GroupChange initialGroupChange = GroupChange.newBuilder()
                                                       .setActions(Actions.newBuilder()
