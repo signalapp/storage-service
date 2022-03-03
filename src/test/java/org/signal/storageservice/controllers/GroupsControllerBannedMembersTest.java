@@ -86,6 +86,24 @@ public class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest 
   }
 
   @Test
+  public void testGetGroupWhenBanned() {
+    final Group.Builder groupBuilder = group.toBuilder();
+
+    setMockGroupState(groupBuilder);
+    Response response = getGroup();
+    assertThat(response.getStatus()).isEqualTo(200);
+    assertThat(response.hasEntity()).isTrue();
+
+    groupBuilder.addMembersBannedBuilder().setUserId(groupBuilder.getMembers(0).getUserId());
+    groupBuilder.removeMembers(0);
+
+    setMockGroupState(groupBuilder);
+    response = getGroup();
+    assertThat(response.getStatus()).isEqualTo(403);
+    assertThat(response.hasEntity()).isFalse();
+  }
+
+  @Test
   public void testCreateGroupWithBannedMembers() {
     final Group.Builder groupBuilder = group.toBuilder();
 
@@ -119,6 +137,14 @@ public class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest 
         .target("/v1/groups/logs/" + fromVersion)
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
+        .get();
+  }
+
+  private Response getGroup() {
+    return resources.getJerseyTest()
+        .target("/v1/groups")
+        .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
         .get();
   }
 
