@@ -20,8 +20,11 @@ import org.signal.storageservice.storage.protos.groups.AccessControl;
 import org.signal.storageservice.storage.protos.groups.Group;
 import org.signal.storageservice.storage.protos.groups.GroupChange;
 import org.signal.storageservice.storage.protos.groups.GroupChange.Actions;
+import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.AddMemberBannedAction;
+import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.DeleteMemberBannedAction;
 import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.storage.protos.groups.Member.Role;
+import org.signal.storageservice.storage.protos.groups.MemberBanned;
 import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.CollectionUtil;
@@ -590,5 +593,60 @@ public class GroupChangeApplicator {
       }
       modifiedGroupBuilder.clearMembers().addAllMembers(newMembership);
     }
+  }
+
+  public boolean applyDeleteMembersBanned(GroupUser user, byte[] inviteLinkPassword, Group group, Group.Builder modifiedGroupBuilder, List<DeleteMemberBannedAction> actions) {
+    if (actions.isEmpty()) {
+      return false;
+    }
+
+    if (!GroupAuth.isDeleteMembersBannedAllowed(user, group)) {
+      throw new ForbiddenException();
+    }
+
+    Set<ByteString> userIdsToRemove = actions.stream().map(GroupChange.Actions.DeleteMemberBannedAction::getDeletedUserId).collect(Collectors.toUnmodifiableSet());
+
+    if (userIdsToRemove.size() != actions.size()) {
+      throw new BadRequestException("duplicate user ids in request");
+    }
+
+    Set<ByteString> currentUserIds = modifiedGroupBuilder.getMembersBannedList().stream().map(MemberBanned::getUserId).collect(Collectors.toUnmodifiableSet());
+
+    if (!currentUserIds.containsAll(userIdsToRemove)) {
+      throw new BadRequestException("some user ids in request are not currently banned");
+    }
+
+    List<MemberBanned> membersBanned = modifiedGroupBuilder.getMembersBannedList().stream()
+        .filter(memberBanned -> !userIdsToRemove.contains(memberBanned.getUserId()))
+        .collect(Collectors.toUnmodifiableList());
+
+    modifiedGroupBuilder.clearMembersBanned().addAllMembersBanned(membersBanned);
+    return true;
+  }
+
+  public boolean applyAddMembersBanned(GroupUser user, byte[] inviteLinkPassword, Group group, Group.Builder modifiedGroupBuilder, List<AddMemberBannedAction> actions) {
+    if (actions.isEmpty()) {
+      return false;
+    }
+
+    if (!GroupAuth.isAddMembersBannedAllowed(user, group)) {
+      throw new ForbiddenException();
+    }
+
+    Set<ByteString> userIdsToAdd = actions.stream().map(GroupChange.Actions.AddMemberBannedAction::getAdded).map(MemberBanned::getUserId).collect(Collectors.toUnmodifiableSet());
+
+    if (userIdsToAdd.size() != actions.size()) {
+      throw new BadRequestException("duplicate user ids in request");
+    }
+
+    if (CollectionUtil.containsAny(userIdsToAdd, modifiedGroupBuilder.getMembersBannedList().stream().map(MemberBanned::getUserId).collect(Collectors.toUnmodifiableSet()))) {
+      throw new BadRequestException("some user ids in request already banned");
+    }
+
+    List<MemberBanned> newMembersBanned = userIdsToAdd.stream()
+        .map(userIdToAdd -> MemberBanned.newBuilder().setUserId(userIdToAdd).build())
+        .collect(Collectors.toUnmodifiableList());
+    modifiedGroupBuilder.addAllMembersBanned(newMembersBanned);
+    return true;
   }
 }

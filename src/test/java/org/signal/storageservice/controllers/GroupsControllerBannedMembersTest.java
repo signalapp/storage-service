@@ -18,10 +18,13 @@ import javax.ws.rs.core.Response;
 import org.junit.Test;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;
 import org.signal.storageservice.storage.protos.groups.AccessControl;
+import org.signal.storageservice.storage.protos.groups.AccessControl.AccessRequired;
 import org.signal.storageservice.storage.protos.groups.Group;
 import org.signal.storageservice.storage.protos.groups.GroupChange;
 import org.signal.storageservice.storage.protos.groups.GroupChanges.GroupChangeState;
+import org.signal.storageservice.storage.protos.groups.Member.Role;
 import org.signal.storageservice.util.AuthHelper;
+import org.signal.zkgroup.auth.AuthCredential;
 
 public class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
   @Test
@@ -124,6 +127,140 @@ public class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest 
     assertThat(response.getStatus()).isEqualTo(400);
   }
 
+  @Test
+  public void testModifyGroupBanMember() throws Exception {
+    final Group.Builder groupBuilder = group.toBuilder();
+    final GroupChange.Actions.Builder actionsBuilder = GroupChange.Actions.newBuilder();
+
+    actionsBuilder.addAddMembersBannedBuilder().getAddedBuilder().setUserId(validUserThreeId);
+    actionsBuilder.setVersion(1);
+
+    setMockGroupState(groupBuilder);
+    setupGroupsManagerForWrites();
+    Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
+
+    groupBuilder.setVersion(1).addMembersBannedBuilder().setUserId(validUserThreeId);
+    assertThat(response.getStatus()).isEqualTo(200);
+    verifyGroupModification(groupBuilder, actionsBuilder, 4, response, validUserId);
+  }
+
+  @Test
+  public void testModifyGroupBanMemberAsNonAdmin() {
+    final Group.Builder groupBuilder = group.toBuilder();
+    final GroupChange.Actions.Builder actionsBuilder = GroupChange.Actions.newBuilder();
+
+    actionsBuilder.addAddMembersBannedBuilder().getAddedBuilder().setUserId(validUserThreeId);
+    actionsBuilder.setVersion(1);
+
+    setMockGroupState(groupBuilder);
+    setupGroupsManagerForWrites();
+    Response response = modifyGroup(AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL, actionsBuilder);
+
+    assertThat(response.getStatus()).isEqualTo(403);
+    verifyNoGroupWrites();
+  }
+
+  @Test
+  public void testModifyGroupUnbanMember() throws Exception {
+    final Group.Builder groupBuilder = group.toBuilder();
+    final GroupChange.Actions.Builder actionsBuilder = GroupChange.Actions.newBuilder();
+
+    groupBuilder.addMembersBannedBuilder().setUserId(validUserThreeId);
+    actionsBuilder.addDeleteMembersBannedBuilder().setDeletedUserId(validUserThreeId);
+    actionsBuilder.setVersion(1);
+
+    setMockGroupState(groupBuilder);
+    setupGroupsManagerForWrites();
+    Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
+
+    groupBuilder.setVersion(1).clearMembersBanned();
+    assertThat(response.getStatus()).isEqualTo(200);
+    verifyGroupModification(groupBuilder, actionsBuilder, 4, response, validUserId);
+  }
+
+  @Test
+  public void testModifyGroupUnbanMemberAsNonAdmin() {
+    final Group.Builder groupBuilder = group.toBuilder();
+    final GroupChange.Actions.Builder actionsBuilder = GroupChange.Actions.newBuilder();
+
+    groupBuilder.getAccessControlBuilder().setMembers(AccessRequired.ADMINISTRATOR);
+    groupBuilder.addMembersBannedBuilder().setUserId(validUserThreeId);
+    actionsBuilder.addDeleteMembersBannedBuilder().setDeletedUserId(validUserThreeId);
+    actionsBuilder.setVersion(1);
+
+    setMockGroupState(groupBuilder);
+    setupGroupsManagerForWrites();
+    Response response = modifyGroup(AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL, actionsBuilder);
+
+    assertThat(response.getStatus()).isEqualTo(403);
+    verifyNoGroupWrites();
+  }
+
+  @Test
+  public void testModifyGroupUnbanMemberAsNonAdminWithOpenGroup() throws Exception {
+    final Group.Builder groupBuilder = group.toBuilder();
+    final GroupChange.Actions.Builder actionsBuilder = GroupChange.Actions.newBuilder();
+
+    groupBuilder.addMembersBannedBuilder().setUserId(validUserThreeId);
+    actionsBuilder.addDeleteMembersBannedBuilder().setDeletedUserId(validUserThreeId);
+    actionsBuilder.setVersion(1);
+
+    setMockGroupState(groupBuilder);
+    setupGroupsManagerForWrites();
+    Response response = modifyGroup(AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL, actionsBuilder);
+
+    groupBuilder.setVersion(1).clearMembersBanned();
+    assertThat(response.getStatus()).isEqualTo(200);
+    verifyGroupModification(groupBuilder, actionsBuilder, 4, response, validUserTwoId);
+  }
+
+  @Test
+  public void testModifyGroupBanMemberWithoutRemoval() {
+    final Group.Builder groupBuilder = group.toBuilder();
+    final GroupChange.Actions.Builder actionsBuilder = GroupChange.Actions.newBuilder();
+
+    actionsBuilder.addAddMembersBannedBuilder().getAddedBuilder().setUserId(validUserTwoId);
+    actionsBuilder.setVersion(1);
+
+    setMockGroupState(groupBuilder);
+    setupGroupsManagerForWrites();
+    Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
+    assertThat(response.getStatus()).isEqualTo(400);
+    verifyNoGroupWrites();
+  }
+
+  @Test
+  public void testModifyGroupBanMemberPendingProfileKeyWithoutRemoval() {
+    final Group.Builder groupBuilder = group.toBuilder();
+    final GroupChange.Actions.Builder actionsBuilder = GroupChange.Actions.newBuilder();
+
+    groupBuilder.addMembersPendingProfileKeyBuilder().getMemberBuilder().setUserId(validUserThreeId).setRole(Role.DEFAULT);
+    actionsBuilder.addAddMembersBannedBuilder().getAddedBuilder().setUserId(validUserThreeId);
+    actionsBuilder.setVersion(1);
+
+    setMockGroupState(groupBuilder);
+    setupGroupsManagerForWrites();
+    Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
+    assertThat(response.getStatus()).isEqualTo(400);
+    verifyNoGroupWrites();
+  }
+
+  @Test
+  public void testModifyGroupBanMemberPendingAdminApprovalWithoutRemoval() {
+    final Group.Builder groupBuilder = group.toBuilder();
+    final GroupChange.Actions.Builder actionsBuilder = GroupChange.Actions.newBuilder();
+
+    groupBuilder.addMembersPendingAdminApprovalBuilder().setUserId(validUserThreeId).setProfileKey(ByteString.copyFrom(validUserThreePresentation.getProfileKeyCiphertext().serialize()));
+    actionsBuilder.addAddMembersBannedBuilder().getAddedBuilder().setUserId(validUserThreeId);
+    actionsBuilder.setVersion(1);
+
+    setMockGroupState(groupBuilder);
+    setupGroupsManagerForWrites();
+    Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
+    assertThat(response.getStatus()).isEqualTo(400);
+    verifyNoGroupWrites();
+  }
+
   private Response createGroup(Group.Builder groupBuilder) {
     return resources.getJerseyTest()
         .target("/v1/groups/")
@@ -154,5 +291,14 @@ public class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest 
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_FOUR_AUTH_CREDENTIAL))
         .get();
+  }
+
+  private Response modifyGroup(AuthCredential authCredential, GroupChange.Actions.Builder groupChangeActionsBuilder) {
+    return resources.getJerseyTest()
+        .target("/v1/groups")
+        .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, authCredential))
+        .method("PATCH", Entity.entity(
+            groupChangeActionsBuilder.build().toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
   }
 }

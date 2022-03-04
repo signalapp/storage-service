@@ -6,6 +6,15 @@
 package org.signal.storageservice.groups;
 
 import com.google.protobuf.ByteString;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import javax.ws.rs.BadRequestException;
+import javax.ws.rs.ForbiddenException;
 import org.apache.commons.codec.binary.Base64;
 import org.signal.storageservice.auth.GroupUser;
 import org.signal.storageservice.configuration.GroupConfiguration;
@@ -14,9 +23,9 @@ import org.signal.storageservice.storage.protos.groups.AccessControl;
 import org.signal.storageservice.storage.protos.groups.Group;
 import org.signal.storageservice.storage.protos.groups.GroupChange;
 import org.signal.storageservice.storage.protos.groups.Member;
+import org.signal.storageservice.storage.protos.groups.MemberBanned;
 import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
-import org.signal.storageservice.util.CollectionUtil;
 import org.signal.zkgroup.InvalidInputException;
 import org.signal.zkgroup.VerificationFailedException;
 import org.signal.zkgroup.groups.GroupPublicParams;
@@ -24,15 +33,6 @@ import org.signal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 import org.signal.zkgroup.profiles.ServerZkProfileOperations;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.ForbiddenException;
-import java.security.MessageDigest;
-import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 
 public class GroupValidator {
   private static final int INVITE_LINK_PASSWORD_SIZE_BYTES = 16;
@@ -148,6 +148,16 @@ public class GroupValidator {
     }
   }
 
+  public MemberBanned validateMemberBanned(GroupUser addedBy, Group group, MemberBanned memberBanned) throws BadRequestException {
+    if (memberBanned.getUserId().isEmpty()) {
+      throw new BadRequestException("missing user id");
+    }
+
+    return MemberBanned.newBuilder()
+        .setUserId(memberBanned.getUserId())
+        .build();
+  }
+
   public List<GroupChange.Actions.AddMemberAction> validateAddMember(GroupUser user, byte[] inviteLinkPassword, Group group, List<GroupChange.Actions.AddMemberAction> actions) throws BadRequestException {
     List<GroupChange.Actions.AddMemberAction> validatedActions = new LinkedList<>();
 
@@ -213,6 +223,26 @@ public class GroupValidator {
                                                                                   .setAdded(validateMemberPendingAdminApproval(user, group, action.getAdded()))
                                                                                   .build());
     }
+    return validatedActions;
+  }
+
+  public List<GroupChange.Actions.AddMemberBannedAction> validateAddMembersBanned(GroupUser addedByUser, Group group, List<GroupChange.Actions.AddMemberBannedAction> actions) {
+    if (actions.isEmpty()) {
+      return actions;
+    }
+
+    Member addedBy = GroupAuth.getMember(addedByUser, group).orElseThrow(ForbiddenException::new);
+
+    List<GroupChange.Actions.AddMemberBannedAction> validatedActions = new LinkedList<>();
+
+    for (GroupChange.Actions.AddMemberBannedAction action : actions) {
+      if (!action.hasAdded()) {
+        throw new BadRequestException("missing added field in add members banned actions");
+      }
+      validatedActions.add(GroupChange.Actions.AddMemberBannedAction.newBuilder().setAdded(
+          validateMemberBanned(addedByUser, group, action.getAdded())).build());
+    }
+
     return validatedActions;
   }
 
@@ -293,19 +323,30 @@ public class GroupValidator {
       throw new BadRequestException("members pending admin approval cannot exceed " + maxGroupSize);
     }
 
-    Set<ByteString> membersUserIds = group.getMembersList().stream().map(Member::getUserId).collect(Collectors.toSet());
-    Set<ByteString> membersPendingProfileKeyUserIds = group.getMembersPendingProfileKeyList().stream().map(member -> member.getMember().getUserId()).collect(Collectors.toSet());
-    Set<ByteString> membersPendingAdminApprovalUserIds = group.getMembersPendingAdminApprovalList().stream().map(MemberPendingAdminApproval::getUserId).collect(Collectors.toSet());
+    // put some sort of cap on the maximum number of accounts that can be banned
+    if (group.getMembersBannedCount() > maxGroupSize) {
+      throw new BadRequestException("members banned cannot exceed " + maxGroupSize);
+    }
+
+    Set<ByteString> membersUserIds = group.getMembersList().stream().map(Member::getUserId).collect(Collectors.toUnmodifiableSet());
+    Set<ByteString> membersPendingProfileKeyUserIds = group.getMembersPendingProfileKeyList().stream().map(member -> member.getMember().getUserId()).collect(Collectors.toUnmodifiableSet());
+    Set<ByteString> membersPendingAdminApprovalUserIds = group.getMembersPendingAdminApprovalList().stream().map(MemberPendingAdminApproval::getUserId).collect(Collectors.toUnmodifiableSet());
+    Set<ByteString> membersBannedUserIds = group.getMembersBannedList().stream().map(MemberBanned::getUserId).collect(Collectors.toUnmodifiableSet());
 
     if (membersUserIds.size() != group.getMembersCount() ||
         membersPendingProfileKeyUserIds.size() != group.getMembersPendingProfileKeyCount() ||
-        membersPendingAdminApprovalUserIds.size() != group.getMembersPendingAdminApprovalCount()) {
+        membersPendingAdminApprovalUserIds.size() != group.getMembersPendingAdminApprovalCount() ||
+        membersBannedUserIds.size() != group.getMembersBannedCount()) {
       throw new BadRequestException("group cannot contain duplicate user ids in the membership lists");
     }
 
-    if (CollectionUtil.containsAny(membersUserIds, membersPendingProfileKeyUserIds) ||
-        CollectionUtil.containsAny(membersUserIds, membersPendingAdminApprovalUserIds) ||
-        CollectionUtil.containsAny(membersPendingProfileKeyUserIds, membersPendingAdminApprovalUserIds)) {
+    Set<ByteString> allUserIds =
+        Stream.of(membersUserIds, membersPendingProfileKeyUserIds, membersPendingAdminApprovalUserIds, membersBannedUserIds)
+            .flatMap(Set::stream)
+            .collect(Collectors.toUnmodifiableSet());
+
+    // if size of a unique set from all doesn't match the sum of the four then there's some duplication going on across lists
+    if (allUserIds.size() != membersUserIds.size() + membersPendingProfileKeyUserIds.size() + membersPendingAdminApprovalUserIds.size() + membersBannedUserIds.size()) {
       throw new BadRequestException("group cannot contain the same user in multiple membership lists");
     }
 

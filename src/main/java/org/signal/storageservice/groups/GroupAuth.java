@@ -7,9 +7,11 @@ package org.signal.storageservice.groups;
 
 import org.signal.storageservice.auth.GroupUser;
 import org.signal.storageservice.storage.protos.groups.AccessControl;
+import org.signal.storageservice.storage.protos.groups.AccessControl.AccessRequired;
 import org.signal.storageservice.storage.protos.groups.Group;
 import org.signal.storageservice.storage.protos.groups.GroupChange.Actions;
 import org.signal.storageservice.storage.protos.groups.Member;
+import org.signal.storageservice.storage.protos.groups.Member.Role;
 import org.signal.storageservice.storage.protos.groups.MemberBanned;
 import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
@@ -196,5 +198,23 @@ public class GroupAuth {
 
   public static boolean isAllowedToInitiateGroupCall(GroupUser user, Group group) {
     return !group.getAnnouncementsOnly() || isAdminstrator(user, group);
+  }
+
+  public static boolean isDeleteMembersBannedAllowed(GroupUser user, Group group) {
+    Optional<Member> optionalMember = getMember(user, group);
+    if (optionalMember.isEmpty()) {
+      return false;
+    }
+    final Member member = optionalMember.get();
+    final Role role = member.getRole();
+    switch (role) {
+      case ADMINISTRATOR: return true;
+      case DEFAULT: return isAccessRequiredOneOf(group.getAccessControl().getMembers(), AccessRequired.MEMBER, AccessRequired.ANY);
+      default: return false;
+    }
+  }
+
+  public static boolean isAddMembersBannedAllowed(GroupUser user, Group group) {
+    return isAdminstrator(user, group);
   }
 }

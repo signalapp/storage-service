@@ -368,11 +368,20 @@ public class GroupsController {
                                         .addAllAddMembersPendingProfileKey(groupValidator.validateAddMembersPendingProfileKey(user, group.get(), submittedActions.getAddMembersPendingProfileKeyList()))
                                         .clearAddMembersPendingAdminApproval()
                                         .addAllAddMembersPendingAdminApproval(groupValidator.validateAddMembersPendingAdminApproval(user, inviteLinkPassword, group.get(), submittedActions.getAddMembersPendingAdminApprovalList()))
+                                        .clearAddMembersBanned()
+                                        .addAllAddMembersBanned(groupValidator.validateAddMembersBanned(user, group.get(), submittedActions.getAddMembersBannedList()))
                                         .build();
 
       int changeEpoch = 0;
 
       Group.Builder modifiedGroupBuilder = group.get().toBuilder();
+
+      if (groupChangeApplicator.applyDeleteMembersBanned(user, inviteLinkPassword, group.get(), modifiedGroupBuilder, actions.getDeleteMembersBannedList())) {
+        changeEpoch = Math.max(changeEpoch, BANNED_USERS_CHANGE_EPOCH);
+      }
+      if (groupChangeApplicator.applyAddMembersBanned(user, inviteLinkPassword, group.get(), modifiedGroupBuilder, actions.getAddMembersBannedList())) {
+        changeEpoch = Math.max(changeEpoch, BANNED_USERS_CHANGE_EPOCH);
+      }
 
       groupChangeApplicator.applyAddMembers(user, inviteLinkPassword, group.get(), modifiedGroupBuilder, actions.getAddMembersList());
       groupChangeApplicator.applyDeleteMembers(user, inviteLinkPassword, group.get(), modifiedGroupBuilder, actions.getDeleteMembersList());

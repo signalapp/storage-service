@@ -5,6 +5,7 @@
 
 package org.signal.storageservice.controllers;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -18,12 +19,16 @@ import com.google.api.client.util.Base64;
 import com.google.protobuf.ByteString;
 import io.dropwizard.auth.AuthValueFactoryProvider;
 import io.dropwizard.testing.junit.ResourceTestRule;
+import java.io.IOException;
+import java.io.InputStream;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import javax.ws.rs.core.Response;
 import org.junit.Before;
 import org.junit.Rule;
+import org.mockito.ArgumentCaptor;
 import org.signal.storageservice.auth.ExternalGroupCredentialGenerator;
 import org.signal.storageservice.auth.GroupUser;
 import org.signal.storageservice.configuration.GroupConfiguration;
@@ -40,6 +45,9 @@ import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.util.AuthHelper;
 import org.signal.storageservice.util.SystemMapper;
 import org.signal.storageservice.util.Util;
+import org.signal.zkgroup.InvalidInputException;
+import org.signal.zkgroup.NotarySignature;
+import org.signal.zkgroup.VerificationFailedException;
 import org.signal.zkgroup.groups.GroupPublicParams;
 import org.signal.zkgroup.groups.GroupSecretParams;
 import org.signal.zkgroup.profiles.ClientZkProfileOperations;
@@ -53,6 +61,10 @@ public abstract class BaseGroupsControllerTest {
   protected final ProfileKeyCredentialPresentation validUserTwoPresentation   = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
   protected final ProfileKeyCredentialPresentation validUserThreePresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_THREE_PROFILE_CREDENTIAL);
   protected final ProfileKeyCredentialPresentation validUserFourPresentation  = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_FOUR_PROFILE_CREDENTIAL);
+  protected final ByteString validUserId = ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize());
+  protected final ByteString validUserTwoId = ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize());
+  protected final ByteString validUserThreeId = ByteString.copyFrom(validUserThreePresentation.getUuidCiphertext().serialize());
+  protected final ByteString validUserFourId = ByteString.copyFrom(validUserFourPresentation.getUuidCiphertext().serialize());
   protected final GroupsManager                    groupsManager              = mock(GroupsManager.class);
   protected final PostPolicyGenerator              postPolicyGenerator        = new PostPolicyGenerator("us-west-1", "profile-bucket", "accessKey");
   protected final PolicySigner                     policySigner               = new PolicySigner("accessSecret", "us-west-1");
@@ -113,6 +125,10 @@ public abstract class BaseGroupsControllerTest {
     when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
 
+    setupGroupsManagerForWrites();
+  }
+
+  protected void setupGroupsManagerForWrites() {
     when(groupsManager.updateGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), any(Group.class)))
         .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
@@ -129,5 +145,36 @@ public abstract class BaseGroupsControllerTest {
   protected void setMockGroupState(Group.Builder groupBuilder) {
     when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(groupBuilder.build())));
+  }
+
+  protected void verifyGroupModification(Group.Builder groupBuilder, GroupChange.Actions.Builder groupChangeActionsBuilder, int expectedChangeEpoch, Response response, ByteString modificationUserId)
+      throws IOException, InvalidInputException, VerificationFailedException {
+    final Group newGroupState = groupBuilder.build();
+    final ByteString groupId = ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize());
+    final GroupChange.Actions actions = groupChangeActionsBuilder.build();
+
+    ArgumentCaptor<GroupChange> groupChangeCaptor = ArgumentCaptor.forClass(GroupChange.class);
+
+    verify(groupsManager).updateGroup(eq(groupId), eq(newGroupState));
+    verify(groupsManager).appendChangeRecord(
+        eq(groupId),
+        eq(newGroupState.getVersion()),
+        groupChangeCaptor.capture(),
+        eq(newGroupState));
+    GroupChange capturedGroupChange = groupChangeCaptor.getValue();
+    AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(capturedGroupChange.getActions().toByteArray(), new NotarySignature(capturedGroupChange.getServerSignature().toByteArray()));
+    GroupChange.Actions capturedActions = GroupChange.Actions.parseFrom(capturedGroupChange.getActions());
+    assertThat(capturedActions).isEqualTo(actions.toBuilder().setSourceUuid(modificationUserId).build());
+    assertThat(capturedGroupChange.getChangeEpoch()).isEqualTo(expectedChangeEpoch);
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    assertThat(response.hasEntity()).isTrue();
+    assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
+    final GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class));
+    final GroupChange.Actions signedActions = GroupChange.Actions.parseFrom(signedChange.getActions());
+    assertThat(signedActions.toBuilder().clearSourceUuid().build()).isEqualTo(actions);
+    assertThat(signedActions.getSourceUuid()).isEqualTo(modificationUserId);
+    assertThat(signedChange.getChangeEpoch()).isEqualTo(expectedChangeEpoch);
+    assertThat(signedChange.getServerSignature()).isEqualTo(capturedGroupChange.getServerSignature());
   }
 }
