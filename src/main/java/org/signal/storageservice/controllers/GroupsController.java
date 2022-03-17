@@ -11,6 +11,7 @@ import io.dropwizard.auth.Auth;
 import io.dropwizard.util.Strings;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.time.Clock;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.LinkedList;
@@ -72,29 +73,32 @@ public class GroupsController {
   private static final int ANNOUNCEMENTS_ONLY_CHANGE_EPOCH = 3;
   private static final int BANNED_USERS_CHANGE_EPOCH = 4;
 
-  private final GroupsManager             groupsManager;
-  private final ServerSecretParams        serverSecretParams;
-  private final GroupValidator            groupValidator;
-  private final GroupChangeApplicator     groupChangeApplicator;
+  private final Clock clock;
+  private final GroupsManager groupsManager;
+  private final ServerSecretParams serverSecretParams;
+  private final GroupValidator groupValidator;
+  private final GroupChangeApplicator groupChangeApplicator;
 
-  private final PolicySigner          policySigner;
-  private final PostPolicyGenerator   policyGenerator;
+  private final PolicySigner policySigner;
+  private final PostPolicyGenerator policyGenerator;
 
   private final ExternalGroupCredentialGenerator externalGroupCredentialGenerator;
 
-  public GroupsController(GroupsManager                    groupsManager,
-                          ServerSecretParams               serverSecretParams,
-                          PolicySigner                     policySigner,
-                          PostPolicyGenerator              policyGenerator,
-                          GroupConfiguration               groupConfiguration,
-                          ExternalGroupCredentialGenerator externalGroupCredentialGenerator)
-  {
-    this.groupsManager                    = groupsManager;
-    this.serverSecretParams               = serverSecretParams;
-    this.groupValidator                   = new GroupValidator       (new ServerZkProfileOperations(serverSecretParams), groupConfiguration);
-    this.groupChangeApplicator            = new GroupChangeApplicator(this.groupValidator                                            );
-    this.policySigner                     = policySigner;
-    this.policyGenerator                  = policyGenerator;
+  public GroupsController(
+      Clock clock,
+      GroupsManager groupsManager,
+      ServerSecretParams serverSecretParams,
+      PolicySigner policySigner,
+      PostPolicyGenerator policyGenerator,
+      GroupConfiguration groupConfiguration,
+      ExternalGroupCredentialGenerator externalGroupCredentialGenerator) {
+    this.clock = clock;
+    this.groupsManager = groupsManager;
+    this.serverSecretParams = serverSecretParams;
+    this.groupValidator = new GroupValidator(new ServerZkProfileOperations(serverSecretParams), groupConfiguration);
+    this.groupChangeApplicator = new GroupChangeApplicator(this.groupValidator);
+    this.policySigner = policySigner;
+    this.policyGenerator = policyGenerator;
     this.externalGroupCredentialGenerator = externalGroupCredentialGenerator;
   }
 
@@ -300,7 +304,7 @@ public class GroupsController {
     }
 
     for (MemberPendingProfileKey memberPendingProfileKey : group.getMembersPendingProfileKeyList()) {
-      validatedMemberPendingProfileKeys.add(groupValidator.validateMemberPendingProfileKey(source.get(), group, memberPendingProfileKey));
+      validatedMemberPendingProfileKeys.add(groupValidator.validateMemberPendingProfileKey(clock, source.get(), group, memberPendingProfileKey));
     }
 
     group = group.toBuilder().clearMembersPendingProfileKey().addAllMembersPendingProfileKey(validatedMemberPendingProfileKeys).build();
@@ -365,11 +369,11 @@ public class GroupsController {
                                         .clearAddMembers()
                                         .addAllAddMembers(groupValidator.validateAddMember(user, inviteLinkPassword, group.get(), submittedActions.getAddMembersList()))
                                         .clearAddMembersPendingProfileKey()
-                                        .addAllAddMembersPendingProfileKey(groupValidator.validateAddMembersPendingProfileKey(user, group.get(), submittedActions.getAddMembersPendingProfileKeyList()))
+                                        .addAllAddMembersPendingProfileKey(groupValidator.validateAddMembersPendingProfileKey(clock, user, group.get(), submittedActions.getAddMembersPendingProfileKeyList()))
                                         .clearAddMembersPendingAdminApproval()
-                                        .addAllAddMembersPendingAdminApproval(groupValidator.validateAddMembersPendingAdminApproval(user, inviteLinkPassword, group.get(), submittedActions.getAddMembersPendingAdminApprovalList()))
+                                        .addAllAddMembersPendingAdminApproval(groupValidator.validateAddMembersPendingAdminApproval(clock, user, inviteLinkPassword, group.get(), submittedActions.getAddMembersPendingAdminApprovalList()))
                                         .clearAddMembersBanned()
-                                        .addAllAddMembersBanned(groupValidator.validateAddMembersBanned(user, group.get(), submittedActions.getAddMembersBannedList()))
+                                        .addAllAddMembersBanned(groupValidator.validateAddMembersBanned(clock, user, group.get(), submittedActions.getAddMembersBannedList()))
                                         .build();
 
       int changeEpoch = 0;

@@ -7,6 +7,7 @@ package org.signal.storageservice.groups;
 
 import com.google.protobuf.ByteString;
 import java.security.MessageDigest;
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -78,7 +79,7 @@ public class GroupValidator {
     }
   }
 
-  public MemberPendingProfileKey validateMemberPendingProfileKey(Member addedBy, Group group, MemberPendingProfileKey memberPendingProfileKey)
+  public MemberPendingProfileKey validateMemberPendingProfileKey(Clock clock, Member addedBy, Group group, MemberPendingProfileKey memberPendingProfileKey)
           throws BadRequestException {
     if (!memberPendingProfileKey.hasMember() || memberPendingProfileKey.getMember() == null) {
       throw new BadRequestException("Missing member");
@@ -108,11 +109,11 @@ public class GroupValidator {
     return MemberPendingProfileKey.newBuilder()
                                   .setMember(memberPendingProfileKeyData)
                                   .setAddedByUserId(addedBy.getUserId())
-                                  .setTimestamp(System.currentTimeMillis())
+                                  .setTimestamp(clock.millis())
                                   .build();
   }
 
-  public MemberPendingAdminApproval validateMemberPendingAdminApproval(GroupUser user, Group group, MemberPendingAdminApproval memberPendingAdminApproval) throws BadRequestException {
+  public MemberPendingAdminApproval validateMemberPendingAdminApproval(Clock clock, GroupUser user, Group group, MemberPendingAdminApproval memberPendingAdminApproval) throws BadRequestException {
     try {
       if (!memberPendingAdminApproval.getUserId().isEmpty()) {
         throw new BadRequestException("user id should not be set in request");
@@ -141,20 +142,21 @@ public class GroupValidator {
       return MemberPendingAdminApproval.newBuilder()
                                        .setProfileKey(ByteString.copyFrom(profileKeyCredentialPresentation.getProfileKeyCiphertext().serialize()))
                                        .setUserId(ByteString.copyFrom(profileKeyCredentialPresentation.getUuidCiphertext().serialize()))
-                                       .setTimestamp(System.currentTimeMillis())
+                                       .setTimestamp(clock.millis())
                                        .build();
     } catch (VerificationFailedException | InvalidInputException e) {
       throw new BadRequestException("invalid presentation", e);
     }
   }
 
-  public MemberBanned validateMemberBanned(GroupUser addedBy, Group group, MemberBanned memberBanned) throws BadRequestException {
+  public MemberBanned validateMemberBanned(Clock clock, GroupUser addedBy, Group group, MemberBanned memberBanned) throws BadRequestException {
     if (memberBanned.getUserId().isEmpty()) {
       throw new BadRequestException("missing user id");
     }
 
     return MemberBanned.newBuilder()
         .setUserId(memberBanned.getUserId())
+        .setTimestamp(clock.millis())
         .build();
   }
 
@@ -184,7 +186,7 @@ public class GroupValidator {
     return validatedActions;
   }
 
-  public List<GroupChange.Actions.AddMemberPendingProfileKeyAction> validateAddMembersPendingProfileKey(GroupUser addedByUser, Group group, List<GroupChange.Actions.AddMemberPendingProfileKeyAction> actions)
+  public List<GroupChange.Actions.AddMemberPendingProfileKeyAction> validateAddMembersPendingProfileKey(Clock clock, GroupUser addedByUser, Group group, List<GroupChange.Actions.AddMemberPendingProfileKeyAction> actions)
           throws BadRequestException, ForbiddenException {
     if (actions.isEmpty()) {
       return actions;
@@ -199,13 +201,13 @@ public class GroupValidator {
         throw new BadRequestException("Bad member construction");
       }
 
-      validatedActions.add(action.toBuilder().setAdded(validateMemberPendingProfileKey(addedBy, group, action.getAdded())).build());
+      validatedActions.add(action.toBuilder().setAdded(validateMemberPendingProfileKey(clock, addedBy, group, action.getAdded())).build());
     }
 
     return validatedActions;
   }
 
-  public List<GroupChange.Actions.AddMemberPendingAdminApprovalAction> validateAddMembersPendingAdminApproval(GroupUser user, byte[] inviteLinkPassword, Group group, List<GroupChange.Actions.AddMemberPendingAdminApprovalAction> actions) {
+  public List<GroupChange.Actions.AddMemberPendingAdminApprovalAction> validateAddMembersPendingAdminApproval(Clock clock, GroupUser user, byte[] inviteLinkPassword, Group group, List<GroupChange.Actions.AddMemberPendingAdminApprovalAction> actions) {
     if (actions.isEmpty()) {
       return actions;
     }
@@ -220,13 +222,13 @@ public class GroupValidator {
         throw new BadRequestException("missing added field in add members pending admin approval actions");
       }
       validatedActions.add(GroupChange.Actions.AddMemberPendingAdminApprovalAction.newBuilder()
-                                                                                  .setAdded(validateMemberPendingAdminApproval(user, group, action.getAdded()))
+                                                                                  .setAdded(validateMemberPendingAdminApproval(clock, user, group, action.getAdded()))
                                                                                   .build());
     }
     return validatedActions;
   }
 
-  public List<GroupChange.Actions.AddMemberBannedAction> validateAddMembersBanned(GroupUser addedByUser, Group group, List<GroupChange.Actions.AddMemberBannedAction> actions) {
+  public List<GroupChange.Actions.AddMemberBannedAction> validateAddMembersBanned(Clock clock, GroupUser addedByUser, Group group, List<GroupChange.Actions.AddMemberBannedAction> actions) {
     if (actions.isEmpty()) {
       return actions;
     }
@@ -240,7 +242,7 @@ public class GroupValidator {
         throw new BadRequestException("missing added field in add members banned actions");
       }
       validatedActions.add(GroupChange.Actions.AddMemberBannedAction.newBuilder().setAdded(
-          validateMemberBanned(addedByUser, group, action.getAdded())).build());
+          validateMemberBanned(clock, addedByUser, group, action.getAdded())).build());
     }
 
     return validatedActions;

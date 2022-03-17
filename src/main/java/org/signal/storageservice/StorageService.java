@@ -134,7 +134,7 @@ public class StorageService extends Application<StorageServiceConfiguration> {
     environment.jersey().register(new HealthCheckController());
     environment.jersey().register(new BackupsController(backupsManager));
     environment.jersey().register(new StorageController(storageManager));
-    environment.jersey().register(new GroupsController(groupsManager, serverSecretParams, policySigner, postPolicyGenerator, config.getGroupConfiguration(), externalGroupCredentialGenerator));
+    environment.jersey().register(new GroupsController(Clock.systemUTC(), groupsManager, serverSecretParams, policySigner, postPolicyGenerator, config.getGroupConfiguration(), externalGroupCredentialGenerator));
 
     environment.jersey().register(new MetricsApplicationEventListener());
 

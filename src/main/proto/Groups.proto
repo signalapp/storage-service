@@ -40,18 +40,19 @@ message Member {
 message MemberPendingProfileKey {
   Member member = 1;
   bytes addedByUserId = 2;
-  uint64 timestamp = 3;
+  uint64 timestamp = 3;  // ms since epoch
 }
 
 message MemberPendingAdminApproval {
   bytes userId = 1;
   bytes profileKey = 2;
   bytes presentation = 3;
-  uint64 timestamp = 4;
+  uint64 timestamp = 4;  // ms since epoch
 }
 
 message MemberBanned {
   bytes userId = 1;
+  uint64 timestamp = 2;  // ms since epoch
 }
 
 message AccessControl {

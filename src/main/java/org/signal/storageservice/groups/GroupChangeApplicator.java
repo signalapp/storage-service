@@ -643,10 +643,7 @@ public class GroupChangeApplicator {
       throw new BadRequestException("some user ids in request already banned");
     }
 
-    List<MemberBanned> newMembersBanned = userIdsToAdd.stream()
-        .map(userIdToAdd -> MemberBanned.newBuilder().setUserId(userIdToAdd).build())
-        .collect(Collectors.toUnmodifiableList());
-    modifiedGroupBuilder.addAllMembersBanned(newMembersBanned);
+    actions.stream().map(GroupChange.Actions.AddMemberBannedAction::getAdded).forEach(modifiedGroupBuilder::addMembersBanned);
     return true;
   }
 }

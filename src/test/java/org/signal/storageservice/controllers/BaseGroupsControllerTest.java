@@ -66,6 +66,8 @@ public abstract class BaseGroupsControllerTest {
   protected final ByteString validUserThreeId = ByteString.copyFrom(validUserThreePresentation.getUuidCiphertext().serialize());
   protected final ByteString validUserFourId = ByteString.copyFrom(validUserFourPresentation.getUuidCiphertext().serialize());
   protected final GroupsManager                    groupsManager              = mock(GroupsManager.class);
+  protected final Clock                            clock                      = mock(Clock.class);
+  protected       long                             currentTime;
   protected final PostPolicyGenerator              postPolicyGenerator        = new PostPolicyGenerator("us-west-1", "profile-bucket", "accessKey");
   protected final PolicySigner                     policySigner               = new PolicySigner("accessSecret", "us-west-1");
   protected final Group                            group                      = Group.newBuilder()
@@ -98,7 +100,7 @@ public abstract class BaseGroupsControllerTest {
                                                             .addProvider(new ProtocolBufferValidationErrorMessageBodyWriter())
                                                             .addProvider(new InvalidProtocolBufferExceptionMapper())
                                                             .setMapper(SystemMapper.getMapper())
-                                                            .addResource(new GroupsController(groupsManager, AuthHelper.GROUPS_SERVER_KEY, policySigner, postPolicyGenerator, getGroupConfiguration(), groupCredentialGenerator))
+                                                            .addResource(new GroupsController(clock, groupsManager, AuthHelper.GROUPS_SERVER_KEY, policySigner, postPolicyGenerator, getGroupConfiguration(), groupCredentialGenerator))
                                                             .build();
 
   protected GroupConfiguration getGroupConfiguration() {
@@ -118,7 +120,9 @@ public abstract class BaseGroupsControllerTest {
 
   @Before
   public void resetGroupsManager() {
-    reset(groupsManager);
+    reset(groupsManager, clock);
+    currentTime = System.currentTimeMillis();
+    when(clock.millis()).thenReturn(currentTime);
   }
 
   protected void setupGroupsManagerBehaviors(Group group) {
