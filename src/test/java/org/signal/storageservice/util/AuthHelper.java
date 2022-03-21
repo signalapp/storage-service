@@ -6,7 +6,7 @@
 package org.signal.storageservice.util;
 
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Matchers.eq;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
