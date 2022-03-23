@@ -52,11 +52,11 @@ import org.signal.storageservice.storage.protos.groups.Member.Role;
 import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.AuthHelper;
-import org.signal.zkgroup.NotarySignature;
-import org.signal.zkgroup.groups.GroupPublicParams;
-import org.signal.zkgroup.groups.GroupSecretParams;
-import org.signal.zkgroup.profiles.ClientZkProfileOperations;
-import org.signal.zkgroup.profiles.ProfileKeyCredentialPresentation;
+import org.signal.libsignal.zkgroup.NotarySignature;
+import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
+import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
+import org.signal.libsignal.zkgroup.profiles.ClientZkProfileOperations;
+import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 
 public class GroupsControllerTest extends BaseGroupsControllerTest {
 
@@ -474,7 +474,7 @@ public class GroupsControllerTest extends BaseGroupsControllerTest {
                                          .setRole(Member.Role.ADMINISTRATOR)
                                          .build())
                        .addMembers(Member.newBuilder()
-                                         .setPresentation(ByteString.copyFrom(new byte[ProfileKeyCredentialPresentation.SIZE]))
+                                         .setPresentation(ByteString.copyFrom(new byte[validUserPresentation.serialize().length]))
                                          .setRole(Member.Role.DEFAULT)
                                          .build())
                        .build();

@@ -28,7 +28,7 @@ import org.signal.storageservice.storage.protos.groups.MemberBanned;
 import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.CollectionUtil;
-import org.signal.zkgroup.profiles.ProfileKeyCredentialPresentation;
+import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 
 public class GroupChangeApplicator {
   private final GroupValidator groupValidator;

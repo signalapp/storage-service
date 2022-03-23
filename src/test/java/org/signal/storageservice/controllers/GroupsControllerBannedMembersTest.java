@@ -24,7 +24,7 @@ import org.signal.storageservice.storage.protos.groups.GroupChange;
 import org.signal.storageservice.storage.protos.groups.GroupChanges.GroupChangeState;
 import org.signal.storageservice.storage.protos.groups.Member.Role;
 import org.signal.storageservice.util.AuthHelper;
-import org.signal.zkgroup.auth.AuthCredential;
+import org.signal.libsignal.zkgroup.auth.AuthCredential;
 
 public class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
   @Test

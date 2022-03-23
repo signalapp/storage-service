@@ -10,12 +10,12 @@ import io.dropwizard.auth.Authenticator;
 import io.dropwizard.auth.basic.BasicCredentials;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
-import org.signal.zkgroup.InvalidInputException;
-import org.signal.zkgroup.InvalidRedemptionTimeException;
-import org.signal.zkgroup.VerificationFailedException;
-import org.signal.zkgroup.auth.AuthCredentialPresentation;
-import org.signal.zkgroup.auth.ServerZkAuthOperations;
-import org.signal.zkgroup.groups.GroupPublicParams;
+import org.signal.libsignal.zkgroup.InvalidInputException;
+import org.signal.libsignal.zkgroup.InvalidRedemptionTimeException;
+import org.signal.libsignal.zkgroup.VerificationFailedException;
+import org.signal.libsignal.zkgroup.auth.AuthCredentialPresentation;
+import org.signal.libsignal.zkgroup.auth.ServerZkAuthOperations;
+import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
 
 import java.util.Optional;
 

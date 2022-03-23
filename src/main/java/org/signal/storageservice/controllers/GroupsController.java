@@ -61,9 +61,9 @@ import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApprova
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.CollectionUtil;
 import org.signal.storageservice.util.Pair;
-import org.signal.zkgroup.NotarySignature;
-import org.signal.zkgroup.ServerSecretParams;
-import org.signal.zkgroup.profiles.ServerZkProfileOperations;
+import org.signal.libsignal.zkgroup.NotarySignature;
+import org.signal.libsignal.zkgroup.ServerSecretParams;
+import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
 
 @Path("/v1/groups")
 public class GroupsController {

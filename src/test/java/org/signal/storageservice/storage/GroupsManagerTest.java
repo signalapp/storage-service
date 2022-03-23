@@ -40,8 +40,8 @@ import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.Modif
 import org.signal.storageservice.storage.protos.groups.GroupChanges.GroupChangeState;
 import org.signal.storageservice.util.AuthHelper;
 import org.signal.storageservice.util.Conversions;
-import org.signal.zkgroup.groups.GroupPublicParams;
-import org.signal.zkgroup.groups.GroupSecretParams;
+import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
+import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
 
 public class GroupsManagerTest {
 

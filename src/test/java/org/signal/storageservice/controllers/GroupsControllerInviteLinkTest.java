@@ -29,7 +29,7 @@ import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.AuthHelper;
-import org.signal.zkgroup.NotarySignature;
+import org.signal.libsignal.zkgroup.NotarySignature;
 
 public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
 

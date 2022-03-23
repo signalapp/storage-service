@@ -7,8 +7,8 @@ package org.signal.storageservice.auth;
 
 import com.google.protobuf.ByteString;
 import org.signal.storageservice.storage.protos.groups.Member;
-import org.signal.zkgroup.InvalidInputException;
-import org.signal.zkgroup.groups.GroupPublicParams;
+import org.signal.libsignal.zkgroup.InvalidInputException;
+import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
 
 import javax.security.auth.Subject;
 import java.security.MessageDigest;

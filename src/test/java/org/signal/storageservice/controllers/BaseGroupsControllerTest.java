@@ -45,13 +45,13 @@ import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.util.AuthHelper;
 import org.signal.storageservice.util.SystemMapper;
 import org.signal.storageservice.util.Util;
-import org.signal.zkgroup.InvalidInputException;
-import org.signal.zkgroup.NotarySignature;
-import org.signal.zkgroup.VerificationFailedException;
-import org.signal.zkgroup.groups.GroupPublicParams;
-import org.signal.zkgroup.groups.GroupSecretParams;
-import org.signal.zkgroup.profiles.ClientZkProfileOperations;
-import org.signal.zkgroup.profiles.ProfileKeyCredentialPresentation;
+import org.signal.libsignal.zkgroup.InvalidInputException;
+import org.signal.libsignal.zkgroup.NotarySignature;
+import org.signal.libsignal.zkgroup.VerificationFailedException;
+import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
+import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
+import org.signal.libsignal.zkgroup.profiles.ClientZkProfileOperations;
+import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 
 public abstract class BaseGroupsControllerTest {
   protected final ExternalGroupCredentialGenerator groupCredentialGenerator   = new ExternalGroupCredentialGenerator(Util.generateSecretBytes(32), Clock.systemUTC());

@@ -59,8 +59,8 @@ import org.signal.storageservice.storage.StorageManager;
 import org.signal.storageservice.util.HostnameUtil;
 import org.signal.storageservice.util.UncaughtExceptionHandler;
 import org.signal.storageservice.util.logging.LoggingUnhandledExceptionMapper;
-import org.signal.zkgroup.ServerSecretParams;
-import org.signal.zkgroup.auth.ServerZkAuthOperations;
+import org.signal.libsignal.zkgroup.ServerSecretParams;
+import org.signal.libsignal.zkgroup.auth.ServerZkAuthOperations;
 
 public class StorageService extends Application<StorageServiceConfiguration> {
 

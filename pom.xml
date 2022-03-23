@@ -71,8 +71,8 @@
         </dependency>
         <dependency>
             <groupId>org.signal</groupId>
-            <artifactId>zkgroup-java</artifactId>
-            <version>0.8.1</version>
+            <artifactId>libsignal-server</artifactId>
+            <version>0.15.1</version>
         </dependency>
         <dependency>
             <groupId>net.logstash.logback</groupId>
