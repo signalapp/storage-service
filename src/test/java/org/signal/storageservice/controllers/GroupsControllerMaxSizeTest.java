@@ -18,7 +18,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Response;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.signal.storageservice.configuration.GroupConfiguration;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;
 import org.signal.storageservice.storage.protos.groups.AccessControl;
@@ -29,7 +29,7 @@ import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.AuthHelper;
 
-public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
+class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
   @Override
   protected GroupConfiguration getGroupConfiguration() {
     final GroupConfiguration groupConfiguration = super.getGroupConfiguration();
@@ -38,7 +38,7 @@ public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMemberWhenTooMany() {
+  void testAddMemberWhenTooMany() {
     setupGroupsManagerBehaviors(group);
 
     GroupChange.Actions groupChange = GroupChange.Actions.newBuilder()
@@ -62,7 +62,7 @@ public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMemberWhenMembersPendingProfileKey() {
+  void testAddMemberWhenMembersPendingProfileKey() {
     Group group = Group.newBuilder()
                        .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
                        .setAccessControl(AccessControl.newBuilder()
@@ -110,7 +110,7 @@ public class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testGetGroupJoinInfo() throws Exception {
+  void testGetGroupJoinInfo() throws Exception {
     final byte[] inviteLinkPassword = new byte[16];
     new SecureRandom().nextBytes(inviteLinkPassword);
     final String inviteLinkPasswordString = Base64.getUrlEncoder().encodeToString(inviteLinkPassword);

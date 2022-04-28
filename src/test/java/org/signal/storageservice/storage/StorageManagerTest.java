@@ -5,6 +5,14 @@
 
 package org.signal.storageservice.storage;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
 import com.google.api.core.ApiFutures;
 import com.google.api.gax.rpc.ServerStream;
 import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
@@ -17,42 +25,32 @@ import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
-import com.google.cloud.bigtable.emulator.v2.BigtableEmulatorRule;
 import com.google.protobuf.ByteString;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.signal.storageservice.auth.User;
-import org.signal.storageservice.storage.protos.contacts.StorageItem;
-import org.signal.storageservice.storage.protos.contacts.StorageManifest;
-
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.RegisterExtension;
+import org.signal.storageservice.auth.User;
+import org.signal.storageservice.storage.protos.contacts.StorageItem;
+import org.signal.storageservice.storage.protos.contacts.StorageManifest;
 
-import static junit.framework.TestCase.assertFalse;
-import static junit.framework.TestCase.assertTrue;
-import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
-public class StorageManagerTest {
+class StorageManagerTest {
 
   private static final String CONTACTS_TABLE_ID  = "test-table";
   private static final String MANIFESTS_TABLE_ID = "manifest-table";
 
-  @Rule
-  public final BigtableEmulatorRule bigtableEmulator = BigtableEmulatorRule.create();
+  @RegisterExtension
+  private final BigtableEmulatorExtension bigtableEmulator = BigtableEmulatorExtension.create();
 
   private BigtableDataClient client;
 
-  @Before
-  public void setup() throws IOException {
+  @BeforeEach
+  void setup() throws IOException {
     BigtableTableAdminSettings.Builder tableAdminSettings = BigtableTableAdminSettings.newBuilderForEmulator(bigtableEmulator.getPort()).setProjectId("foo").setInstanceId("bar");
     BigtableTableAdminClient tableAdminClient = BigtableTableAdminClient.create(tableAdminSettings.build());
 
@@ -64,7 +62,7 @@ public class StorageManagerTest {
   }
 
   @Test
-  public void testReadManifest() throws ExecutionException, InterruptedException {
+  void testReadManifest() throws ExecutionException, InterruptedException {
     UUID           userId          = UUID.randomUUID();
     User           user            = new User(userId);
     StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
@@ -82,7 +80,7 @@ public class StorageManagerTest {
   }
 
   @Test
-  public void testGetManifestIfNotVersionDifferent() throws Exception {
+  void testGetManifestIfNotVersionDifferent() throws Exception {
     UUID           userId          = UUID.randomUUID();
     User           user            = new User(userId);
     StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
@@ -104,7 +102,7 @@ public class StorageManagerTest {
   }
 
   @Test
-  public void testGetManifestIfNotVersionSame() throws Exception {
+  void testGetManifestIfNotVersionSame() throws Exception {
     UUID           userId          = UUID.randomUUID();
     User           user            = new User(userId);
     StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
@@ -126,7 +124,7 @@ public class StorageManagerTest {
   }
 
   @Test
-  public void testReadError() throws ExecutionException, InterruptedException {
+  void testReadError() throws ExecutionException, InterruptedException {
     BigtableDataClient client = mock(BigtableDataClient.class);
     when(client.readRowAsync(anyString(), any(ByteString.class))).thenReturn(ApiFutures.immediateFailedFuture(new RuntimeException("Bad news")));
 
@@ -145,7 +143,7 @@ public class StorageManagerTest {
   }
 
   @Test
-  public void testSetEmptyManifest() throws Exception {
+  void testSetEmptyManifest() throws Exception {
     UUID            userId          = UUID.randomUUID();
     User            user            = new User(userId);
     StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
@@ -178,7 +176,7 @@ public class StorageManagerTest {
   }
 
   @Test
-  public void testSetStaleManifest() throws Exception {
+  void testSetStaleManifest() throws Exception {
     UUID            userId          = UUID.randomUUID();
     User            user            = new User(userId);
     StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
@@ -225,7 +223,7 @@ public class StorageManagerTest {
   }
 
   @Test
-  public void testSetUpdatedManifest() throws Exception {
+  void testSetUpdatedManifest() throws Exception {
     UUID            userId          = UUID.randomUUID();
     User            user            = new User(userId);
     StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
@@ -270,7 +268,7 @@ public class StorageManagerTest {
   }
 
   @Test
-  public void testClearItems() throws ExecutionException, InterruptedException {
+  void testClearItems() throws ExecutionException, InterruptedException {
     UUID userId = UUID.randomUUID();
     User user   = new User(userId);
 
@@ -343,7 +341,7 @@ public class StorageManagerTest {
   }
 
   @Test
-  public void testDelete() throws ExecutionException, InterruptedException {
+  void testDelete() throws ExecutionException, InterruptedException {
     UUID userId = UUID.randomUUID();
     User user   = new User(userId);
 

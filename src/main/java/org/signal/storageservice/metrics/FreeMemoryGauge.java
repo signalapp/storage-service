@@ -17,6 +17,6 @@ public class FreeMemoryGauge implements Gauge<Long> {
     OperatingSystemMXBean mbean = (OperatingSystemMXBean)
         ManagementFactory.getOperatingSystemMXBean();
 
-    return mbean.getFreePhysicalMemorySize();
+    return mbean.getFreeMemorySize();
   }
 }

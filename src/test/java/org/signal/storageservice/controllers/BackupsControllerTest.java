@@ -5,35 +5,35 @@
 
 package org.signal.storageservice.controllers;
 
-import com.google.cloud.bigtable.admin.v2.models.Backup;
-import io.dropwizard.testing.junit.ResourceTestRule;
-import org.junit.Before;
-import org.junit.Rule;
-import org.junit.Test;
-import org.signal.storageservice.storage.BackupsManager;
-
-import javax.ws.rs.core.Response;
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-
-import static org.junit.Assert.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.google.cloud.bigtable.admin.v2.models.Backup;
+import io.dropwizard.testing.junit5.DropwizardExtensionsSupport;
+import io.dropwizard.testing.junit5.ResourceExtension;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import javax.ws.rs.core.Response;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.signal.storageservice.storage.BackupsManager;
+
+@ExtendWith(DropwizardExtensionsSupport.class)
 public class BackupsControllerTest {
   private static final String CRON_HEADER = "X-Appengine-Cron";
 
   private final BackupsManager backupsManager = mock(BackupsManager.class);
 
-  @Rule
-  public final ResourceTestRule resources = ResourceTestRule.builder()
-                                                            .addResource(new BackupsController(backupsManager))
-                                                            .build();
+  public final ResourceExtension resources = ResourceExtension.builder()
+                                                              .addResource(new BackupsController(backupsManager))
+                                                              .build();
 
-  @Before
+  @BeforeEach
   public void setup() {
     reset(backupsManager);
   }

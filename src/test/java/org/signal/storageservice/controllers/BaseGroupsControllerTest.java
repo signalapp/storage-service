@@ -15,20 +15,29 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.api.client.util.Base64;
+import com.google.common.io.BaseEncoding;
 import com.google.protobuf.ByteString;
 import io.dropwizard.auth.AuthValueFactoryProvider;
-import io.dropwizard.testing.junit.ResourceTestRule;
+import io.dropwizard.testing.junit5.DropwizardExtensionsSupport;
+import io.dropwizard.testing.junit5.ResourceExtension;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.core.Response;
-import org.junit.Before;
-import org.junit.Rule;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.signal.libsignal.zkgroup.InvalidInputException;
+import org.signal.libsignal.zkgroup.NotarySignature;
+import org.signal.libsignal.zkgroup.VerificationFailedException;
+import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
+import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
+import org.signal.libsignal.zkgroup.profiles.ClientZkProfileOperations;
+import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 import org.signal.storageservice.auth.ExternalGroupCredentialGenerator;
 import org.signal.storageservice.auth.GroupUser;
 import org.signal.storageservice.configuration.GroupConfiguration;
@@ -45,15 +54,9 @@ import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.util.AuthHelper;
 import org.signal.storageservice.util.SystemMapper;
 import org.signal.storageservice.util.Util;
-import org.signal.libsignal.zkgroup.InvalidInputException;
-import org.signal.libsignal.zkgroup.NotarySignature;
-import org.signal.libsignal.zkgroup.VerificationFailedException;
-import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
-import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
-import org.signal.libsignal.zkgroup.profiles.ClientZkProfileOperations;
-import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 
-public abstract class BaseGroupsControllerTest {
+@ExtendWith(DropwizardExtensionsSupport.class)
+abstract class BaseGroupsControllerTest {
   protected final ExternalGroupCredentialGenerator groupCredentialGenerator   = new ExternalGroupCredentialGenerator(Util.generateSecretBytes(32), Clock.systemUTC());
   protected final GroupSecretParams                groupSecretParams          = GroupSecretParams.generate();
   protected final GroupPublicParams                groupPublicParams          = groupSecretParams.getPublicParams();
@@ -92,16 +95,16 @@ public abstract class BaseGroupsControllerTest {
                                                                                                        .build())
                                                                                      .build();
 
-  @Rule
-  public final ResourceTestRule resources = ResourceTestRule.builder()
-                                                            .addProvider(AuthHelper.getAuthFilter())
-                                                            .addProvider(new AuthValueFactoryProvider.Binder<>(GroupUser.class))
-                                                            .addProvider(new ProtocolBufferMessageBodyProvider())
-                                                            .addProvider(new ProtocolBufferValidationErrorMessageBodyWriter())
-                                                            .addProvider(new InvalidProtocolBufferExceptionMapper())
-                                                            .setMapper(SystemMapper.getMapper())
-                                                            .addResource(new GroupsController(clock, groupsManager, AuthHelper.GROUPS_SERVER_KEY, policySigner, postPolicyGenerator, getGroupConfiguration(), groupCredentialGenerator))
-                                                            .build();
+
+  protected final ResourceExtension resources = ResourceExtension.builder()
+                                                                 .addProvider(AuthHelper.getAuthFilter())
+                                                                 .addProvider(new AuthValueFactoryProvider.Binder<>(GroupUser.class))
+                                                                 .addProvider(new ProtocolBufferMessageBodyProvider())
+                                                                 .addProvider(new ProtocolBufferValidationErrorMessageBodyWriter())
+                                                                 .addProvider(new InvalidProtocolBufferExceptionMapper())
+                                                                 .setMapper(SystemMapper.getMapper())
+                                                                 .addResource(new GroupsController(clock, groupsManager, AuthHelper.GROUPS_SERVER_KEY, policySigner, postPolicyGenerator, getGroupConfiguration(), groupCredentialGenerator))
+                                                                 .build();
 
   protected GroupConfiguration getGroupConfiguration() {
     final GroupConfiguration groupConfiguration = new GroupConfiguration();
@@ -115,11 +118,14 @@ public abstract class BaseGroupsControllerTest {
     byte[] object = new byte[16];
     new SecureRandom().nextBytes(object);
 
-    return "groups/" + Base64.encodeBase64URLSafeString(groupId) + "/" + Base64.encodeBase64URLSafeString(object);
+    return "groups/"
+        + Base64.getUrlEncoder().withoutPadding().encodeToString(groupId)
+        + "/"
+        + Base64.getUrlEncoder().withoutPadding().encodeToString(object);
   }
 
-  @Before
-  public void resetGroupsManager() {
+  @BeforeEach
+  void resetGroupsManager() {
     reset(groupsManager, clock);
     currentTime = System.currentTimeMillis();
     when(clock.millis()).thenReturn(currentTime);

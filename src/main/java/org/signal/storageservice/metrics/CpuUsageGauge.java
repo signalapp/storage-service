@@ -16,6 +16,6 @@ public class CpuUsageGauge implements Gauge<Integer> {
     OperatingSystemMXBean mbean = (OperatingSystemMXBean)
         ManagementFactory.getOperatingSystemMXBean();
 
-    return (int) Math.ceil(mbean.getSystemCpuLoad() * 100);
+    return (int) Math.ceil(mbean.getCpuLoad() * 100);
   }
 }

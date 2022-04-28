@@ -18,7 +18,8 @@ import static org.mockito.Mockito.when;
 
 import com.google.protobuf.ByteString;
 import io.dropwizard.auth.AuthValueFactoryProvider;
-import io.dropwizard.testing.junit.ResourceTestRule;
+import io.dropwizard.testing.junit5.DropwizardExtensionsSupport;
+import io.dropwizard.testing.junit5.ResourceExtension;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -31,8 +32,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.glassfish.jersey.client.ClientProperties;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.signal.storageservice.auth.User;
 import org.signal.storageservice.providers.InvalidProtocolBufferExceptionMapper;
@@ -47,23 +48,23 @@ import org.signal.storageservice.storage.protos.contacts.WriteOperation;
 import org.signal.storageservice.util.AuthHelper;
 import org.signal.storageservice.util.SystemMapper;
 
-public class StorageControllerTest {
+@ExtendWith(DropwizardExtensionsSupport.class)
+class StorageControllerTest {
 
   private final StorageManager storageManager = mock(StorageManager.class);
 
-  @Rule
-  public final ResourceTestRule resources = ResourceTestRule.builder()
-                                                            .addProvider(AuthHelper.getAuthFilter())
-                                                            .addProvider(new AuthValueFactoryProvider.Binder<>(User.class))
-                                                            .addProvider(new ProtocolBufferMessageBodyProvider())
-                                                            .addProvider(new InvalidProtocolBufferExceptionMapper())
-                                                            .setMapper(SystemMapper.getMapper())
-                                                            .addResource(new StorageController(storageManager))
-                                                            .setClientConfigurator(clientConfig -> clientConfig.property(ClientProperties.SUPPRESS_HTTP_COMPLIANCE_VALIDATION, true))
-                                                            .build();
+  public final ResourceExtension resources = ResourceExtension.builder()
+                                                              .addProvider(AuthHelper.getAuthFilter())
+                                                              .addProvider(new AuthValueFactoryProvider.Binder<>(User.class))
+                                                              .addProvider(new ProtocolBufferMessageBodyProvider())
+                                                              .addProvider(new InvalidProtocolBufferExceptionMapper())
+                                                              .setMapper(SystemMapper.getMapper())
+                                                              .addResource(new StorageController(storageManager))
+                                                              .setClientConfigurator(clientConfig -> clientConfig.property(ClientProperties.SUPPRESS_HTTP_COMPLIANCE_VALIDATION, true))
+                                                              .build();
 
   @Test
-  public void testGetManifest() throws IOException {
+  void testGetManifest() throws IOException {
     when(storageManager.getManifest(eq(new User(UUID.fromString(AuthHelper.VALID_USER)))))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(StorageManifest.newBuilder()
                                                                                  .setVersion(22)
@@ -91,7 +92,7 @@ public class StorageControllerTest {
   }
 
   @Test
-  public void testGetManifestIfDifferentFromVersionSuccess() throws IOException {
+  void testGetManifestIfDifferentFromVersionSuccess() throws IOException {
     when(storageManager.getManifestIfNotVersion(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), eq(21L)))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(StorageManifest.newBuilder()
                                                                                  .setVersion(22)
@@ -119,7 +120,7 @@ public class StorageControllerTest {
   }
 
   @Test
-  public void testGetManifestIfDifferentFromVersionNoUpdate() throws IOException {
+  void testGetManifestIfDifferentFromVersionNoUpdate() throws IOException {
     when(storageManager.getManifestIfNotVersion(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), eq(22L)))
         .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
@@ -137,7 +138,7 @@ public class StorageControllerTest {
 
 
   @Test
-  public void testGetManifestUnauthorized() throws IOException {
+  void testGetManifestUnauthorized() throws IOException {
     when(storageManager.getManifest(eq(new User(UUID.fromString(AuthHelper.VALID_USER)))))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(StorageManifest.newBuilder()
                                                                                  .setVersion(22)
@@ -155,7 +156,7 @@ public class StorageControllerTest {
   }
 
   @Test
-  public void testGetManifestFiveHundred() throws IOException {
+  void testGetManifestFiveHundred() throws IOException {
     when(storageManager.getManifest(eq(new User(UUID.fromString(AuthHelper.VALID_USER)))))
         .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Bad news")));
 
@@ -172,7 +173,7 @@ public class StorageControllerTest {
   }
 
   @Test
-  public void testGetManifestNotFound() throws IOException {
+  void testGetManifestNotFound() throws IOException {
     when(storageManager.getManifest(eq(new User(UUID.fromString(AuthHelper.VALID_USER))))).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
     Response response = resources.getJerseyTest()
@@ -187,7 +188,7 @@ public class StorageControllerTest {
   }
 
   @Test
-  public void testWrite() {
+  void testWrite() {
     when(storageManager.set(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), any(StorageManifest.class), anyList(), anyList())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
     StorageManifest manifest = StorageManifest.newBuilder()
@@ -245,7 +246,7 @@ public class StorageControllerTest {
   }
 
   @Test
-  public void testWriteUnauthorized() {
+  void testWriteUnauthorized() {
     when(storageManager.set(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), any(StorageManifest.class), anyList(), anyList())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
     StorageManifest manifest = StorageManifest.newBuilder()
@@ -289,7 +290,7 @@ public class StorageControllerTest {
   }
 
   @Test
-  public void testWriteStale() throws IOException {
+  void testWriteStale() throws IOException {
     StorageManifest currentManifest = StorageManifest.newBuilder()
                                                      .setVersion(1000)
                                                      .setValue(ByteString.copyFromUtf8("Current manifest"))
@@ -348,7 +349,7 @@ public class StorageControllerTest {
   }
 
   @Test
-  public void testReadEmpty() {
+  void testReadEmpty() {
     Response response = resources.getJerseyTest()
                                  .target("/v1/storage/read")
                                  .request()
@@ -360,7 +361,7 @@ public class StorageControllerTest {
   }
 
   @Test
-  public void testReadOversizeList() {
+  void testReadOversizeList() {
     final List<ByteString> keys = new ArrayList<>(StorageController.MAX_READ_KEYS + 1);
 
     for (int i = 0; i < StorageController.MAX_READ_KEYS + 1; i++) {
@@ -378,7 +379,7 @@ public class StorageControllerTest {
   }
 
   @Test
-  public void testRead() throws IOException {
+  void testRead() throws IOException {
     StorageItem queryOne = StorageItem.newBuilder()
                                       .setKey(ByteString.copyFromUtf8("keyOne"))
                                       .setValue(ByteString.copyFromUtf8("valueOne"))
@@ -425,7 +426,7 @@ public class StorageControllerTest {
   }
 
   @Test
-  public void testDelete() {
+  void testDelete() {
     when(storageManager.delete(any())).thenReturn(CompletableFuture.completedFuture(null));
 
     Response response = resources.getJerseyTest()
@@ -442,7 +443,7 @@ public class StorageControllerTest {
   }
 
   @Test
-  public void testDeleteUnauthorized() {
+  void testDeleteUnauthorized() {
     when(storageManager.clearItems(any())).thenReturn(CompletableFuture.completedFuture(null));
 
     Response response = resources.getJerseyTest()

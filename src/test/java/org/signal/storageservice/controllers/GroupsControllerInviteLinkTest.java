@@ -19,8 +19,9 @@ import java.util.function.Function;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Response;
 import org.apache.commons.codec.binary.Base64;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.signal.libsignal.zkgroup.NotarySignature;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;
 import org.signal.storageservice.storage.protos.groups.AccessControl;
 import org.signal.storageservice.storage.protos.groups.Group;
@@ -29,9 +30,8 @@ import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.AuthHelper;
-import org.signal.libsignal.zkgroup.NotarySignature;
 
-public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
+class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
 
   private byte[] createGroupInviteLinkPassword() {
     byte[] result = new byte[16];
@@ -40,7 +40,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testModifyAddFromInviteLinkAccessControl() throws Exception {
+  void testModifyAddFromInviteLinkAccessControl() throws Exception {
     setupGroupsManagerBehaviors(group);
 
     GroupChange.Actions groupChange = GroupChange.Actions.newBuilder()
@@ -93,7 +93,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testModifyAddFromInviteLinkAccessControlInvalidValue() {
+  void testModifyAddFromInviteLinkAccessControlInvalidValue() {
     setupGroupsManagerBehaviors(group);
 
     GroupChange.Actions groupChange = GroupChange.Actions.newBuilder()
@@ -117,7 +117,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testModifyAddFromInviteLinkAccessControlUnauthorized() {
+  void testModifyAddFromInviteLinkAccessControlUnauthorized() {
     setupGroupsManagerBehaviors(group);
 
     GroupChange.Actions groupChange = GroupChange.Actions.newBuilder()
@@ -141,7 +141,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testModifyAddFromInviteLinkAccessControlNoPasswordSet() {
+  void testModifyAddFromInviteLinkAccessControlNoPasswordSet() {
     setupGroupsManagerBehaviors(group);
 
     GroupChange.Actions groupChange = GroupChange.Actions.newBuilder()
@@ -162,7 +162,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testModifyAddFromInviteLinkAccessControlSetBadPassword() {
+  void testModifyAddFromInviteLinkAccessControlSetBadPassword() {
     setupGroupsManagerBehaviors(group);
 
     final byte[] password = new byte[10];
@@ -208,7 +208,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMembersPendingAdminApproval() throws Exception {
+  void testAddMembersPendingAdminApproval() throws Exception {
     final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
     final Function<Group.Builder, Group.Builder> groupBuilderFunction = builder -> builder.setAccessControl(this.group.getAccessControl().toBuilder().setAddFromInviteLink(AccessControl.AccessRequired.ADMINISTRATOR))
                                                                                           .setInviteLinkPassword(ByteString.copyFrom(inviteLinkPassword));
@@ -244,7 +244,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMembersPendingAdminApproval_openInviteLink() {
+  void testAddMembersPendingAdminApproval_openInviteLink() {
     final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
     final Response response = setupForTestAddMembersPendingAdminApproval(
             inviteLinkPassword,
@@ -255,7 +255,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMembersPendingAdminApproval_wrongPassword() {
+  void testAddMembersPendingAdminApproval_wrongPassword() {
     final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
     final byte[] wrongInviteLinkPassword = new byte[inviteLinkPassword.length];
     System.arraycopy(inviteLinkPassword, 0, wrongInviteLinkPassword, 0, wrongInviteLinkPassword.length);
@@ -269,7 +269,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMembersPendingAdminApproval_noInviteLink() {
+  void testAddMembersPendingAdminApproval_noInviteLink() {
     final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
     final Response response = setupForTestAddMembersPendingAdminApproval(inviteLinkPassword, Function.identity());
     assertThat(response.getStatus()).isEqualTo(403);
@@ -277,7 +277,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMembersPendingAdminApproval_disabledInviteLink() {
+  void testAddMembersPendingAdminApproval_disabledInviteLink() {
     final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
     final Response response = setupForTestAddMembersPendingAdminApproval(
             inviteLinkPassword,
@@ -288,7 +288,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMembersPendingAdminApproval_alreadyOnList() {
+  void testAddMembersPendingAdminApproval_alreadyOnList() {
     final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
     final Response response = setupForTestAddMembersPendingAdminApproval(
             inviteLinkPassword,
@@ -304,7 +304,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMembersPendingAdminApproval_addingOtherUser() {
+  void testAddMembersPendingAdminApproval_addingOtherUser() {
     final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
     final Group group = this.group.toBuilder()
                                   .setAccessControl(this.group.getAccessControl().toBuilder().setAddFromInviteLink(AccessControl.AccessRequired.ADMINISTRATOR))
@@ -334,7 +334,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMembersPendingAdminApproval_addingTooManyUsers() {
+  void testAddMembersPendingAdminApproval_addingTooManyUsers() {
     final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
     final Group group = this.group.toBuilder()
                                   .setAccessControl(this.group.getAccessControl().toBuilder().setAddFromInviteLink(AccessControl.AccessRequired.ADMINISTRATOR))
@@ -368,7 +368,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMembersPendingAdminApproval_alreadyMember() {
+  void testAddMembersPendingAdminApproval_alreadyMember() {
     final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
     final Group group = this.group.toBuilder()
                                   .setAccessControl(this.group.getAccessControl().toBuilder().setAddFromInviteLink(AccessControl.AccessRequired.ADMINISTRATOR))
@@ -397,7 +397,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMembersPendingAdminApproval_alreadyMemberPendingProfileKey() {
+  void testAddMembersPendingAdminApproval_alreadyMemberPendingProfileKey() {
     final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
     final Group group = this.group.toBuilder()
                                   .setAccessControl(this.group.getAccessControl().toBuilder().setAddFromInviteLink(AccessControl.AccessRequired.ADMINISTRATOR))
@@ -452,7 +452,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMembers() throws Exception {
+  void testAddMembers() throws Exception {
     final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
     final Function<Group.Builder, Group.Builder> groupBuilderFunction = builder -> builder.mergeAccessControl(AccessControl.newBuilder().setAddFromInviteLink(AccessControl.AccessRequired.ANY).build())
                                                                                           .setInviteLinkPassword(ByteString.copyFrom(inviteLinkPassword));
@@ -489,7 +489,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMembers_wrongPassword() {
+  void testAddMembers_wrongPassword() {
     final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
     final byte[] wrongInviteLinkPassword = new byte[inviteLinkPassword.length];
     System.arraycopy(inviteLinkPassword, 0, wrongInviteLinkPassword, 0, wrongInviteLinkPassword.length);
@@ -503,7 +503,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMembers_noInviteLink() {
+  void testAddMembers_noInviteLink() {
     final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
     final Response response = setupForTestAddMembers(inviteLinkPassword, Function.identity());
     assertThat(response.getStatus()).isEqualTo(403);
@@ -511,7 +511,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testAddMembers_disabledInviteLink() {
+  void testAddMembers_disabledInviteLink() {
     final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
     final Response response = setupForTestAddMembers(
             inviteLinkPassword,
@@ -522,7 +522,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testDeleteMembersPendingAdminApproval() throws Exception {
+  void testDeleteMembersPendingAdminApproval() throws Exception {
     final long timestamp = Instant.now().minus(Duration.ofHours(1)).toEpochMilli();
     final Group group = this.group.toBuilder()
                                   .addMembersPendingAdminApproval(MemberPendingAdminApproval.newBuilder()
@@ -582,7 +582,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testDeleteMembersPendingAdminApproval_nonAdmin() {
+  void testDeleteMembersPendingAdminApproval_nonAdmin() {
     final long timestamp = Instant.now().minus(Duration.ofHours(1)).toEpochMilli();
     final Group group = this.group.toBuilder()
                                   .addMembersPendingAdminApproval(MemberPendingAdminApproval.newBuilder()
@@ -612,7 +612,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testDeleteMembersPendingAdminApproval_self() throws Exception {
+  void testDeleteMembersPendingAdminApproval_self() throws Exception {
     final long timestamp = Instant.now().minus(Duration.ofHours(1)).toEpochMilli();
     final Group group = this.group.toBuilder()
                                   .addMembersPendingAdminApproval(MemberPendingAdminApproval.newBuilder()
@@ -672,7 +672,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testPromoteMembersPendingAdminApproval() throws Exception {
+  void testPromoteMembersPendingAdminApproval() throws Exception {
     final long timestamp = Instant.now().minus(Duration.ofHours(1)).toEpochMilli();
     final Group group = this.group.toBuilder()
                                   .addMembersPendingAdminApproval(MemberPendingAdminApproval.newBuilder()
@@ -736,7 +736,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testPromoteMembersPendingAdminApproval_nonAdmin() {
+  void testPromoteMembersPendingAdminApproval_nonAdmin() {
     final long timestamp = Instant.now().minus(Duration.ofHours(1)).toEpochMilli();
     final Group group = this.group.toBuilder()
                                   .addMembersPendingAdminApproval(MemberPendingAdminApproval.newBuilder()
@@ -767,7 +767,7 @@ public class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
   }
 
   @Test
-  public void testPromoteMembersPendingAdminApproval_self() {
+  void testPromoteMembersPendingAdminApproval_self() {
     final long timestamp = Instant.now().minus(Duration.ofHours(1)).toEpochMilli();
     final Group group = this.group.toBuilder()
                                   .addMembersPendingAdminApproval(MemberPendingAdminApproval.newBuilder()
