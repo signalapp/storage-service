@@ -1,13 +1,4 @@
-FROM amd64/ubuntu:18.04
-
-RUN apt-get -qq update && \
-    apt-get -qqy install gnupg2 locales openjdk-17-jre-headless && \
-    locale-gen en_US.UTF-8 && \
-    rm -rf /var/lib/apt/lists/*
-
-ENV LANG en_US.UTF-8
-ENV LANGUAGE en_US:en
-ENV LC_ALL en_US.UTF-8
+FROM eclipse-temurin:17-jre-focal
 
 EXPOSE 8080
 
