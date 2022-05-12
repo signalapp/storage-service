@@ -4,19 +4,14 @@ import com.codahale.metrics.MetricRegistry;
 import com.google.common.annotations.VisibleForTesting;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Metrics;
-import io.micrometer.core.instrument.Tag;
 import io.micrometer.core.instrument.Tags;
+import java.util.List;
 import org.glassfish.jersey.server.monitoring.RequestEvent;
 import org.glassfish.jersey.server.monitoring.RequestEventListener;
 import org.signal.storageservice.util.UriInfoUtil;
 import org.signal.storageservice.util.ua.ClientPlatform;
 import org.signal.storageservice.util.ua.UnrecognizedUserAgentException;
 import org.signal.storageservice.util.ua.UserAgentUtil;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Gathers and reports request-level metrics.

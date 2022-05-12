@@ -18,7 +18,6 @@ import com.google.cloud.bigtable.data.v2.models.Mutation;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.protobuf.ByteString;
-import java.util.IntSummaryStatistics;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
