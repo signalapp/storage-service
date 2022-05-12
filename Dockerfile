@@ -10,4 +10,4 @@ COPY config/${CONFIG_FILE} /usr/share/signal/config.yml
 ARG JAR_FILE
 COPY target/${JAR_FILE} /usr/share/signal/StorageService.jar
 
-ENTRYPOINT ["/usr/bin/java", "-server", "-Djava.awt.headless=true", "-Xmx8192m", "-Xss512k", "-XX:+HeapDumpOnOutOfMemoryError", "-jar", "/usr/share/signal/StorageService.jar", "server", "/usr/share/signal/config.yml"]
+ENTRYPOINT ["/opt/java/openjdk/bin/java", "-server", "-Djava.awt.headless=true", "-Xmx8192m", "-Xss512k", "-XX:+HeapDumpOnOutOfMemoryError", "-jar", "/usr/share/signal/StorageService.jar", "server", "/usr/share/signal/config.yml"]
