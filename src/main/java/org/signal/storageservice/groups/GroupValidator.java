@@ -23,6 +23,8 @@ import org.signal.storageservice.controllers.GroupsController;
 import org.signal.storageservice.storage.protos.groups.AccessControl;
 import org.signal.storageservice.storage.protos.groups.Group;
 import org.signal.storageservice.storage.protos.groups.GroupChange;
+import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.ModifyMemberProfileKeyAction;
+import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.PromoteMemberPendingProfileKeyAction;
 import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.storage.protos.groups.MemberBanned;
 import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
@@ -32,6 +34,7 @@ import org.signal.libsignal.zkgroup.VerificationFailedException;
 import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
 import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
+import org.signal.storageservice.util.CollectionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -248,7 +251,46 @@ public class GroupValidator {
     return validatedActions;
   }
 
-  public ProfileKeyCredentialPresentation validatePresentationUpdate(GroupUser source, Group group, ByteString presentationData) throws BadRequestException, ForbiddenException {
+  public Iterable<ModifyMemberProfileKeyAction> validateModifyMemberProfileKeys(GroupUser user, Group group, List<ModifyMemberProfileKeyAction> actions) {
+    if (actions.stream().anyMatch(action -> !action.getProfileKey().isEmpty() || !action.getUserId().isEmpty())) {
+      throw new BadRequestException("Profile Key and User ID may not be set on request");
+    }
+    List<ModifyMemberProfileKeyAction> validatedActions = actions.stream().map(action -> {
+      ProfileKeyCredentialPresentation presentation = validatePresentationUpdate(user, group, action.getPresentation());
+      return ModifyMemberProfileKeyAction.newBuilder()
+          .setUserId(ByteString.copyFrom(presentation.getUuidCiphertext().serialize()))
+          .setProfileKey(ByteString.copyFrom(presentation.getProfileKeyCiphertext().serialize()))
+          .setPresentation(action.getPresentation())
+          // TODO: some time after clients stop reading the presentation, stop setting it here
+          .build();
+    }).collect(Collectors.toList());
+    if (CollectionUtil.containsDuplicates(validatedActions.stream().map(ModifyMemberProfileKeyAction::getUserId))) {
+      throw new BadRequestException("Duplicate User ID");
+    }
+    return validatedActions;
+  }
+
+  public Iterable<PromoteMemberPendingProfileKeyAction> validatePromoteMembersPendingProfileKey(GroupUser user, Group group, List<PromoteMemberPendingProfileKeyAction> actions) {
+    if (actions.stream().anyMatch(action -> !action.getProfileKey().isEmpty() || !action.getUserId().isEmpty())) {
+      throw new BadRequestException("Profile Key and User ID may not be set on request");
+    }
+    List<PromoteMemberPendingProfileKeyAction> validatedActions = actions.stream().map(action -> {
+      ProfileKeyCredentialPresentation presentation = validatePresentationUpdate(user, group, action.getPresentation());
+      return PromoteMemberPendingProfileKeyAction.newBuilder()
+          .setUserId(ByteString.copyFrom(presentation.getUuidCiphertext().serialize()))
+          .setProfileKey(ByteString.copyFrom(presentation.getProfileKeyCiphertext().serialize()))
+          .setPresentation(action.getPresentation())
+          // TODO: some time after clients stop reading the presentation, stop setting it here
+          .build();
+    }).collect(Collectors.toList());
+    if (CollectionUtil.containsDuplicates(validatedActions.stream().map(PromoteMemberPendingProfileKeyAction::getUserId))) {
+      throw new BadRequestException("Duplicate User ID");
+    }
+    return validatedActions;
+  }
+
+  private ProfileKeyCredentialPresentation validatePresentationUpdate(GroupUser source, Group group,
+      ByteString presentationData) throws BadRequestException, ForbiddenException {
     try {
       GroupPublicParams publicParams = new GroupPublicParams(group.getPublicKey().toByteArray());
 

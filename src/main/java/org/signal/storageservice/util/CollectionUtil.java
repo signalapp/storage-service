@@ -8,6 +8,7 @@ package org.signal.storageservice.util;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.stream.Stream;
 
 public class CollectionUtil {
 
@@ -24,17 +25,11 @@ public class CollectionUtil {
   }
 
   public static <T> boolean containsDuplicates(Collection<T> items) {
-    Set<T> contents = new HashSet<>();
-
-    for (T item : items) {
-      if (!contents.add(item)) {
-        return true;
-      }
-    }
-
-    return false;
+    return containsDuplicates(items.stream());
   }
 
-
-
+  public static <T> boolean containsDuplicates(Stream<T> stream) {
+    Set<T> contents = new HashSet<>();
+    return stream.anyMatch(x -> !contents.add(x));
+  }
 }

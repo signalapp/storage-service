@@ -28,7 +28,6 @@ import org.signal.storageservice.storage.protos.groups.MemberBanned;
 import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.CollectionUtil;
-import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 
 public class GroupChangeApplicator {
   private final GroupValidator groupValidator;
@@ -176,26 +175,16 @@ public class GroupChangeApplicator {
       return;
     }
 
-    List<ProfileKeyCredentialPresentation> presentations = new LinkedList<>();
-
     for (GroupChange.Actions.ModifyMemberProfileKeyAction action : modifyMembers) {
-      presentations.add(groupValidator.validatePresentationUpdate(user, group, action.getPresentation()));
-    }
-
-    if (CollectionUtil.containsDuplicates(presentations.stream().map(presentation -> ByteString.copyFrom(presentation.getUuidCiphertext().serialize())).collect(Collectors.toList()))) {
-      throw new BadRequestException();
-    }
-
-    for (ProfileKeyCredentialPresentation presentation : presentations) {
       List<Member> currentMembers = modifiedGroupBuilder.getMembersList();
       Member member = currentMembers.stream()
-                                    .filter(candidate -> candidate.getUserId().equals(ByteString.copyFrom(presentation.getUuidCiphertext().serialize())))
+                                    .filter(candidate -> candidate.getUserId().equals(action.getUserId()))
                                     .findFirst()
                                     .orElseThrow(ForbiddenException::new)
                                     .toBuilder()
                                     .clearPresentation()
                                     .clearProfileKey()
-                                    .setProfileKey(ByteString.copyFrom(presentation.getProfileKeyCiphertext().serialize()))
+                                    .setProfileKey(action.getProfileKey())
                                     .build();
 
       modifiedGroupBuilder.clearMembers()
@@ -306,36 +295,23 @@ public class GroupChangeApplicator {
       return;
     }
 
-    List<ProfileKeyCredentialPresentation> presentations = new LinkedList<>();
-
     for (GroupChange.Actions.PromoteMemberPendingProfileKeyAction action : promoteMembersPendingProfileKey) {
-      presentations.add(groupValidator.validatePresentationUpdate(user, group, action.getPresentation()));
-    }
-
-    if (CollectionUtil.containsDuplicates(presentations.stream()
-                                                       .map(ProfileKeyCredentialPresentation::getUuidCiphertext)
-                                                       .collect(Collectors.toList()))) {
-      throw new BadRequestException("Duplicate user id");
-    }
-
-    for (ProfileKeyCredentialPresentation presentation : presentations) {
-      ByteString                    presentationUuid         = ByteString.copyFrom(presentation.getUuidCiphertext().serialize());
       List<MemberPendingProfileKey> membersPendingProfileKey = modifiedGroupBuilder.getMembersPendingProfileKeyList();
       MemberPendingProfileKey memberPendingProfileKey = membersPendingProfileKey.stream()
-                                                                                .filter(candidate -> candidate.getMember().getUserId().equals(presentationUuid))
+                                                                                .filter(candidate -> candidate.getMember().getUserId().equals(action.getUserId()))
                                                                                 .findFirst()
                                                                                 .orElseThrow(ForbiddenException::new);
 
       modifiedGroupBuilder.clearMembersPendingProfileKey()
                           .addAllMembersPendingProfileKey(membersPendingProfileKey.stream()
-                                                                                  .filter(candidate -> !candidate.getMember().getUserId().equals(presentationUuid))
+                                                                                  .filter(candidate -> !candidate.getMember().getUserId().equals(action.getUserId()))
                                                                                   .collect(Collectors.toList()));
 
       modifiedGroupBuilder.addMembers(memberPendingProfileKey.getMember()
                                                              .toBuilder()
                                                              .clearPresentation()
                                                              .clearProfileKey()
-                                                             .setProfileKey(ByteString.copyFrom(presentation.getProfileKeyCiphertext().serialize()))
+                                                             .setProfileKey(action.getProfileKey())
                                                              .setJoinedAtVersion(group.getVersion() + 1));
     }
   }

@@ -374,6 +374,10 @@ public class GroupsController {
                                         .addAllAddMembersPendingAdminApproval(groupValidator.validateAddMembersPendingAdminApproval(clock, user, inviteLinkPassword, group.get(), submittedActions.getAddMembersPendingAdminApprovalList()))
                                         .clearAddMembersBanned()
                                         .addAllAddMembersBanned(groupValidator.validateAddMembersBanned(clock, user, group.get(), submittedActions.getAddMembersBannedList()))
+                                        .clearModifyMemberProfileKeys()
+                                        .addAllModifyMemberProfileKeys(groupValidator.validateModifyMemberProfileKeys(user, group.get(), submittedActions.getModifyMemberProfileKeysList()))
+                                        .clearPromoteMembersPendingProfileKey()
+                                        .addAllPromoteMembersPendingProfileKey(groupValidator.validatePromoteMembersPendingProfileKey(user, group.get(), submittedActions.getPromoteMembersPendingProfileKeyList()))
                                         .build();
 
       int changeEpoch = 0;

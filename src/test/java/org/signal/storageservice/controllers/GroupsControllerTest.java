@@ -2075,6 +2075,12 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                                          .setPresentation(ByteString.copyFrom(validUserTwoPresentationUpdate.serialize())))
                                                          .build();
 
+    GroupChange.Actions.Builder expectedGroupChangeResponseBuilder = groupChange.toBuilder()
+        .setSourceUuid(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()));
+    expectedGroupChangeResponseBuilder.getModifyMemberProfileKeysBuilder(0)
+        .setUserId(ByteString.copyFrom(validUserTwoPresentationUpdate.getUuidCiphertext().serialize()))
+        .setProfileKey(ByteString.copyFrom(validUserTwoPresentationUpdate.getProfileKeyCiphertext().serialize()));
+
     Response response = resources.getJerseyTest()
                                  .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
@@ -2105,7 +2111,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()));
-    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
+    assertThat(Actions.parseFrom(signedChange.getActions())).isEqualTo(expectedGroupChangeResponseBuilder.build());
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
