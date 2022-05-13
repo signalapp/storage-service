@@ -139,6 +139,13 @@ message GroupChange {
       bytes profile_key = 3;
     }
 
+    message PromoteMemberPendingPniAciProfileKeyAction {
+      bytes presentation = 1;
+      bytes user_id = 2;
+      bytes pni = 3;
+      bytes profile_key = 4;
+    }
+
     message AddMemberPendingAdminApprovalAction {
       MemberPendingAdminApproval added = 1;
     }
@@ -220,7 +227,8 @@ message GroupChange {
     ModifyAnnouncementsOnlyAction modify_announcements_only = 21;  // change epoch = 3
     repeated AddMemberBannedAction add_members_banned = 22;  // change epoch = 4
     repeated DeleteMemberBannedAction delete_members_banned = 23;  // change epoch = 4
-    // next: 24
+    repeated PromoteMemberPendingPniAciProfileKeyAction promote_members_pending_pni_aci_profile_key = 24;  // change epoch = 5
+    // next: 25
   }
 
   bytes actions = 1;
