@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ForbiddenException;
 import org.apache.commons.codec.binary.Base64;
+import org.signal.libsignal.zkgroup.profiles.PniCredentialPresentation;
 import org.signal.storageservice.auth.GroupUser;
 import org.signal.storageservice.configuration.GroupConfiguration;
 import org.signal.storageservice.controllers.GroupsController;
@@ -24,6 +25,7 @@ import org.signal.storageservice.storage.protos.groups.AccessControl;
 import org.signal.storageservice.storage.protos.groups.Group;
 import org.signal.storageservice.storage.protos.groups.GroupChange;
 import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.ModifyMemberProfileKeyAction;
+import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.PromoteMemberPendingPniAciProfileKeyAction;
 import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.PromoteMemberPendingProfileKeyAction;
 import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.storage.protos.groups.MemberBanned;
@@ -251,12 +253,12 @@ public class GroupValidator {
     return validatedActions;
   }
 
-  public Iterable<ModifyMemberProfileKeyAction> validateModifyMemberProfileKeys(GroupUser user, Group group, List<ModifyMemberProfileKeyAction> actions) {
+  public List<ModifyMemberProfileKeyAction> validateModifyMemberProfileKeys(GroupUser user, Group group, List<ModifyMemberProfileKeyAction> actions) {
     if (actions.stream().anyMatch(action -> !action.getProfileKey().isEmpty() || !action.getUserId().isEmpty())) {
       throw new BadRequestException("Profile Key and User ID may not be set on request");
     }
     List<ModifyMemberProfileKeyAction> validatedActions = actions.stream().map(action -> {
-      ProfileKeyCredentialPresentation presentation = validatePresentationUpdate(user, group, action.getPresentation());
+      ProfileKeyCredentialPresentation presentation = validateProfileKeyCredentialPresentationUpdate(user, group, action.getPresentation());
       return ModifyMemberProfileKeyAction.newBuilder()
           .setUserId(ByteString.copyFrom(presentation.getUuidCiphertext().serialize()))
           .setProfileKey(ByteString.copyFrom(presentation.getProfileKeyCiphertext().serialize()))
@@ -270,12 +272,12 @@ public class GroupValidator {
     return validatedActions;
   }
 
-  public Iterable<PromoteMemberPendingProfileKeyAction> validatePromoteMembersPendingProfileKey(GroupUser user, Group group, List<PromoteMemberPendingProfileKeyAction> actions) {
+  public List<PromoteMemberPendingProfileKeyAction> validatePromoteMembersPendingProfileKey(GroupUser user, Group group, List<PromoteMemberPendingProfileKeyAction> actions) {
     if (actions.stream().anyMatch(action -> !action.getProfileKey().isEmpty() || !action.getUserId().isEmpty())) {
       throw new BadRequestException("Profile Key and User ID may not be set on request");
     }
     List<PromoteMemberPendingProfileKeyAction> validatedActions = actions.stream().map(action -> {
-      ProfileKeyCredentialPresentation presentation = validatePresentationUpdate(user, group, action.getPresentation());
+      ProfileKeyCredentialPresentation presentation = validateProfileKeyCredentialPresentationUpdate(user, group, action.getPresentation());
       return PromoteMemberPendingProfileKeyAction.newBuilder()
           .setUserId(ByteString.copyFrom(presentation.getUuidCiphertext().serialize()))
           .setProfileKey(ByteString.copyFrom(presentation.getProfileKeyCiphertext().serialize()))
@@ -289,7 +291,33 @@ public class GroupValidator {
     return validatedActions;
   }
 
-  private ProfileKeyCredentialPresentation validatePresentationUpdate(GroupUser source, Group group,
+  public List<PromoteMemberPendingPniAciProfileKeyAction> validatePromoteMemberPendingPniAciProfileKey(GroupUser user, Group group, List<PromoteMemberPendingPniAciProfileKeyAction> actions) {
+    if (actions.stream().anyMatch(action -> !action.getProfileKey().isEmpty() || !action.getUserId().isEmpty() || !action.getPni().isEmpty())) {
+      throw new BadRequestException("Profile Key, User ID, and PNI may not be set on request");
+    }
+
+    final List<PromoteMemberPendingPniAciProfileKeyAction> validatedActions = actions.stream().map(action -> {
+      final PniCredentialPresentation presentation = validatePniCredentialPresentationUpdate(user, group, action.getPresentation());
+
+      return PromoteMemberPendingPniAciProfileKeyAction.newBuilder()
+          .setUserId(ByteString.copyFrom(presentation.getAciCiphertext().serialize()))
+          .setPni(ByteString.copyFrom(presentation.getPniCiphertext().serialize()))
+          .setProfileKey(ByteString.copyFrom(presentation.getProfileKeyCiphertext().serialize()))
+          .clearPresentation()
+          .build();
+    }).collect(Collectors.toList());
+
+    if (CollectionUtil.containsDuplicates(Stream.concat(
+            validatedActions.stream().map(PromoteMemberPendingPniAciProfileKeyAction::getUserId),
+            validatedActions.stream().map(PromoteMemberPendingPniAciProfileKeyAction::getPni)))) {
+
+      throw new BadRequestException("Duplicate user id");
+    }
+
+    return validatedActions;
+  }
+
+  private ProfileKeyCredentialPresentation validateProfileKeyCredentialPresentationUpdate(GroupUser source, Group group,
       ByteString presentationData) throws BadRequestException, ForbiddenException {
     try {
       GroupPublicParams publicParams = new GroupPublicParams(group.getPublicKey().toByteArray());
@@ -305,6 +333,30 @@ public class GroupValidator {
       }
 
       profileOperations.verifyProfileKeyCredentialPresentation(publicParams, presentation);
+
+      return presentation;
+    } catch (InvalidInputException | VerificationFailedException e) {
+      throw new BadRequestException(e);
+    }
+  }
+
+  private PniCredentialPresentation validatePniCredentialPresentationUpdate(GroupUser source, Group group,
+      ByteString presentationData) throws BadRequestException, ForbiddenException {
+
+    try {
+      GroupPublicParams publicParams = new GroupPublicParams(group.getPublicKey().toByteArray());
+
+      if (presentationData == null || presentationData.isEmpty()) {
+        throw new BadRequestException();
+      }
+
+      final PniCredentialPresentation presentation = new PniCredentialPresentation(presentationData.toByteArray());
+
+      if (!source.isMember(ByteString.copyFrom(presentation.getPniCiphertext().serialize()), group.getPublicKey())) {
+        throw new ForbiddenException();
+      }
+
+      profileOperations.verifyPniCredentialPresentation(publicParams, presentation);
 
       return presentation;
     } catch (InvalidInputException | VerificationFailedException e) {
