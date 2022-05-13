@@ -72,6 +72,7 @@ public class GroupsController {
   private static final int DESCRIPTION_CHANGE_EPOCH = 2;
   private static final int ANNOUNCEMENTS_ONLY_CHANGE_EPOCH = 3;
   private static final int BANNED_USERS_CHANGE_EPOCH = 4;
+  private static final int JOIN_BY_PNI_EPOCH = 5;
 
   private final Clock clock;
   private final GroupsManager groupsManager;
@@ -378,6 +379,8 @@ public class GroupsController {
                                         .addAllModifyMemberProfileKeys(groupValidator.validateModifyMemberProfileKeys(user, group.get(), submittedActions.getModifyMemberProfileKeysList()))
                                         .clearPromoteMembersPendingProfileKey()
                                         .addAllPromoteMembersPendingProfileKey(groupValidator.validatePromoteMembersPendingProfileKey(user, group.get(), submittedActions.getPromoteMembersPendingProfileKeyList()))
+                                        .clearPromoteMembersPendingPniAciProfileKey()
+                                        .addAllPromoteMembersPendingPniAciProfileKey(groupValidator.validatePromoteMemberPendingPniAciProfileKey(user, group.get(), submittedActions.getPromoteMembersPendingPniAciProfileKeyList()))
                                         .build();
 
       int changeEpoch = 0;
@@ -434,6 +437,10 @@ public class GroupsController {
       if (actions.hasModifyAnnouncementsOnly()) {
         groupChangeApplicator.applyModifyAnnouncementsOnly(user, inviteLinkPassword, group.get(), modifiedGroupBuilder, actions.getModifyAnnouncementsOnly());
         changeEpoch = Math.max(changeEpoch, ANNOUNCEMENTS_ONLY_CHANGE_EPOCH);
+      }
+      if (actions.getPromoteMembersPendingPniAciProfileKeyCount() != 0) {
+        groupChangeApplicator.applyPromoteMembersPendingPniAciProfileKey(user, inviteLinkPassword, group.get(), modifiedGroupBuilder, actions.getPromoteMembersPendingPniAciProfileKeyList());
+        changeEpoch = Math.max(changeEpoch, JOIN_BY_PNI_EPOCH);
       }
 
       Actions.Builder actionsBuilder = actions.toBuilder();

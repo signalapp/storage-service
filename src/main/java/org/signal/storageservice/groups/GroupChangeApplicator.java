@@ -316,6 +316,37 @@ public class GroupChangeApplicator {
     }
   }
 
+  public void applyPromoteMembersPendingPniAciProfileKey(GroupUser user, byte[] inviteLinkPassword, Group group, Group.Builder modifiedGroupBuilder, List<GroupChange.Actions.PromoteMemberPendingPniAciProfileKeyAction> promoteMembersPendingPniAciProfileKey)
+      throws BadRequestException, ForbiddenException {
+
+    if (promoteMembersPendingPniAciProfileKey.isEmpty()) {
+      return;
+    }
+
+    for (GroupChange.Actions.PromoteMemberPendingPniAciProfileKeyAction action : promoteMembersPendingPniAciProfileKey) {
+      final List<MemberPendingProfileKey> membersPendingProfileKey = modifiedGroupBuilder.getMembersPendingProfileKeyList();
+
+      final MemberPendingProfileKey memberPendingProfileKey = membersPendingProfileKey.stream()
+          .filter(candidate -> candidate.getMember().getUserId().equals(action.getPni()))
+          .findFirst()
+          .orElseThrow(ForbiddenException::new);
+
+      modifiedGroupBuilder.clearMembersPendingProfileKey()
+          .addAllMembersPendingProfileKey(membersPendingProfileKey.stream()
+              .filter(candidate -> !(candidate.getMember().getUserId().equals(action.getUserId()) || candidate.getMember().getUserId().equals(action.getPni())))
+              .collect(Collectors.toList()));
+
+      modifiedGroupBuilder.addMembers(memberPendingProfileKey.getMember()
+          .toBuilder()
+          .clearPresentation()
+          .clearProfileKey()
+          .clearUserId()
+          .setUserId(action.getUserId())
+          .setProfileKey(action.getProfileKey())
+          .setJoinedAtVersion(group.getVersion() + 1));
+    }
+  }
+
   public void applyModifyTitle(GroupUser user, byte[] inviteLinkPassword, Group group, Group.Builder modifiedGroupBuilder, GroupChange.Actions.ModifyTitleAction modifyTitle)
           throws ForbiddenException, BadRequestException {
     if (modifyTitle == null) {
