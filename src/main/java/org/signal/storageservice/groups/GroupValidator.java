@@ -262,7 +262,7 @@ public class GroupValidator {
       return ModifyMemberProfileKeyAction.newBuilder()
           .setUserId(ByteString.copyFrom(presentation.getUuidCiphertext().serialize()))
           .setProfileKey(ByteString.copyFrom(presentation.getProfileKeyCiphertext().serialize()))
-          .setPresentation(action.getPresentation())
+          .setPresentation(ByteString.copyFrom(presentation.getStructurallyValidV1PresentationBytes()))
           // TODO: some time after clients stop reading the presentation, stop setting it here
           .build();
     }).collect(Collectors.toList());
@@ -281,7 +281,7 @@ public class GroupValidator {
       return PromoteMemberPendingProfileKeyAction.newBuilder()
           .setUserId(ByteString.copyFrom(presentation.getUuidCiphertext().serialize()))
           .setProfileKey(ByteString.copyFrom(presentation.getProfileKeyCiphertext().serialize()))
-          .setPresentation(action.getPresentation())
+          .setPresentation(ByteString.copyFrom(presentation.getStructurallyValidV1PresentationBytes()))
           // TODO: some time after clients stop reading the presentation, stop setting it here
           .build();
     }).collect(Collectors.toList());
