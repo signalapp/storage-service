@@ -10,20 +10,25 @@ import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.libsignal.zkgroup.InvalidInputException;
 import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
 
+import javax.annotation.Nullable;
 import javax.security.auth.Subject;
 import java.security.MessageDigest;
 import java.security.Principal;
 
 public class GroupUser implements Principal {
 
-  private final ByteString userCiphertext;
+  private final ByteString aciCiphertext;
   private final ByteString groupPublicKey;
   private final ByteString groupId;
 
-  GroupUser(ByteString userCiphertext, ByteString groupPublicKey, ByteString groupId) {
-    this.userCiphertext  = userCiphertext;
-    this.groupPublicKey  = groupPublicKey;
-    this.groupId         = groupId;
+  @Nullable
+  private final ByteString pniCiphertext;
+
+  GroupUser(ByteString aciCiphertext, @Nullable ByteString pniCiphertext, ByteString groupPublicKey, ByteString groupId) {
+    this.aciCiphertext = aciCiphertext;
+    this.pniCiphertext = pniCiphertext;
+    this.groupPublicKey = groupPublicKey;
+    this.groupId = groupId;
   }
 
   public boolean isMember(Member member, ByteString groupPublicKey) {
@@ -31,8 +36,12 @@ public class GroupUser implements Principal {
   }
 
   public boolean isMember(ByteString uuid, ByteString groupPublicKey) {
-    return MessageDigest.isEqual(this.groupPublicKey.toByteArray(), groupPublicKey.toByteArray()) &&
-            MessageDigest.isEqual(this.userCiphertext.toByteArray(), uuid.toByteArray());
+    final boolean publicKeyMatches = MessageDigest.isEqual(this.groupPublicKey.toByteArray(), groupPublicKey.toByteArray());
+    final boolean aciMatches = MessageDigest.isEqual(this.aciCiphertext.toByteArray(), uuid.toByteArray());
+    final boolean pniMatches =
+        pniCiphertext != null && MessageDigest.isEqual(this.pniCiphertext.toByteArray(), uuid.toByteArray());
+
+    return publicKeyMatches && (aciMatches || pniMatches);
   }
 
   public GroupPublicParams getGroupPublicKey() {
@@ -65,12 +74,12 @@ public class GroupUser implements Principal {
 
     GroupUser that = (GroupUser)other;
 
-    return this.userCiphertext.equals(that.userCiphertext) &&
+    return this.aciCiphertext.equals(that.aciCiphertext) &&
            this.groupPublicKey.equals(that.groupPublicKey);
   }
 
   @Override
   public int hashCode() {
-    return userCiphertext.hashCode() ^ groupPublicKey.hashCode();
+    return aciCiphertext.hashCode() ^ groupPublicKey.hashCode();
   }
 }

@@ -39,6 +39,7 @@ public class GroupUserAuthenticator implements Authenticator<BasicCredentials, G
       serverZkAuthOperations.verifyAuthCredentialPresentation(groupPublicKey, presentation);
 
       return Optional.of(new GroupUser(ByteString.copyFrom(presentation.getUuidCiphertext().serialize()),
+                                       presentation.getPniCiphertext() != null ? ByteString.copyFrom(presentation.getPniCiphertext().serialize()) : null,
                                        ByteString.copyFrom(groupPublicKey.serialize()),
                                        ByteString.copyFrom(groupPublicKey.getGroupIdentifier().serialize())));
 
