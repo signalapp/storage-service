@@ -67,19 +67,4 @@ public class GroupUser implements Principal {
   public boolean implies(Subject subject) {
     return false;
   }
-
-  @Override
-  public boolean equals(Object other) {
-    if (other == null || !(other instanceof GroupUser)) return false;
-
-    GroupUser that = (GroupUser)other;
-
-    return this.aciCiphertext.equals(that.aciCiphertext) &&
-           this.groupPublicKey.equals(that.groupPublicKey);
-  }
-
-  @Override
-  public int hashCode() {
-    return aciCiphertext.hashCode() ^ groupPublicKey.hashCode();
-  }
 }
