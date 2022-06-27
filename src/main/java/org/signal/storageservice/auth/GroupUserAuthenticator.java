@@ -21,7 +21,7 @@ import java.util.Optional;
 
 public class GroupUserAuthenticator implements Authenticator<BasicCredentials, GroupUser> {
 
-  private ServerZkAuthOperations serverZkAuthOperations;
+  private final ServerZkAuthOperations serverZkAuthOperations;
 
   public GroupUserAuthenticator(ServerZkAuthOperations serverZkAuthOperations) {
     this.serverZkAuthOperations = serverZkAuthOperations;

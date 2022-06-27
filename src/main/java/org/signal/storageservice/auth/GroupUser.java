@@ -5,6 +5,7 @@
 
 package org.signal.storageservice.auth;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.libsignal.zkgroup.InvalidInputException;
@@ -54,6 +55,17 @@ public class GroupUser implements Principal {
 
   public ByteString getGroupId() {
     return groupId;
+  }
+
+  @VisibleForTesting
+  ByteString getAciCiphertext() {
+    return aciCiphertext;
+  }
+
+  @Nullable
+  @VisibleForTesting
+  ByteString getPniCiphertext() {
+    return pniCiphertext;
   }
 
   // Principal implementation
