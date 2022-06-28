@@ -36,10 +36,10 @@ import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.signal.libsignal.zkgroup.NotarySignature;
+import org.signal.libsignal.zkgroup.auth.ClientZkAuthOperations;
 import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
 import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
 import org.signal.libsignal.zkgroup.profiles.ClientZkProfileOperations;
-import org.signal.libsignal.zkgroup.profiles.PniCredentialPresentation;
 import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;
 import org.signal.storageservice.storage.protos.groups.AccessControl;
@@ -2745,9 +2745,15 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams())
             .createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL);
 
-    PniCredentialPresentation validUserTwoPniPresentation =
+    ProfileKeyCredentialPresentation validUserTwoPresentation =
         new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams())
-            .createPniCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_CREDENTIAL);
+            .createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
+
+    final ByteString pniCiphertext = ByteString.copyFrom(
+        new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams())
+            .createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL)
+            .getPniCiphertext()
+            .serialize());
 
     Group group = Group.newBuilder()
         .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
@@ -2766,7 +2772,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
             .setAddedByUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
             .setTimestamp(System.currentTimeMillis())
             .setMember(Member.newBuilder()
-                .setUserId(ByteString.copyFrom(validUserTwoPniPresentation.getPniCiphertext().serialize()))
+                .setUserId(pniCiphertext)
                 .setRole(Member.Role.DEFAULT)
                 .build())
             .build())
@@ -2784,7 +2790,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     GroupChange.Actions groupChange = Actions.newBuilder()
         .setVersion(1)
         .addPromoteMembersPendingPniAciProfileKey(Actions.PromoteMemberPendingPniAciProfileKeyAction.newBuilder()
-            .setPresentation(ByteString.copyFrom(validUserTwoPniPresentation.serialize())))
+            .setPresentation(ByteString.copyFrom(validUserTwoPresentation.serialize())))
         .build();
 
     Response response = resources.getJerseyTest()
@@ -2808,9 +2814,9 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(captor.getValue().getMembersCount()).isEqualTo(2);
     assertThat(captor.getValue().getMembers(1).getJoinedAtVersion()).isEqualTo(1);
     assertThat(captor.getValue().getMembers(1).getPresentation()).isEmpty();
-    assertThat(captor.getValue().getMembers(1).getProfileKey()).isEqualTo(ByteString.copyFrom(validUserTwoPniPresentation.getProfileKeyCiphertext().serialize()));
+    assertThat(captor.getValue().getMembers(1).getProfileKey()).isEqualTo(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()));
     assertThat(captor.getValue().getMembers(1).getRole()).isEqualTo(Member.Role.DEFAULT);
-    assertThat(captor.getValue().getMembers(1).getUserId()).isEqualTo(ByteString.copyFrom(validUserTwoPniPresentation.getAciCiphertext().serialize()));
+    assertThat(captor.getValue().getMembers(1).getUserId()).isEqualTo(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()));
     assertThat(captor.getValue().getMembersPendingProfileKeyCount()).isEqualTo(0);
 
     assertThat(captor.getValue().getVersion()).isEqualTo(1);
@@ -2821,8 +2827,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .removeMembersPendingProfileKey(0)
         .addMembers(Member.newBuilder()
             .setRole(Member.Role.DEFAULT)
-            .setProfileKey(ByteString.copyFrom(validUserTwoPniPresentation.getProfileKeyCiphertext().serialize()))
-            .setUserId(ByteString.copyFrom(validUserTwoPniPresentation.getAciCiphertext().serialize()))
+            .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
+            .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
             .setJoinedAtVersion(1)
             .build())
         .build());
@@ -2830,7 +2836,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
     assertThat(signedChange.getChangeEpoch()).isEqualTo(5);
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
-    assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserTwoPniPresentation.getPniCiphertext().serialize()));
+    assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(pniCiphertext);
 
     final List<PromoteMemberPendingPniAciProfileKeyAction> promoteActions =
         Actions.parseFrom(signedChange.getActions()).getPromoteMembersPendingPniAciProfileKeyList();
@@ -2857,9 +2863,15 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams())
             .createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL);
 
-    PniCredentialPresentation validUserTwoPniPresentation =
+    ProfileKeyCredentialPresentation validUserTwoPresentation =
         new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams())
-            .createPniCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_CREDENTIAL);
+            .createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
+
+    final ByteString pniCiphertext = ByteString.copyFrom(
+        new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams())
+            .createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL)
+            .getPniCiphertext()
+            .serialize());
 
     Group group = Group.newBuilder()
         .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
@@ -2878,7 +2890,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
             .setAddedByUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
             .setTimestamp(System.currentTimeMillis())
             .setMember(Member.newBuilder()
-                .setUserId(ByteString.copyFrom(validUserTwoPniPresentation.getPniCiphertext().serialize()))
+                .setUserId(pniCiphertext)
                 .setRole(Member.Role.DEFAULT)
                 .build())
             .build())
@@ -2896,7 +2908,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     GroupChange.Actions groupChange = Actions.newBuilder()
         .setVersion(1)
         .addPromoteMembersPendingPniAciProfileKey(Actions.PromoteMemberPendingPniAciProfileKeyAction.newBuilder()
-            .setPresentation(ByteString.copyFrom(validUserTwoPniPresentation.serialize())))
+            .setPresentation(ByteString.copyFrom(validUserTwoPresentation.serialize())))
         .build();
 
     Response response = resources.getJerseyTest()

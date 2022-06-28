@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
 import javax.security.auth.Subject;
 import java.security.MessageDigest;
 import java.security.Principal;
+import java.util.Optional;
 
 public class GroupUser implements Principal {
 
@@ -62,10 +63,8 @@ public class GroupUser implements Principal {
     return aciCiphertext;
   }
 
-  @Nullable
-  @VisibleForTesting
-  ByteString getPniCiphertext() {
-    return pniCiphertext;
+  public Optional<ByteString> getPniCiphertext() {
+    return Optional.ofNullable(pniCiphertext);
   }
 
   // Principal implementation

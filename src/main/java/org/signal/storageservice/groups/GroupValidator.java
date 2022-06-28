@@ -297,11 +297,11 @@ public class GroupValidator {
     }
 
     final List<PromoteMemberPendingPniAciProfileKeyAction> validatedActions = actions.stream().map(action -> {
-      final PniCredentialPresentation presentation = validatePniCredentialPresentationUpdate(user, group, action.getPresentation());
+      final ProfileKeyCredentialPresentation presentation = validateProfileKeyCredentialPresentationUpdate(user, group, action.getPresentation());
 
       return PromoteMemberPendingPniAciProfileKeyAction.newBuilder()
-          .setUserId(ByteString.copyFrom(presentation.getAciCiphertext().serialize()))
-          .setPni(ByteString.copyFrom(presentation.getPniCiphertext().serialize()))
+          .setUserId(ByteString.copyFrom(presentation.getUuidCiphertext().serialize()))
+          .setPni(user.getPniCiphertext().orElseThrow(() -> new ForbiddenException("PNI not specified")))
           .setProfileKey(ByteString.copyFrom(presentation.getProfileKeyCiphertext().serialize()))
           .clearPresentation()
           .build();
@@ -333,30 +333,6 @@ public class GroupValidator {
       }
 
       profileOperations.verifyProfileKeyCredentialPresentation(publicParams, presentation);
-
-      return presentation;
-    } catch (InvalidInputException | VerificationFailedException e) {
-      throw new BadRequestException(e);
-    }
-  }
-
-  private PniCredentialPresentation validatePniCredentialPresentationUpdate(GroupUser source, Group group,
-      ByteString presentationData) throws BadRequestException, ForbiddenException {
-
-    try {
-      GroupPublicParams publicParams = new GroupPublicParams(group.getPublicKey().toByteArray());
-
-      if (presentationData == null || presentationData.isEmpty()) {
-        throw new BadRequestException();
-      }
-
-      final PniCredentialPresentation presentation = new PniCredentialPresentation(presentationData.toByteArray());
-
-      if (!source.isMember(ByteString.copyFrom(presentation.getPniCiphertext().serialize()), group.getPublicKey())) {
-        throw new ForbiddenException();
-      }
-
-      profileOperations.verifyPniCredentialPresentation(publicParams, presentation);
 
       return presentation;
     } catch (InvalidInputException | VerificationFailedException e) {

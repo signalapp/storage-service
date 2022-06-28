@@ -448,9 +448,9 @@ public class GroupsController {
       groupChangeApplicator.applyEnsureSomeAdminsExist(actionsBuilder, modifiedGroupBuilder);
 
       ByteString sourceUuid = Stream.of((Supplier<Optional<ByteString>>) () -> GroupAuth.getMember(user, group.get()).map(Member::getUserId),
-                                        (Supplier<Optional<ByteString>>) () -> GroupAuth.getMember(user, modifiedGroupBuilder.build()).map(Member::getUserId),
                                         (Supplier<Optional<ByteString>>) () -> GroupAuth.getMemberPendingProfileKey(user, group.get()).map(pending -> pending.getMember().getUserId()),
                                         (Supplier<Optional<ByteString>>) () -> GroupAuth.getMemberPendingAdminApproval(user, group.get()).map(MemberPendingAdminApproval::getUserId),
+                                        (Supplier<Optional<ByteString>>) () -> GroupAuth.getMember(user, modifiedGroupBuilder.build()).map(Member::getUserId),
                                         (Supplier<Optional<ByteString>>) () -> GroupAuth.getMemberPendingAdminApproval(user, modifiedGroupBuilder.build()).map(MemberPendingAdminApproval::getUserId))
                                     .map(Supplier::get)
                                     .filter(Optional::isPresent)
