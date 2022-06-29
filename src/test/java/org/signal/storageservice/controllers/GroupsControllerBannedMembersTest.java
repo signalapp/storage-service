@@ -26,7 +26,7 @@ import org.signal.storageservice.storage.protos.groups.Member.Role;
 import org.signal.storageservice.util.AuthHelper;
 import org.signal.libsignal.zkgroup.auth.AuthCredential;
 
-public class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
+class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
   @Test
   public void testGetGroupJoinInfoWhenBanned() {
     final byte[] inviteLinkPassword = new byte[16];

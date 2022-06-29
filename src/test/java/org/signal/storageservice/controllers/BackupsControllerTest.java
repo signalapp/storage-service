@@ -24,7 +24,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.signal.storageservice.storage.BackupsManager;
 
 @ExtendWith(DropwizardExtensionsSupport.class)
-public class BackupsControllerTest {
+class BackupsControllerTest {
   private static final String CRON_HEADER = "X-Appengine-Cron";
 
   private final BackupsManager backupsManager = mock(BackupsManager.class);
