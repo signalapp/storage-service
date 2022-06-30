@@ -46,6 +46,7 @@ import org.signal.storageservice.auth.UserAuthenticator;
 
 public class AuthHelper {
   public static final String VALID_USER             = UUID.randomUUID().toString();
+  public static final UUID   VALID_USER_PNI         = UUID.randomUUID();
   public static final byte[] VALID_USER_PROFILE_KEY = new byte[32];
   public static final String VALID_PASSWORD         = "foo";
 
@@ -55,10 +56,12 @@ public class AuthHelper {
   public static final String VALID_PASSWORD_TWO         = "bar";
 
   public static final String VALID_USER_THREE             = UUID.randomUUID().toString();
+  public static final UUID   VALID_USER_THREE_PNI         = UUID.randomUUID();
   public static final byte[] VALID_USER_THREE_PROFILE_KEY = new byte[32];
   public static final String VALID_PASSWORD_THREE         = "baz";
 
   public static final String VALID_USER_FOUR             = UUID.randomUUID().toString();
+  public static final UUID   VALID_USER_FOUR_PNI         = UUID.randomUUID();
   public static final byte[] VALID_USER_FOUR_PROFILE_KEY = new byte[32];
   public static final String VALID_PASSWORD_FOUR         = "password";
 
@@ -69,10 +72,13 @@ public class AuthHelper {
 
   public static final ServerSecretParams     GROUPS_SERVER_KEY          = ServerSecretParams.generate();
   public static final AuthCredential         VALID_USER_AUTH_CREDENTIAL;
+  public static final AuthCredentialWithPni  VALID_USER_PNI_AUTH_CREDENTIAL;
   public static final AuthCredential         VALID_USER_TWO_AUTH_CREDENTIAL;
   public static final AuthCredentialWithPni  VALID_USER_TWO_PNI_AUTH_CREDENTIAL;
   public static final AuthCredential         VALID_USER_THREE_AUTH_CREDENTIAL;
+  public static final AuthCredentialWithPni  VALID_USER_THREE_PNI_AUTH_CREDENTIAL;
   public static final AuthCredential         VALID_USER_FOUR_AUTH_CREDENTIAL;
+  public static final AuthCredentialWithPni  VALID_USER_FOUR_PNI_AUTH_CREDENTIAL;
 
   public static final ProfileKeyCredential   VALID_USER_PROFILE_CREDENTIAL;
   public static final ProfileKeyCredential   VALID_USER_TWO_PROFILE_CREDENTIAL;
@@ -84,16 +90,22 @@ public class AuthHelper {
       int                    redemptionTime       = Util.currentDaysSinceEpoch();
       Instant                redemptionInstant    = Instant.EPOCH.plus(Duration.ofDays(redemptionTime));
       AuthCredentialResponse validUserResponse    = new ServerZkAuthOperations(GROUPS_SERVER_KEY).issueAuthCredential(UUID.fromString(VALID_USER    ), redemptionTime);
+      AuthCredentialWithPniResponse validUserPniResponse = new ServerZkAuthOperations(GROUPS_SERVER_KEY).issueAuthCredentialWithPni(UUID.fromString(VALID_USER), VALID_USER_PNI, redemptionInstant);
       AuthCredentialResponse validUserTwoResponse = new ServerZkAuthOperations(GROUPS_SERVER_KEY).issueAuthCredential(UUID.fromString(VALID_USER_TWO), redemptionTime);
       AuthCredentialWithPniResponse validUserTwoPniResponse = new ServerZkAuthOperations(GROUPS_SERVER_KEY).issueAuthCredentialWithPni(UUID.fromString(VALID_USER_TWO), VALID_USER_TWO_PNI, redemptionInstant);
       AuthCredentialResponse validUserThreeResponse = new ServerZkAuthOperations(GROUPS_SERVER_KEY).issueAuthCredential(UUID.fromString(VALID_USER_THREE), redemptionTime);
+      AuthCredentialWithPniResponse validUserThreePniResponse = new ServerZkAuthOperations(GROUPS_SERVER_KEY).issueAuthCredentialWithPni(UUID.fromString(VALID_USER_THREE), VALID_USER_THREE_PNI, redemptionInstant);
       AuthCredentialResponse validUserFourResponse = new ServerZkAuthOperations(GROUPS_SERVER_KEY).issueAuthCredential(UUID.fromString(VALID_USER_FOUR), redemptionTime);
+      AuthCredentialWithPniResponse validUserFourPniResponse = new ServerZkAuthOperations(GROUPS_SERVER_KEY).issueAuthCredentialWithPni(UUID.fromString(VALID_USER_FOUR), VALID_USER_FOUR_PNI, redemptionInstant);
 
       VALID_USER_AUTH_CREDENTIAL = new ClientZkAuthOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveAuthCredential(UUID.fromString(VALID_USER), redemptionTime, validUserResponse);
+      VALID_USER_PNI_AUTH_CREDENTIAL = new ClientZkAuthOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveAuthCredentialWithPni(UUID.fromString(VALID_USER), VALID_USER_PNI, redemptionInstant.getEpochSecond(), validUserPniResponse);
       VALID_USER_TWO_AUTH_CREDENTIAL = new ClientZkAuthOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveAuthCredential(UUID.fromString(VALID_USER_TWO), redemptionTime, validUserTwoResponse);
       VALID_USER_TWO_PNI_AUTH_CREDENTIAL = new ClientZkAuthOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveAuthCredentialWithPni(UUID.fromString(VALID_USER_TWO), VALID_USER_TWO_PNI, redemptionInstant.getEpochSecond(), validUserTwoPniResponse);
       VALID_USER_THREE_AUTH_CREDENTIAL = new ClientZkAuthOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveAuthCredential(UUID.fromString(VALID_USER_THREE), redemptionTime, validUserThreeResponse);
+      VALID_USER_THREE_PNI_AUTH_CREDENTIAL = new ClientZkAuthOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveAuthCredentialWithPni(UUID.fromString(VALID_USER_THREE), VALID_USER_THREE_PNI, redemptionInstant.getEpochSecond(), validUserThreePniResponse);
       VALID_USER_FOUR_AUTH_CREDENTIAL = new ClientZkAuthOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveAuthCredential(UUID.fromString(VALID_USER_FOUR), redemptionTime, validUserFourResponse);
+      VALID_USER_FOUR_PNI_AUTH_CREDENTIAL = new ClientZkAuthOperations(GROUPS_SERVER_KEY.getPublicParams()).receiveAuthCredentialWithPni(UUID.fromString(VALID_USER_FOUR), VALID_USER_FOUR_PNI, redemptionInstant.getEpochSecond(), validUserFourPniResponse);
 
       final SecureRandom secureRandom = new SecureRandom();
       secureRandom.nextBytes(VALID_USER_PROFILE_KEY);

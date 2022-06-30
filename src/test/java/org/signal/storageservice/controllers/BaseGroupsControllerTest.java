@@ -15,7 +15,6 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.google.common.io.BaseEncoding;
 import com.google.protobuf.ByteString;
 import io.dropwizard.auth.AuthValueFactoryProvider;
 import io.dropwizard.testing.junit5.DropwizardExtensionsSupport;
@@ -34,6 +33,7 @@ import org.mockito.ArgumentCaptor;
 import org.signal.libsignal.zkgroup.InvalidInputException;
 import org.signal.libsignal.zkgroup.NotarySignature;
 import org.signal.libsignal.zkgroup.VerificationFailedException;
+import org.signal.libsignal.zkgroup.auth.ClientZkAuthOperations;
 import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
 import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
 import org.signal.libsignal.zkgroup.profiles.ClientZkProfileOperations;
@@ -65,9 +65,13 @@ abstract class BaseGroupsControllerTest {
   protected final ProfileKeyCredentialPresentation validUserThreePresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_THREE_PROFILE_CREDENTIAL);
   protected final ProfileKeyCredentialPresentation validUserFourPresentation  = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_FOUR_PROFILE_CREDENTIAL);
   protected final ByteString validUserId = ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize());
+  protected final ByteString validUserPniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PNI_AUTH_CREDENTIAL).getPniCiphertext().serialize());
   protected final ByteString validUserTwoId = ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize());
+  protected final ByteString validUserTwoPniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL).getPniCiphertext().serialize());
   protected final ByteString validUserThreeId = ByteString.copyFrom(validUserThreePresentation.getUuidCiphertext().serialize());
+  protected final ByteString validUserThreePniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_THREE_PNI_AUTH_CREDENTIAL).getPniCiphertext().serialize());
   protected final ByteString validUserFourId = ByteString.copyFrom(validUserFourPresentation.getUuidCiphertext().serialize());
+  protected final ByteString validUserFourPniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_FOUR_PNI_AUTH_CREDENTIAL).getPniCiphertext().serialize());
   protected final GroupsManager                    groupsManager              = mock(GroupsManager.class);
   protected final Clock                            clock                      = mock(Clock.class);
   protected       long                             currentTime;
@@ -82,13 +86,13 @@ abstract class BaseGroupsControllerTest {
                                                                                      .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
                                                                                      .setVersion(0)
                                                                                      .addMembers(Member.newBuilder()
-                                                                                                       .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
+                                                                                                       .setUserId(validUserId)
                                                                                                        .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
                                                                                                        .setRole(Member.Role.ADMINISTRATOR)
                                                                                                        .setJoinedAtVersion(0)
                                                                                                        .build())
                                                                                      .addMembers(Member.newBuilder()
-                                                                                                       .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
+                                                                                                       .setUserId(validUserTwoId)
                                                                                                        .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
                                                                                                        .setRole(Member.Role.DEFAULT)
                                                                                                        .setJoinedAtVersion(0)
