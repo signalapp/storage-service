@@ -8,6 +8,7 @@ package org.signal.storageservice.auth;
 import com.google.protobuf.ByteString;
 import io.dropwizard.auth.Authenticator;
 import io.dropwizard.auth.basic.BasicCredentials;
+import io.micrometer.core.instrument.Metrics;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.signal.libsignal.zkgroup.InvalidInputException;
@@ -19,7 +20,12 @@ import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
 
 import java.util.Optional;
 
+import static com.codahale.metrics.MetricRegistry.name;
+
 public class GroupUserAuthenticator implements Authenticator<BasicCredentials, GroupUser> {
+
+  private static final String CREDENTIALS_VERSION_COUNTER_NAME = name(GroupUserAuthenticator.class,
+      "credentialsVersion");
 
   private final ServerZkAuthOperations serverZkAuthOperations;
 
@@ -35,6 +41,9 @@ public class GroupUserAuthenticator implements Authenticator<BasicCredentials, G
 
       GroupPublicParams          groupPublicKey = new GroupPublicParams(Hex.decodeHex(encodedGroupPublicKey));
       AuthCredentialPresentation presentation   = new AuthCredentialPresentation(Hex.decodeHex(encodedPresentation));
+
+      Metrics.counter(CREDENTIALS_VERSION_COUNTER_NAME, "version", presentation.getVersion().toString())
+              .increment();
 
       serverZkAuthOperations.verifyAuthCredentialPresentation(groupPublicKey, presentation);
 

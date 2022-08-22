@@ -5,7 +5,10 @@
 
 package org.signal.storageservice.groups;
 
+import static com.codahale.metrics.MetricRegistry.name;
+
 import com.google.protobuf.ByteString;
+import io.micrometer.core.instrument.Metrics;
 import java.security.MessageDigest;
 import java.time.Clock;
 import java.util.ArrayList;
@@ -17,7 +20,11 @@ import java.util.stream.Stream;
 import javax.ws.rs.BadRequestException;
 import javax.ws.rs.ForbiddenException;
 import org.apache.commons.codec.binary.Base64;
-import org.signal.libsignal.zkgroup.profiles.PniCredentialPresentation;
+import org.signal.libsignal.zkgroup.InvalidInputException;
+import org.signal.libsignal.zkgroup.VerificationFailedException;
+import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
+import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialPresentation;
+import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
 import org.signal.storageservice.auth.GroupUser;
 import org.signal.storageservice.configuration.GroupConfiguration;
 import org.signal.storageservice.controllers.GroupsController;
@@ -31,17 +38,14 @@ import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.storage.protos.groups.MemberBanned;
 import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
-import org.signal.libsignal.zkgroup.InvalidInputException;
-import org.signal.libsignal.zkgroup.VerificationFailedException;
-import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
-import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialPresentation;
-import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
 import org.signal.storageservice.util.CollectionUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class GroupValidator {
   private static final int INVITE_LINK_PASSWORD_SIZE_BYTES = 16;
+  private static final String CREDENTIALS_VERSION_COUNTER_NAME = name(GroupValidator.class,
+      "profileKeyCredentialsVersion");
   private final Logger logger = LoggerFactory.getLogger(GroupsController.class);
 
   private final ServerZkProfileOperations profileOperations;
@@ -69,6 +73,10 @@ public class GroupValidator {
 
       GroupPublicParams                publicParams                     = new GroupPublicParams(group.getPublicKey().toByteArray());
       ProfileKeyCredentialPresentation profileKeyCredentialPresentation = new ProfileKeyCredentialPresentation(member.getPresentation().toByteArray());
+
+      Metrics.counter(CREDENTIALS_VERSION_COUNTER_NAME,
+              "version", profileKeyCredentialPresentation.getVersion().toString())
+          .increment();
 
       profileOperations.verifyProfileKeyCredentialPresentation(publicParams, profileKeyCredentialPresentation);
 
