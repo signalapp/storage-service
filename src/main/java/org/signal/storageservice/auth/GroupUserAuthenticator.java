@@ -12,7 +12,6 @@ import io.micrometer.core.instrument.Metrics;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 import org.signal.libsignal.zkgroup.InvalidInputException;
-import org.signal.libsignal.zkgroup.InvalidRedemptionTimeException;
 import org.signal.libsignal.zkgroup.VerificationFailedException;
 import org.signal.libsignal.zkgroup.auth.AuthCredentialPresentation;
 import org.signal.libsignal.zkgroup.auth.ServerZkAuthOperations;
@@ -52,7 +51,7 @@ public class GroupUserAuthenticator implements Authenticator<BasicCredentials, G
                                        ByteString.copyFrom(groupPublicKey.serialize()),
                                        ByteString.copyFrom(groupPublicKey.getGroupIdentifier().serialize())));
 
-    } catch (DecoderException | VerificationFailedException | InvalidInputException | InvalidRedemptionTimeException e) {
+    } catch (DecoderException | VerificationFailedException | InvalidInputException e) {
       return Optional.empty();
     }
   }
