@@ -1,4 +1,4 @@
-FROM eclipse-temurin:17-jre-focal
+FROM amd64/eclipse-temurin:17-jre-focal
 
 EXPOSE 8080
 
