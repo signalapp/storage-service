@@ -5,9 +5,30 @@
 
 package org.signal.storageservice.controllers;
 
+import static com.codahale.metrics.MetricRegistry.name;
+
 import com.codahale.metrics.annotation.Timed;
+import com.google.common.annotations.VisibleForTesting;
 import io.dropwizard.auth.Auth;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Tags;
+import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
+import javax.ws.rs.PUT;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.WebApplicationException;
+import javax.ws.rs.core.HttpHeaders;
+import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 import org.signal.storageservice.auth.User;
+import org.signal.storageservice.metrics.UserAgentTagUtil;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;
 import org.signal.storageservice.storage.StorageManager;
 import org.signal.storageservice.storage.protos.contacts.ReadOperation;
@@ -15,24 +36,20 @@ import org.signal.storageservice.storage.protos.contacts.StorageItems;
 import org.signal.storageservice.storage.protos.contacts.StorageManifest;
 import org.signal.storageservice.storage.protos.contacts.WriteOperation;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DELETE;
-import javax.ws.rs.GET;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
-import java.util.concurrent.CompletableFuture;
-
 @Path("/v1/storage")
 public class StorageController {
 
   private final StorageManager storageManager;
 
+  @VisibleForTesting
   static final int MAX_READ_KEYS = 5120;
+  // https://cloud.google.com/bigtable/quotas#limits-operations
+  @VisibleForTesting
+  static final int MAX_MUTATIONS = 100_000;
+
+  private static final String INSERT_DISTRIBUTION_SUMMARY_NAME = name(StorageController.class, "inserts");
+  private static final String DELETE_DISTRIBUTION_SUMMARY_NAME = name(StorageController.class, "deletes");
+  private static final String READ_DISTRIBUTION_SUMMARY_NAME = name(StorageController.class, "reads");
 
   public StorageController(StorageManager storageManager) {
     this.storageManager = storageManager;
@@ -61,9 +78,16 @@ public class StorageController {
   @PUT
   @Consumes(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
   @Produces(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-  public CompletableFuture<Response> write(@Auth User user, WriteOperation writeOperation) {
+  public CompletableFuture<Response> write(@Auth User user, @HeaderParam(HttpHeaders.USER_AGENT) String userAgent, WriteOperation writeOperation) {
     if (!writeOperation.hasManifest()) {
       return CompletableFuture.failedFuture(new WebApplicationException(Response.Status.BAD_REQUEST));
+    }
+
+    distributionSummary(INSERT_DISTRIBUTION_SUMMARY_NAME, userAgent).record(writeOperation.getInsertItemCount());
+    distributionSummary(DELETE_DISTRIBUTION_SUMMARY_NAME, userAgent).record(writeOperation.getDeleteKeyCount());
+
+    if (writeOperation.getInsertItemCount() + writeOperation.getDeleteKeyCount() > MAX_MUTATIONS) {
+      return CompletableFuture.failedFuture(new WebApplicationException(Status.REQUEST_ENTITY_TOO_LARGE));
     }
 
     CompletableFuture<Void> future;
@@ -82,15 +106,27 @@ public class StorageController {
                  });
   }
 
+  private static DistributionSummary distributionSummary(final String name, final String userAgent) {
+    return DistributionSummary.builder(name)
+        .publishPercentiles(0.75, 0.95, 0.99, 0.999)
+        .distributionStatisticExpiry(Duration.ofMinutes(5))
+        .tags(Tags.of(UserAgentTagUtil.getPlatformTag(userAgent)))
+        .register(Metrics.globalRegistry);
+  }
+
   @Timed
   @PUT
   @Path("/read")
   @Consumes(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
   @Produces(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-  public CompletableFuture<StorageItems> read(@Auth User user, ReadOperation readOperation) {
+  public CompletableFuture<StorageItems> read(@Auth User user, @HeaderParam(HttpHeaders.USER_AGENT) String userAgent, ReadOperation readOperation) {
     if (readOperation.getReadKeyList().isEmpty()) {
       return CompletableFuture.failedFuture(new WebApplicationException(Response.Status.BAD_REQUEST));
-    } else if (readOperation.getReadKeyList().size() > MAX_READ_KEYS) {
+    }
+
+    distributionSummary(READ_DISTRIBUTION_SUMMARY_NAME, userAgent).record(readOperation.getReadKeyCount());
+
+    if (readOperation.getReadKeyCount() > MAX_READ_KEYS) {
       return CompletableFuture.failedFuture(new WebApplicationException(Status.REQUEST_ENTITY_TOO_LARGE));
     }
 

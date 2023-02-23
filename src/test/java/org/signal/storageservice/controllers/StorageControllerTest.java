@@ -13,6 +13,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
@@ -346,6 +347,44 @@ class StorageControllerTest {
 
     verify(storageManager, times(1)).set(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), eq(stale), anyList(), anyList());
     verifyNoMoreInteractions(storageManager);
+  }
+
+  @Test
+  void testWriteOversizeList() {
+
+    StorageManifest manifest = StorageManifest.newBuilder()
+        .setVersion(1337)
+        .setValue(ByteString.copyFromUtf8("A manifest"))
+        .build();
+
+    final int insertCount = 1 + StorageController.MAX_MUTATIONS / 2;
+    final int deleteCount = 1 + StorageController.MAX_MUTATIONS / 2;
+
+   final WriteOperation.Builder builder = WriteOperation.newBuilder()
+        .setManifest(manifest);
+
+    for (int i = 0; i < insertCount; i++) {
+      builder.addInsertItem(StorageItem.newBuilder()
+          .setKey(ByteString.copyFromUtf8("key" + i))
+          .setValue(ByteString.copyFromUtf8("value" + i))
+          .build());
+    }
+
+    for (int i = 0; i < deleteCount; i++) {
+      builder.addDeleteKey(ByteString.copyFromUtf8("deleteKey" + i));
+    }
+
+    WriteOperation writeOperation = builder.build();
+
+    Response response = resources.getJerseyTest()
+        .target("/v1/storage/")
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
+        .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+
+    assertThat(response.getStatus()).isEqualTo(413);
+
+    verifyNoInteractions(storageManager);
   }
 
   @Test
