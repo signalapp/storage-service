@@ -5,13 +5,19 @@
 
 package org.signal.storageservice.controllers;
 
+import static com.codahale.metrics.MetricRegistry.name;
+
 import com.codahale.metrics.annotation.Timed;
 import com.google.protobuf.ByteString;
 import io.dropwizard.auth.Auth;
 import io.dropwizard.util.Strings;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Tags;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.LinkedList;
@@ -27,6 +33,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.ForbiddenException;
 import javax.ws.rs.GET;
+import javax.ws.rs.HeaderParam;
 import javax.ws.rs.PATCH;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Path;
@@ -37,12 +44,16 @@ import javax.ws.rs.core.Response;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
+import org.signal.libsignal.zkgroup.NotarySignature;
+import org.signal.libsignal.zkgroup.ServerSecretParams;
+import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
 import org.signal.storageservice.auth.ExternalGroupCredentialGenerator;
 import org.signal.storageservice.auth.GroupUser;
 import org.signal.storageservice.configuration.GroupConfiguration;
 import org.signal.storageservice.groups.GroupAuth;
 import org.signal.storageservice.groups.GroupChangeApplicator;
 import org.signal.storageservice.groups.GroupValidator;
+import org.signal.storageservice.metrics.UserAgentTagUtil;
 import org.signal.storageservice.providers.NoUnknownFields;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;
 import org.signal.storageservice.s3.PolicySigner;
@@ -61,9 +72,6 @@ import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApprova
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.CollectionUtil;
 import org.signal.storageservice.util.Pair;
-import org.signal.libsignal.zkgroup.NotarySignature;
-import org.signal.libsignal.zkgroup.ServerSecretParams;
-import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
 
 @Path("/v1/groups")
 public class GroupsController {
@@ -73,6 +81,8 @@ public class GroupsController {
   private static final int ANNOUNCEMENTS_ONLY_CHANGE_EPOCH = 3;
   private static final int BANNED_USERS_CHANGE_EPOCH = 4;
   private static final int JOIN_BY_PNI_EPOCH = 5;
+
+  private static final String LOG_SIZE_BYTES_DISTRIBUTION_SUMMARY_NAME = name(GroupsController.class, "logSizeBytes");
 
   private final Clock clock;
   private final GroupsManager groupsManager;
@@ -196,6 +206,7 @@ public class GroupsController {
   @Path("/logs/{fromVersion}")
   public CompletableFuture<Response> getGroupLogs(
       @Auth GroupUser user,
+      @HeaderParam(javax.ws.rs.core.HttpHeaders.USER_AGENT) String userAgent,
       @PathParam("fromVersion") int fromVersion,
       @QueryParam("limit") @DefaultValue("64") int limit,
       @QueryParam("maxSupportedChangeEpoch") Optional<Integer> maxSupportedChangeEpoch,
@@ -224,20 +235,41 @@ public class GroupsController {
       final int logVersionLimit = Math.max(1, Math.min(limit, LOG_VERSION_LIMIT)); // 1 ≤ limit ≤ LOG_VERSION_LIMIT
       if (latestGroupVersion + 1 - fromVersion > logVersionLimit) {
         return groupsManager.getChangeRecords(user.getGroupId(), group.get(), maxSupportedChangeEpoch.orElse(null), includeFirstState, includeLastState, fromVersion, fromVersion + logVersionLimit)
-                            .thenApply(records -> Response.status(HttpStatus.SC_PARTIAL_CONTENT)
-                                                          .header(HttpHeaders.CONTENT_RANGE, String.format(Locale.US, "versions %d-%d/%d", fromVersion, fromVersion + logVersionLimit - 1, latestGroupVersion))
-                                                          .entity(GroupChanges.newBuilder()
-                                                                              .addAllGroupChanges(records)
-                                                                              .build())
-                                                          .build());
+                            .thenApply(records -> {
+                              final GroupChanges groupChanges = GroupChanges.newBuilder()
+                                  .addAllGroupChanges(records)
+                                  .build();
+
+                              distributionSummary(LOG_SIZE_BYTES_DISTRIBUTION_SUMMARY_NAME, userAgent)
+                                  .record(groupChanges.getSerializedSize());
+
+                              return Response.status(HttpStatus.SC_PARTIAL_CONTENT)
+                                                            .header(HttpHeaders.CONTENT_RANGE, String.format(Locale.US, "versions %d-%d/%d", fromVersion, fromVersion + logVersionLimit - 1, latestGroupVersion))
+                                                            .entity(groupChanges)
+                                                            .build();
+                            });
       } else {
         return groupsManager.getChangeRecords(user.getGroupId(), group.get(), maxSupportedChangeEpoch.orElse(null), includeFirstState, includeLastState, fromVersion, latestGroupVersion + 1)
-                            .thenApply(records -> Response.ok(GroupChanges.newBuilder()
-                                                                          .addAllGroupChanges(records)
-                                                                          .build())
-                                                          .build());
+                            .thenApply(records -> {
+                              final GroupChanges groupChanges = GroupChanges.newBuilder()
+                                  .addAllGroupChanges(records)
+                                  .build();
+
+                              distributionSummary(LOG_SIZE_BYTES_DISTRIBUTION_SUMMARY_NAME, userAgent)
+                                  .record(groupChanges.getSerializedSize());
+
+                              return Response.ok(groupChanges).build();
+                            });
       }
     });
+  }
+
+  private static DistributionSummary distributionSummary(final String name, final String userAgent) {
+    return DistributionSummary.builder(name)
+        .publishPercentiles(0.75, 0.95, 0.99, 0.999)
+        .distributionStatisticExpiry(Duration.ofMinutes(5))
+        .tags(Tags.of(UserAgentTagUtil.getPlatformTag(userAgent)))
+        .register(Metrics.globalRegistry);
   }
 
   @Timed
