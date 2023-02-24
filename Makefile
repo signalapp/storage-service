@@ -18,6 +18,6 @@ $(configuration_files): config/%: $(configuration_repo)/storage/% | config
 	cp "$<" "$@"
 copy-config: $(configuration_files)
 deploy-staging: copy-config
-	mvn clean deploy
+	./mvnw clean deploy
 deploy: copy-config
-	mvn clean deploy appengine:deployAll@production
+	./mvnw clean deploy appengine:deployAll@production
