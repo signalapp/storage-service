@@ -5,6 +5,7 @@
 
 package org.signal.storageservice.storage;
 
+import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.protobuf.ByteString;
 import org.signal.storageservice.auth.User;
@@ -20,9 +21,9 @@ public class StorageManager {
   private final StorageManifestsTable manifestsTable;
   private final StorageItemsTable     itemsTable;
 
-  public StorageManager(BigtableDataClient client, String contactManifestsTableId, String contactsTableId) {
+  public StorageManager(BigtableDataClient client, BigtableTableAdminClient tableAdminClient, String contactManifestsTableId, String contactsTableId) {
     this.manifestsTable = new StorageManifestsTable(client, contactManifestsTableId);
-    this.itemsTable     = new StorageItemsTable(client, contactsTableId);
+    this.itemsTable     = new StorageItemsTable(client, tableAdminClient, contactsTableId);
   }
 
   public CompletableFuture<Optional<StorageManifest>> set(User user, StorageManifest manifest, List<StorageItem> inserts, List<ByteString> deletes) {

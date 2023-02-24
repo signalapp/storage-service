@@ -99,7 +99,7 @@ public class StorageService extends Application<StorageServiceConfiguration> {
                                                                     .build();
     BigtableDataClient bigtableDataClient = BigtableDataClient.create(bigtableDataSettings);
     ServerSecretParams serverSecretParams = new ServerSecretParams(config.getZkConfiguration().getServerSecret());
-    StorageManager     storageManager     = new StorageManager(bigtableDataClient, config.getBigTableConfiguration().getContactManifestsTableId(), config.getBigTableConfiguration().getContactsTableId());
+    StorageManager     storageManager     = new StorageManager(bigtableDataClient, bigtableTableAdminClient, config.getBigTableConfiguration().getContactManifestsTableId(), config.getBigTableConfiguration().getContactsTableId());
     GroupsManager      groupsManager      = new GroupsManager(bigtableDataClient, config.getBigTableConfiguration().getGroupsTableId(), config.getBigTableConfiguration().getGroupLogsTableId());
     BackupsManager backupsManager = new BackupsManager(bigtableTableAdminClient, config.getBigTableConfiguration().getClusterId(), List.of(
             config.getBigTableConfiguration().getContactManifestsTableId(),
