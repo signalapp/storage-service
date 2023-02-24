@@ -5,8 +5,6 @@
 
 package org.signal.storageservice.storage;
 
-import static com.codahale.metrics.MetricRegistry.name;
-
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
@@ -18,9 +16,6 @@ import com.google.cloud.bigtable.data.v2.models.Mutation;
 import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.protobuf.ByteString;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import org.apache.commons.codec.binary.Hex;
 import org.signal.storageservice.auth.User;
 import org.signal.storageservice.metrics.StorageMetrics;
@@ -28,19 +23,25 @@ import org.signal.storageservice.storage.protos.contacts.StorageItem;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
+import static com.codahale.metrics.MetricRegistry.name;
+
 public class StorageItemsTable extends Table {
 
-  public static final String FAMILY      = "c";
-  public static final String ROW_KEY     = "contact";
+  public static final String FAMILY = "c";
+  public static final String ROW_KEY = "contact";
 
   public static final String COLUMN_DATA = "d";
-  public static final String COLUMN_KEY  = "k";
+  public static final String COLUMN_KEY = "k";
 
-  private final MetricRegistry metricRegistry       = SharedMetricRegistries.getOrCreate(StorageMetrics.NAME);
-  private final Timer          getTimer             = metricRegistry.timer(name(StorageItemsTable.class, "get"            ));
-  private final Timer          setTimer             = metricRegistry.timer(name(StorageItemsTable.class, "create"         ));
-  private final Timer          getKeysToDeleteTimer = metricRegistry.timer(name(StorageItemsTable.class, "getKeysToDelete"));
-  private final Timer          deleteKeysTimer      = metricRegistry.timer(name(StorageItemsTable.class, "deleteKeys"     ));
+  private final MetricRegistry metricRegistry = SharedMetricRegistries.getOrCreate(StorageMetrics.NAME);
+  private final Timer getTimer = metricRegistry.timer(name(StorageItemsTable.class, "get"));
+  private final Timer setTimer = metricRegistry.timer(name(StorageItemsTable.class, "create"));
+  private final Timer getKeysToDeleteTimer = metricRegistry.timer(name(StorageItemsTable.class, "getKeysToDelete"));
+  private final Timer deleteKeysTimer = metricRegistry.timer(name(StorageItemsTable.class, "deleteKeys"));
 
   private static final Logger log = LoggerFactory.getLogger(StorageItemsTable.class);
 
@@ -53,9 +54,9 @@ public class StorageItemsTable extends Table {
 
     for (StorageItem insert : inserts) {
       bulkMutation.add(getRowKeyFor(user, insert.getKey()),
-                       Mutation.create()
-                               .setCell(FAMILY, ByteString.copyFromUtf8(COLUMN_DATA), 0, insert.getValue())
-                               .setCell(FAMILY, ByteString.copyFromUtf8(COLUMN_KEY), 0, insert.getKey()));
+          Mutation.create()
+              .setCell(FAMILY, ByteString.copyFromUtf8(COLUMN_DATA), 0, insert.getValue())
+              .setCell(FAMILY, ByteString.copyFromUtf8(COLUMN_KEY), 0, insert.getKey()));
     }
 
     for (ByteString delete : deletes) {
@@ -69,8 +70,8 @@ public class StorageItemsTable extends Table {
     Query query = Query.create(tableId);
     query.prefix(getRowKeyPrefixFor(user));
 
-    Timer.Context                       getKeysContext = getKeysToDeleteTimer.time();
-    CompletableFuture<List<ByteString>> future         = new CompletableFuture<>();
+    Timer.Context getKeysContext = getKeysToDeleteTimer.time();
+    CompletableFuture<List<ByteString>> future = new CompletableFuture<>();
 
     client.readRowsAsync(query, new ResponseObserver<>() {
       private final List<ByteString> keys = new LinkedList<>();
@@ -98,7 +99,9 @@ public class StorageItemsTable extends Table {
     });
 
     return future.thenCompose(keysToDelete -> {
-      if (keysToDelete.isEmpty()) return CompletableFuture.completedFuture(null);
+      if (keysToDelete.isEmpty()) {
+        return CompletableFuture.completedFuture(null);
+      }
 
       BulkMutation bulkMutation = BulkMutation.create(tableId);
 
@@ -111,12 +114,14 @@ public class StorageItemsTable extends Table {
   }
 
   public CompletableFuture<List<StorageItem>> get(User user, List<ByteString> keys) {
-    if (keys.isEmpty()) throw new IllegalArgumentException("No keys");
+    if (keys.isEmpty()) {
+      throw new IllegalArgumentException("No keys");
+    }
 
-    Timer.Context                        timerContext = getTimer.time();
-    CompletableFuture<List<StorageItem>> future       = new CompletableFuture<>();
-    List<StorageItem>                    results      = new LinkedList<>();
-    Query                                query        = Query.create(tableId);
+    Timer.Context timerContext = getTimer.time();
+    CompletableFuture<List<StorageItem>> future = new CompletableFuture<>();
+    List<StorageItem> results = new LinkedList<>();
+    Query query = Query.create(tableId);
 
     for (ByteString key : keys) {
       query.rowKey(getRowKeyFor(user, key));
@@ -124,17 +129,21 @@ public class StorageItemsTable extends Table {
 
     client.readRowsAsync(query, new ResponseObserver<>() {
       @Override
-      public void onStart(StreamController controller) { }
+      public void onStart(StreamController controller) {
+      }
 
       @Override
       public void onResponse(Row row) {
-        ByteString key   = row.getCells().stream().filter(cell -> COLUMN_KEY.equals(cell.getQualifier().toStringUtf8())).findFirst().orElseThrow().getValue ();
-        ByteString value = row.getCells().stream().filter(cell -> COLUMN_DATA.equals(cell.getQualifier().toStringUtf8())).findFirst().orElseThrow().getValue();
+        ByteString key = row.getCells().stream().filter(cell -> COLUMN_KEY.equals(cell.getQualifier().toStringUtf8()))
+            .findFirst().orElseThrow().getValue();
+        ByteString value = row.getCells().stream()
+            .filter(cell -> COLUMN_DATA.equals(cell.getQualifier().toStringUtf8())).findFirst().orElseThrow()
+            .getValue();
 
         results.add(StorageItem.newBuilder()
-                               .setKey(key)
-                               .setValue(value)
-                               .build());
+            .setKey(key)
+            .setValue(value)
+            .build());
       }
 
       @Override
@@ -154,7 +163,8 @@ public class StorageItemsTable extends Table {
   }
 
   private ByteString getRowKeyFor(User user, ByteString key) {
-    return ByteString.copyFromUtf8(user.getUuid().toString() + "#" + ROW_KEY + "#" + Hex.encodeHexString(key.toByteArray()));
+    return ByteString.copyFromUtf8(
+        user.getUuid().toString() + "#" + ROW_KEY + "#" + Hex.encodeHexString(key.toByteArray()));
   }
 
   private ByteString getRowKeyPrefixFor(User user) {
