@@ -5,12 +5,13 @@
 
 package org.signal.storageservice.storage;
 
-import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.protobuf.ByteString;
 import org.signal.storageservice.auth.User;
 import org.signal.storageservice.storage.protos.contacts.StorageItem;
 import org.signal.storageservice.storage.protos.contacts.StorageManifest;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Optional;
@@ -21,9 +22,11 @@ public class StorageManager {
   private final StorageManifestsTable manifestsTable;
   private final StorageItemsTable     itemsTable;
 
-  public StorageManager(BigtableDataClient client, BigtableTableAdminClient tableAdminClient, String contactManifestsTableId, String contactsTableId) {
+  private static final Logger log = LoggerFactory.getLogger(StorageManager.class);
+
+  public StorageManager(BigtableDataClient client, String contactManifestsTableId, String contactsTableId) {
     this.manifestsTable = new StorageManifestsTable(client, contactManifestsTableId);
-    this.itemsTable     = new StorageItemsTable(client, tableAdminClient, contactsTableId);
+    this.itemsTable     = new StorageItemsTable(client, contactsTableId);
   }
 
   public CompletableFuture<Optional<StorageManifest>> set(User user, StorageManifest manifest, List<StorageItem> inserts, List<ByteString> deletes) {
@@ -50,10 +53,25 @@ public class StorageManager {
   }
 
   public CompletableFuture<Void> clearItems(User user) {
-    return itemsTable.clear(user);
+    return itemsTable.clear(user).whenComplete((ignored, throwable) -> {
+          if (throwable != null) {
+            log.warn("Failed to clear stored items", throwable);
+          }
+        });
   }
 
   public CompletableFuture<Void> delete(User user) {
-    return CompletableFuture.allOf(itemsTable.clear(user), manifestsTable.clear(user));
+    return CompletableFuture.allOf(
+        itemsTable.clear(user).whenComplete((ignored, throwable) -> {
+          if (throwable != null) {
+            log.warn("Failed to delete stored items", throwable);
+          }
+        }),
+
+        manifestsTable.clear(user).whenComplete((ignored, throwable) -> {
+          if (throwable != null) {
+            log.warn("Failed to delete manifest", throwable);
+          }
+        }));
   }
 }

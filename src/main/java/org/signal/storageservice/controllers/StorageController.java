@@ -30,6 +30,7 @@ import javax.ws.rs.core.Response.Status;
 import org.signal.storageservice.auth.User;
 import org.signal.storageservice.metrics.UserAgentTagUtil;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;
+import org.signal.storageservice.storage.StorageItemsTable;
 import org.signal.storageservice.storage.StorageManager;
 import org.signal.storageservice.storage.protos.contacts.ReadOperation;
 import org.signal.storageservice.storage.protos.contacts.StorageItems;
@@ -44,8 +45,6 @@ public class StorageController {
   @VisibleForTesting
   static final int MAX_READ_KEYS = 5120;
   // https://cloud.google.com/bigtable/quotas#limits-operations
-  @VisibleForTesting
-  static final int MAX_MUTATIONS = 100_000;
 
   private static final String INSERT_DISTRIBUTION_SUMMARY_NAME = name(StorageController.class, "inserts");
   private static final String DELETE_DISTRIBUTION_SUMMARY_NAME = name(StorageController.class, "deletes");
@@ -86,7 +85,7 @@ public class StorageController {
     distributionSummary(INSERT_DISTRIBUTION_SUMMARY_NAME, userAgent).record(writeOperation.getInsertItemCount());
     distributionSummary(DELETE_DISTRIBUTION_SUMMARY_NAME, userAgent).record(writeOperation.getDeleteKeyCount());
 
-    if (writeOperation.getInsertItemCount() + writeOperation.getDeleteKeyCount() > MAX_MUTATIONS) {
+    if (writeOperation.getInsertItemCount() + writeOperation.getDeleteKeyCount() > StorageItemsTable.MAX_MUTATIONS) {
       return CompletableFuture.failedFuture(new WebApplicationException(Status.REQUEST_ENTITY_TOO_LARGE));
     }
 

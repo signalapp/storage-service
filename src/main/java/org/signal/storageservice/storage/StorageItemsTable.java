@@ -12,7 +12,6 @@ import com.codahale.metrics.SharedMetricRegistries;
 import com.codahale.metrics.Timer;
 import com.google.api.gax.rpc.ResponseObserver;
 import com.google.api.gax.rpc.StreamController;
-import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.models.BulkMutation;
 import com.google.cloud.bigtable.data.v2.models.Mutation;
@@ -26,8 +25,6 @@ import org.apache.commons.codec.binary.Hex;
 import org.signal.storageservice.auth.User;
 import org.signal.storageservice.metrics.StorageMetrics;
 import org.signal.storageservice.storage.protos.contacts.StorageItem;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class StorageItemsTable extends Table {
 
@@ -37,19 +34,16 @@ public class StorageItemsTable extends Table {
   public static final String COLUMN_DATA = "d";
   public static final String COLUMN_KEY = "k";
 
-  private final BigtableTableAdminClient tableAdminClient;
+  public static final int MAX_MUTATIONS = 100_000;
 
   private final MetricRegistry metricRegistry = SharedMetricRegistries.getOrCreate(StorageMetrics.NAME);
   private final Timer getTimer = metricRegistry.timer(name(StorageItemsTable.class, "get"));
   private final Timer setTimer = metricRegistry.timer(name(StorageItemsTable.class, "create"));
+  private final Timer getKeysToDeleteTimer = metricRegistry.timer(name(StorageItemsTable.class, "getKeysToDelete"));
   private final Timer deleteKeysTimer = metricRegistry.timer(name(StorageItemsTable.class, "deleteKeys"));
 
-  private static final Logger log = LoggerFactory.getLogger(StorageItemsTable.class);
-
-  public StorageItemsTable(BigtableDataClient client, BigtableTableAdminClient tableAdminClient, String tableId) {
+  public StorageItemsTable(BigtableDataClient client, String tableId) {
     super(client, tableId);
-
-    this.tableAdminClient = tableAdminClient;
   }
 
   public CompletableFuture<Void> set(User user, List<StorageItem> inserts, List<ByteString> deletes) {
@@ -70,16 +64,41 @@ public class StorageItemsTable extends Table {
   }
 
   public CompletableFuture<Void> clear(User user) {
-    final CompletableFuture<Void> clearFuture =
-        toFuture(tableAdminClient.dropRowRangeAsync(tableId, getRowKeyPrefixFor(user)), deleteKeysTimer);
+    final Query query = Query.create(tableId);
+    query.prefix(getRowKeyPrefixFor(user));
+    query.limit(MAX_MUTATIONS);
 
-    clearFuture.whenComplete((result, throwable) -> {
-      if (throwable != null) {
-        log.warn("Failed to clear stored items", throwable);
+    final CompletableFuture<BulkMutation> fetchRowsFuture = new CompletableFuture<>();
+
+    final Timer.Context getKeysToDeleteTimerContext = getKeysToDeleteTimer.time();
+    fetchRowsFuture.whenComplete((result, throwable) -> getKeysToDeleteTimerContext.close());
+
+    client.readRowsAsync(query, new ResponseObserver<>() {
+      private final BulkMutation bulkMutation = BulkMutation.create(tableId);
+
+      @Override
+      public void onStart(final StreamController streamController) {
+      }
+
+      @Override
+      public void onResponse(final Row row) {
+        bulkMutation.add(row.getKey(), Mutation.create().deleteRow());
+      }
+
+      @Override
+      public void onError(final Throwable throwable) {
+        fetchRowsFuture.completeExceptionally(throwable);
+      }
+
+      @Override
+      public void onComplete() {
+        fetchRowsFuture.complete(bulkMutation);
       }
     });
 
-    return clearFuture;
+    return fetchRowsFuture.thenCompose(bulkMutation -> bulkMutation.getEntryCount() == 0
+        ? CompletableFuture.completedFuture(null)
+        : toFuture(client.bulkMutateRowsAsync(bulkMutation), deleteKeysTimer).thenCompose(ignored -> clear(user)));
   }
 
   public CompletableFuture<List<StorageItem>> get(User user, List<ByteString> keys) {

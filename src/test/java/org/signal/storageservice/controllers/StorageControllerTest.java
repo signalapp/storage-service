@@ -40,6 +40,7 @@ import org.signal.storageservice.auth.User;
 import org.signal.storageservice.providers.InvalidProtocolBufferExceptionMapper;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;
 import org.signal.storageservice.providers.ProtocolBufferMessageBodyProvider;
+import org.signal.storageservice.storage.StorageItemsTable;
 import org.signal.storageservice.storage.StorageManager;
 import org.signal.storageservice.storage.protos.contacts.ReadOperation;
 import org.signal.storageservice.storage.protos.contacts.StorageItem;
@@ -357,8 +358,8 @@ class StorageControllerTest {
         .setValue(ByteString.copyFromUtf8("A manifest"))
         .build();
 
-    final int insertCount = 1 + StorageController.MAX_MUTATIONS / 2;
-    final int deleteCount = 1 + StorageController.MAX_MUTATIONS / 2;
+    final int insertCount = 1 + StorageItemsTable.MAX_MUTATIONS / 2;
+    final int deleteCount = 1 + StorageItemsTable.MAX_MUTATIONS / 2;
 
    final WriteOperation.Builder builder = WriteOperation.newBuilder()
         .setManifest(manifest);
