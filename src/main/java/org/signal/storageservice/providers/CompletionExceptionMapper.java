@@ -5,26 +5,25 @@
 
 package org.signal.storageservice.providers;
 
+import java.util.concurrent.CompletionException;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.ext.ExceptionMapper;
 import javax.ws.rs.ext.Provider;
-import javax.ws.rs.ext.Providers;
-import java.util.concurrent.CompletionException;
+import org.glassfish.jersey.spi.ExceptionMappers;
 
 @Provider
 public class CompletionExceptionMapper implements ExceptionMapper<CompletionException> {
 
   @Context
-  private Providers providers;
+  private ExceptionMappers exceptionMappers;
 
   @Override
   public Response toResponse(final CompletionException exception) {
     final Throwable cause = exception.getCause();
 
     if (cause != null) {
-      final Class type = cause.getClass();
-      return providers.getExceptionMapper(type).toResponse(cause);
+      return exceptionMappers.findMapping(cause).toResponse(cause);
     }
 
     return Response.serverError().build();
