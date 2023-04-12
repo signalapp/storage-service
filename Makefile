@@ -14,6 +14,8 @@ help:
 	@echo "  * deploy: Deploys to staging and production"
 config:
 	mkdir -p config
+	mkdir -p config/appengine-production
+	mkdir -p config/appengine-staging
 $(configuration_files): config/%: $(configuration_repo)/storage/% | config
 	cp "$<" "$@"
 copy-config: $(configuration_files)
