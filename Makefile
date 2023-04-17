@@ -1,8 +1,8 @@
 configuration_repo = ../configuration
-configuration_files = config/production.yml config/staging.yml config/build.properties config/appengine-production/app.yaml config/appengine-production/cron.yaml config/appengine-staging/app.yaml config/appengine-staging/cron.yaml
+configuration_files = config/production.yml config/staging.yml config/staging-build.properties config/production-build.properties config/appengine-production/app.yaml config/appengine-production/cron.yaml config/appengine-staging/app.yaml config/appengine-staging/cron.yaml
 
 .NOTPARALLEL:
-.PHONY: help copy-config deploy-staging deploy
+.PHONY: help copy-config deploy-staging deploy-production
 
 help:
 	@echo "This makefile defines the following targets:"
@@ -11,7 +11,7 @@ help:
 	@echo "                 + configuration_repo variable may be set to control where to read from"
 	@echo "                   (defaults to $(configuration_repo))"
 	@echo "  * deploy-staging: Deploys to staging"
-	@echo "  * deploy: Deploys to staging and production"
+	@echo "  * deploy-production: Deploys to production"
 config:
 	mkdir -p config
 	mkdir -p config/appengine-production
@@ -20,6 +20,6 @@ $(configuration_files): config/%: $(configuration_repo)/storage/% | config
 	cp "$<" "$@"
 copy-config: $(configuration_files)
 deploy-staging: copy-config
-	./mvnw clean deploy
-deploy: copy-config
-	./mvnw clean deploy appengine:deployAll@production
+	./mvnw clean deploy -Denv=staging appengine:deployAll@appengine
+deploy-production: copy-config
+	./mvnw clean deploy -Denv=production appengine:deployAll@appengine

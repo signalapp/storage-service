@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.signal.storage</groupId>
@@ -130,7 +130,7 @@
                     <groupId>javax.servlet</groupId>
                     <artifactId>javax.servlet-api</artifactId>
                 </exclusion>
-          </exclusions>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>io.micrometer</groupId>
@@ -221,21 +221,6 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.2.2</version>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <addClasspath>true</addClasspath>
-                            <classpathPrefix>lib/</classpathPrefix>
-                            <mainClass>org.signal.storageservice.StorageService</mainClass>
-                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-                        </manifest>
-                    </archive>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
                 <version>3.3.0</version>
                 <executions>
@@ -261,11 +246,11 @@
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-              <artifactId>maven-install-plugin</artifactId>
-              <version>3.0.0-M1</version>
-              <configuration>
-                <skip>true</skip>
-              </configuration>
+                <artifactId>maven-install-plugin</artifactId>
+                <version>3.0.0-M1</version>
+                <configuration>
+                    <skip>true</skip>
+                </configuration>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -318,7 +303,9 @@
             <id>docker-deploy</id>
             <activation>
                 <activeByDefault>false</activeByDefault>
-                <file><exists>${configuration.path}/build.properties</exists></file>
+                <property>
+                    <name>env</name>
+                </property>
             </activation>
             <build>
                 <plugins>
@@ -334,47 +321,106 @@
                                 </goals>
                                 <configuration>
                                     <files>
-                                        <file>${configuration.path}/build.properties</file>
+                                        <file>${configuration.path}/${env}-build.properties</file>
                                     </files>
                                 </configuration>
                             </execution>
                         </executions>
                     </plugin>
                     <plugin>
-                        <groupId>com.spotify</groupId>
-                        <artifactId>dockerfile-maven-plugin</artifactId>
-                        <version>1.4.13</version>
+                        <groupId>com.google.cloud.tools</groupId>
+                        <artifactId>jib-maven-plugin</artifactId>
+                        <version>3.3.1</version>
                         <executions>
                             <execution>
-                                <id>production</id>
+                                <phase>package</phase>
                                 <goals>
                                     <goal>build</goal>
-                                    <goal>push</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                        <configuration>
+                            <from>
+                                <image>amd64/eclipse-temurin:17-jre-focal</image>
+                            </from>
+                            <to>
+                                <image>${docker.repo}:${project.version}-${env}</image>
+                            </to>
+                            <container>
+                                <jvmFlags>
+                                    <jvmFlag>-server</jvmFlag>
+                                    <jvmFlag>-Djava.awt.headless=true</jvmFlag>
+                                    <jvmFlag>-Xmx8192m</jvmFlag>
+                                    <jvmFlag>-Xss512k</jvmFlag>
+                                    <jvmFlag>-XX:+HeapDumpOnOutOfMemoryError</jvmFlag>
+                                </jvmFlags>
+                                <args>
+                                    <arg>server</arg>
+                                    <arg>/usr/share/signal/${env}.yml</arg>
+                                </args>
+                                <ports>
+                                    <port>8080</port>
+                                </ports>
+                            </container>
+                            <extraDirectories>
+                                <paths>
+                                    <path>
+                                        <from>${configuration.path}</from>
+                                        <includes>${env}.yml</includes>
+                                        <into>/usr/share/signal/</into>
+                                    </path>
+                                </paths>
+                            </extraDirectories>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <profile>
+            <id>appengine-deploy</id>
+            <activation>
+                <activeByDefault>false</activeByDefault>
+                <property>
+                    <name>env</name>
+                </property>
+            </activation>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>properties-maven-plugin</artifactId>
+                        <version>1.1.0</version>
+                        <executions>
+                            <execution>
+                                <phase>initialize</phase>
+                                <goals>
+                                    <goal>read-project-properties</goal>
                                 </goals>
                                 <configuration>
-                                    <repository>${docker.repo.production}</repository>
-                                    <pullNewerImage>false</pullNewerImage>
-                                    <tag>${project.version}-production</tag>
-                                    <buildArgs>
-                                        <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
-                                        <CONFIG_FILE>production.yml</CONFIG_FILE>
-                                    </buildArgs>
+                                    <files>
+                                        <file>${configuration.path}/${env}-build.properties</file>
+                                    </files>
                                 </configuration>
                             </execution>
+                        </executions>
+                    </plugin>
+                    <plugin>
+                        <groupId>com.google.cloud.tools</groupId>
+                        <artifactId>appengine-maven-plugin</artifactId>
+                        <version>2.4.2</version>
+                        <executions>
                             <execution>
-                                <id>staging</id>
+                                <phase>none</phase>
+                                <id>appengine</id>
                                 <goals>
-                                    <goal>build</goal>
-                                    <goal>push</goal>
+                                    <goal>deployAll</goal>
                                 </goals>
                                 <configuration>
-                                    <repository>${docker.repo.staging}</repository>
-                                    <pullNewerImage>false</pullNewerImage>
-                                    <tag>${project.version}-staging</tag>
-                                    <buildArgs>
-                                        <JAR_FILE>${project.build.finalName}.jar</JAR_FILE>
-                                        <CONFIG_FILE>staging.yml</CONFIG_FILE>
-                                    </buildArgs>
+                                    <appEngineDirectory>${configuration.path}/appengine-${env}</appEngineDirectory>
+                                    <projectId>${appengine.projectid}</projectId>
+                                    <imageUrl>${docker.repo}:${project.version}-${env}</imageUrl>
+                                    <version>GCLOUD_CONFIG</version>
                                 </configuration>
                             </execution>
                         </executions>
@@ -382,68 +428,5 @@
                 </plugins>
             </build>
         </profile>
-
-        <profile>
-          <id>appengine-deploy</id>
-          <activation>
-            <activeByDefault>false</activeByDefault>
-            <file><exists>${configuration.path}/build.properties</exists></file>
-          </activation>
-          <build>
-           <plugins>
-             <plugin>
-               <groupId>org.codehaus.mojo</groupId>
-               <artifactId>properties-maven-plugin</artifactId>
-               <version>1.1.0</version>
-               <executions>
-                 <execution>
-                   <phase>initialize</phase>
-                   <goals>
-                     <goal>read-project-properties</goal>
-                   </goals>
-                   <configuration>
-                     <files>
-                       <file>${configuration.path}/build.properties</file>
-                     </files>
-                   </configuration>
-                 </execution>
-               </executions>
-             </plugin>
-             <plugin>
-               <groupId>com.google.cloud.tools</groupId>
-               <artifactId>appengine-maven-plugin</artifactId>
-               <version>2.4.2</version>
-               <executions>
-                 <execution>
-                   <id>staging</id>
-                   <goals>
-                     <goal>deployAll</goal>
-                   </goals>
-                   <configuration>
-                     <appEngineDirectory>${configuration.path}/appengine-staging</appEngineDirectory>
-                     <projectId>${appengine.projectid.staging}</projectId>
-                     <imageUrl>${docker.repo.staging}:${project.version}-staging</imageUrl>
-                     <version>GCLOUD_CONFIG</version>
-                   </configuration>
-                 </execution>
-                 <execution>
-                   <id>production</id>
-                   <phase>none</phase>
-                   <goals>
-                     <goal>deployAll</goal>
-                   </goals>
-                   <configuration>
-                     <appEngineDirectory>${configuration.path}/appengine-production</appEngineDirectory>
-                     <projectId>${appengine.projectid.production}</projectId>
-                     <imageUrl>${docker.repo.production}:${project.version}-production</imageUrl>
-                     <version>GCLOUD_CONFIG</version>
-                   </configuration>
-                 </execution>
-               </executions>
-             </plugin>
-           </plugins>
-          </build>
-        </profile>
     </profiles>
-
 </project>
