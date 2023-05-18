@@ -5,6 +5,7 @@
 
 package org.signal.storageservice.groups;
 
+import com.google.protobuf.ByteString;
 import org.signal.storageservice.auth.GroupUser;
 import org.signal.storageservice.storage.protos.groups.AccessControl;
 import org.signal.storageservice.storage.protos.groups.AccessControl.AccessRequired;
@@ -17,8 +18,11 @@ import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApprova
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 
 import java.security.MessageDigest;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 public class GroupAuth {
 
@@ -32,24 +36,44 @@ public class GroupAuth {
     return Optional.empty();
   }
 
-  public static Optional<MemberPendingProfileKey> getMemberPendingProfileKey(GroupUser user, Group group) {
-    for (MemberPendingProfileKey member : group.getMembersPendingProfileKeyList()) {
-      if (user.isMember(member.getMember(), group.getPublicKey())) {
-        return Optional.of(member);
-      }
-    }
-
-    return Optional.empty();
+  public static Stream<MemberPendingProfileKey> getMatchingMembersPendingProfileKey(GroupUser user, Group group) {
+    return group.getMembersPendingProfileKeyList().stream()
+        .filter(member -> user.isMember(member.getMember(), group.getPublicKey()));
   }
 
-  public static Optional<MemberPendingAdminApproval> getMemberPendingAdminApproval(GroupUser user, Group group) {
-    for (MemberPendingAdminApproval member : group.getMembersPendingAdminApprovalList()) {
-      if (user.isMember(member.getUserId(), group.getPublicKey())) {
-        return Optional.of(member);
+  public static Stream<MemberPendingAdminApproval> getMatchingMembersPendingAdminApproval(GroupUser user, Group group) {
+    return group.getMembersPendingAdminApprovalList().stream()
+        .filter(member -> user.isMember(member.getUserId(), group.getPublicKey()));
+  }
+
+  public static Optional<ByteString> selectChangeSource(final GroupUser user, final Group existingGroup, final Supplier<Group> modifiedGroupSupplier) {
+
+    // Members that match user in the existingGroup
+    final Iterator<ByteString> matchingSourceIds = Stream.<Supplier<Stream<ByteString>>>of(
+            () -> GroupAuth.getMember(user, existingGroup).stream().map(Member::getUserId),
+            () -> GroupAuth.getMatchingMembersPendingProfileKey(user, existingGroup).map(pending -> pending.getMember().getUserId()),
+            () -> GroupAuth.getMatchingMembersPendingAdminApproval(user, existingGroup).map(MemberPendingAdminApproval::getUserId))
+        .flatMap(Supplier::get)
+        .iterator();
+
+    // If an ACI is present in the existing group, select that
+    ByteString sourceUuid = null;
+    while(matchingSourceIds.hasNext()) {
+      sourceUuid = matchingSourceIds.next();
+      if (user.aciMatches(sourceUuid)) {
+        break;
       }
     }
-
-    return Optional.empty();
+    return Optional
+        .ofNullable(sourceUuid)
+        .or(() -> {
+          // otherwise, the source of the change only appears after the change is made
+          final Group modifiedGroup = modifiedGroupSupplier.get();
+          return Stream.concat(
+                  GroupAuth.getMember(user, modifiedGroup).stream().map(Member::getUserId),
+                  GroupAuth.getMatchingMembersPendingAdminApproval(user, modifiedGroup).map(MemberPendingAdminApproval::getUserId))
+              .findFirst();
+        });
   }
 
   public static boolean isAccessRequiredOneOf(AccessControl.AccessRequired valueToTest, AccessControl.AccessRequired... acceptableValues) {

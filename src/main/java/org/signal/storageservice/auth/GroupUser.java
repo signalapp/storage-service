@@ -37,6 +37,10 @@ public class GroupUser implements Principal {
     return isMember(member.getUserId(), groupPublicKey);
   }
 
+  public boolean aciMatches(ByteString uuid) {
+    return MessageDigest.isEqual(this.aciCiphertext.toByteArray(), uuid.toByteArray());
+  }
+
   public boolean isMember(ByteString uuid, ByteString groupPublicKey) {
     final boolean publicKeyMatches = MessageDigest.isEqual(this.groupPublicKey.toByteArray(), groupPublicKey.toByteArray());
     final boolean aciMatches = MessageDigest.isEqual(this.aciCiphertext.toByteArray(), uuid.toByteArray());

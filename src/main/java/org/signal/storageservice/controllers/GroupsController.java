@@ -25,7 +25,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.ws.rs.BadRequestException;
@@ -68,7 +67,6 @@ import org.signal.storageservice.storage.protos.groups.GroupChange.Actions;
 import org.signal.storageservice.storage.protos.groups.GroupChanges;
 import org.signal.storageservice.storage.protos.groups.GroupJoinInfo;
 import org.signal.storageservice.storage.protos.groups.Member;
-import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.CollectionUtil;
 import org.signal.storageservice.util.Pair;
@@ -479,16 +477,9 @@ public class GroupsController {
       // this must be the last change applied
       groupChangeApplicator.applyEnsureSomeAdminsExist(actionsBuilder, modifiedGroupBuilder);
 
-      ByteString sourceUuid = Stream.of((Supplier<Optional<ByteString>>) () -> GroupAuth.getMember(user, group.get()).map(Member::getUserId),
-                                        (Supplier<Optional<ByteString>>) () -> GroupAuth.getMemberPendingProfileKey(user, group.get()).map(pending -> pending.getMember().getUserId()),
-                                        (Supplier<Optional<ByteString>>) () -> GroupAuth.getMemberPendingAdminApproval(user, group.get()).map(MemberPendingAdminApproval::getUserId),
-                                        (Supplier<Optional<ByteString>>) () -> GroupAuth.getMember(user, modifiedGroupBuilder.build()).map(Member::getUserId),
-                                        (Supplier<Optional<ByteString>>) () -> GroupAuth.getMemberPendingAdminApproval(user, modifiedGroupBuilder.build()).map(MemberPendingAdminApproval::getUserId))
-                                    .map(Supplier::get)
-                                    .filter(Optional::isPresent)
-                                    .map(Optional::get)
-                                    .findFirst()
-                                    .orElseThrow(ForbiddenException::new);
+      final ByteString sourceUuid = GroupAuth
+          .selectChangeSource(user, group.get(), modifiedGroupBuilder::build)
+          .orElseThrow(ForbiddenException::new);
 
       actions = actionsBuilder.setSourceUuid(sourceUuid).build();
 
