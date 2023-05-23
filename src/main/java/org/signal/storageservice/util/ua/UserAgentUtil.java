@@ -23,6 +23,9 @@ public class UserAgentUtil {
     }
 
     public static ClientPlatform getPlatformFromUserAgentString(final String userAgentString) throws UnrecognizedUserAgentException {
+      if (userAgentString == null) {
+        throw new UnrecognizedUserAgentException();
+      }
       final Matcher standardUaMatcher = STANDARD_UA_PATTERN.matcher(userAgentString);
 
       if (standardUaMatcher.matches()) {
