@@ -13,6 +13,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.signal.libsignal.protocol.ServiceId.Aci;
+import org.signal.libsignal.protocol.ServiceId.Pni;
 import org.signal.libsignal.zkgroup.ServerSecretParams;
 import org.signal.libsignal.zkgroup.VerificationFailedException;
 import org.signal.libsignal.zkgroup.auth.AuthCredential;
@@ -74,8 +76,8 @@ class GroupUserAuthenticatorTest {
   }
 
   private static Stream<Arguments> authenticate() throws VerificationFailedException {
-    final UUID aci = UUID.randomUUID();
-    final UUID pni = UUID.randomUUID();
+    final Aci aci = new Aci(UUID.randomUUID());
+    final Pni pni = new Pni(UUID.randomUUID());
 
     final Instant redemptionInstant = Instant.now().truncatedTo(ChronoUnit.DAYS);
     final int redemptionDaysSinceEpoch = (int) ChronoUnit.DAYS.between(Instant.EPOCH, redemptionInstant);
@@ -101,8 +103,8 @@ class GroupUserAuthenticatorTest {
     final byte[] aciPniAuthCredentialPresentation;
     final GroupUser expectedAciPniGroupUser;
     {
-      final AuthCredentialWithPniResponse authCredentialWithPniResponse = serverZkAuthOperations.issueAuthCredentialWithPni(aci, pni, redemptionInstant);
-      final AuthCredentialWithPni authCredentialWithPni = clientZkAuthOperations.receiveAuthCredentialWithPni(aci, pni, redemptionInstant.getEpochSecond(), authCredentialWithPniResponse);
+      final AuthCredentialWithPniResponse authCredentialWithPniResponse = serverZkAuthOperations.issueAuthCredentialWithPniAsServiceId(aci, pni, redemptionInstant);
+      final AuthCredentialWithPni authCredentialWithPni = clientZkAuthOperations.receiveAuthCredentialWithPniAsServiceId(aci, pni, redemptionInstant.getEpochSecond(), authCredentialWithPniResponse);
       final AuthCredentialPresentation authCredentialPresentation = clientZkAuthOperations.createAuthCredentialPresentation(GROUP_SECRET_PARAMS, authCredentialWithPni);
 
       aciPniAuthCredentialPresentation = authCredentialPresentation.serialize();

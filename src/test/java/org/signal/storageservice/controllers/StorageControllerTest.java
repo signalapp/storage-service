@@ -67,7 +67,7 @@ class StorageControllerTest {
 
   @Test
   void testGetManifest() throws IOException {
-    when(storageManager.getManifest(eq(new User(UUID.fromString(AuthHelper.VALID_USER)))))
+    when(storageManager.getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID()))))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(StorageManifest.newBuilder()
                                                                                  .setVersion(22)
                                                                                  .setValue(ByteString.copyFromUtf8("A manifest"))
@@ -89,13 +89,13 @@ class StorageControllerTest {
     assertThat(manifest.getVersion()).isEqualTo(22);
     assertThat(manifest.getValue().toStringUtf8()).isEqualTo("A manifest");
 
-    verify(storageManager, times(1)).getManifest(eq(new User(UUID.fromString(AuthHelper.VALID_USER))));
+    verify(storageManager, times(1)).getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID())));
     verifyNoMoreInteractions(storageManager);
   }
 
   @Test
   void testGetManifestIfDifferentFromVersionSuccess() throws IOException {
-    when(storageManager.getManifestIfNotVersion(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), eq(21L)))
+    when(storageManager.getManifestIfNotVersion(eq(new User(AuthHelper.VALID_USER.getRawUUID())), eq(21L)))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(StorageManifest.newBuilder()
                                                                                  .setVersion(22)
                                                                                  .setValue(ByteString.copyFromUtf8("A manifest"))
@@ -117,13 +117,13 @@ class StorageControllerTest {
     assertThat(manifest.getVersion()).isEqualTo(22L);
     assertThat(manifest.getValue().toStringUtf8()).isEqualTo("A manifest");
 
-    verify(storageManager, times(1)).getManifestIfNotVersion(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), eq(21L));
+    verify(storageManager, times(1)).getManifestIfNotVersion(eq(new User(AuthHelper.VALID_USER.getRawUUID())), eq(21L));
     verifyNoMoreInteractions(storageManager);
   }
 
   @Test
   void testGetManifestIfDifferentFromVersionNoUpdate() throws IOException {
-    when(storageManager.getManifestIfNotVersion(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), eq(22L)))
+    when(storageManager.getManifestIfNotVersion(eq(new User(AuthHelper.VALID_USER.getRawUUID())), eq(22L)))
         .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
     Response response = resources.getJerseyTest()
@@ -134,14 +134,14 @@ class StorageControllerTest {
 
     assertThat(response.getStatus()).isEqualTo(204);
 
-    verify(storageManager, times(1)).getManifestIfNotVersion(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), eq(22L));
+    verify(storageManager, times(1)).getManifestIfNotVersion(eq(new User(AuthHelper.VALID_USER.getRawUUID())), eq(22L));
     verifyNoMoreInteractions(storageManager);
   }
 
 
   @Test
   void testGetManifestUnauthorized() throws IOException {
-    when(storageManager.getManifest(eq(new User(UUID.fromString(AuthHelper.VALID_USER)))))
+    when(storageManager.getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID()))))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(StorageManifest.newBuilder()
                                                                                  .setVersion(22)
                                                                                  .setValue(ByteString.copyFromUtf8("A manifest"))
@@ -159,7 +159,7 @@ class StorageControllerTest {
 
   @Test
   void testGetManifestFiveHundred() throws IOException {
-    when(storageManager.getManifest(eq(new User(UUID.fromString(AuthHelper.VALID_USER)))))
+    when(storageManager.getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID()))))
         .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Bad news")));
 
     Response response = resources.getJerseyTest()
@@ -170,13 +170,13 @@ class StorageControllerTest {
 
     assertThat(response.getStatus()).isEqualTo(500);
 
-    verify(storageManager).getManifest(eq(new User(UUID.fromString(AuthHelper.VALID_USER))));
+    verify(storageManager).getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID())));
     verifyNoMoreInteractions(storageManager);
   }
 
   @Test
   void testGetManifestNotFound() throws IOException {
-    when(storageManager.getManifest(eq(new User(UUID.fromString(AuthHelper.VALID_USER))))).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+    when(storageManager.getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID())))).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
     Response response = resources.getJerseyTest()
                                  .target("/v1/storage/manifest")
@@ -185,13 +185,13 @@ class StorageControllerTest {
                                  .get();
 
     assertThat(response.getStatus()).isEqualTo(404);
-    verify(storageManager, times(1)).getManifest(eq(new User(UUID.fromString(AuthHelper.VALID_USER))));
+    verify(storageManager, times(1)).getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID())));
     verifyNoMoreInteractions(storageManager);
   }
 
   @Test
   void testWrite() {
-    when(storageManager.set(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), any(StorageManifest.class), anyList(), anyList())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+    when(storageManager.set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), any(StorageManifest.class), anyList(), anyList())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
     StorageManifest manifest = StorageManifest.newBuilder()
                                               .setVersion(1337)
@@ -234,7 +234,7 @@ class StorageControllerTest {
     ArgumentCaptor<List<StorageItem>> insertCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<ByteString>>  deleteCaptor = ArgumentCaptor.forClass(List.class);
 
-    verify(storageManager, times(1)).set(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), eq(manifest), insertCaptor.capture(), deleteCaptor.capture());
+    verify(storageManager, times(1)).set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), eq(manifest), insertCaptor.capture(), deleteCaptor.capture());
     verifyNoMoreInteractions(storageManager);
 
     assertThat(insertCaptor.getValue().size()).isEqualTo(2);
@@ -249,7 +249,7 @@ class StorageControllerTest {
 
   @Test
   void testWriteUnauthorized() {
-    when(storageManager.set(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), any(StorageManifest.class), anyList(), anyList())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+    when(storageManager.set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), any(StorageManifest.class), anyList(), anyList())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
     StorageManifest manifest = StorageManifest.newBuilder()
                                               .setVersion(1337)
@@ -298,7 +298,7 @@ class StorageControllerTest {
                                                      .setValue(ByteString.copyFromUtf8("Current manifest"))
                                                      .build();
 
-    when(storageManager.set(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), any(StorageManifest.class), anyList(), anyList()))
+    when(storageManager.set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), any(StorageManifest.class), anyList(), anyList()))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(currentManifest)));
 
     StorageManifest stale = StorageManifest.newBuilder()
@@ -346,7 +346,7 @@ class StorageControllerTest {
 
     assertThat(manifest).isEqualTo(currentManifest);
 
-    verify(storageManager, times(1)).set(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), eq(stale), anyList(), anyList());
+    verify(storageManager, times(1)).set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), eq(stale), anyList(), anyList());
     verifyNoMoreInteractions(storageManager);
   }
 
@@ -430,7 +430,7 @@ class StorageControllerTest {
                                       .setValue(ByteString.copyFromUtf8("valueTwo"))
                                       .build();
 
-    when(storageManager.getItems(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), anyList()))
+    when(storageManager.getItems(eq(new User(AuthHelper.VALID_USER.getRawUUID())), anyList()))
         .thenReturn(CompletableFuture.completedFuture(List.of(queryOne, queryTwo)));
 
 
@@ -457,7 +457,7 @@ class StorageControllerTest {
 
     ArgumentCaptor<List<ByteString>> keysCaptor = ArgumentCaptor.forClass(List.class);
 
-    verify(storageManager, times(1)).getItems(eq(new User(UUID.fromString(AuthHelper.VALID_USER))), keysCaptor.capture());
+    verify(storageManager, times(1)).getItems(eq(new User(AuthHelper.VALID_USER.getRawUUID())), keysCaptor.capture());
     verifyNoMoreInteractions(storageManager);
 
     assertThat(keysCaptor.getValue().size()).isEqualTo(2);
@@ -478,7 +478,7 @@ class StorageControllerTest {
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.hasEntity()).isFalse();
 
-    verify(storageManager).delete(eq(new User(UUID.fromString(AuthHelper.VALID_USER))));
+    verify(storageManager).delete(eq(new User(AuthHelper.VALID_USER.getRawUUID())));
     verifyNoMoreInteractions(storageManager);
   }
 
