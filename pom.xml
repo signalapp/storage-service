@@ -341,7 +341,7 @@
                         </executions>
                         <configuration>
                             <from>
-                                <image>amd64/eclipse-temurin:17-jre-focal</image>
+                                <image>amd64/eclipse-temurin:17-jre-jammy</image>
                             </from>
                             <to>
                                 <image>${docker.repo}:${project.version}-${env}</image>
