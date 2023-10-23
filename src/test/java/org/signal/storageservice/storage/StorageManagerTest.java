@@ -49,7 +49,7 @@ class StorageManagerTest {
   private static final String MANIFESTS_TABLE_ID = "manifest-table";
 
   @RegisterExtension
-  private final BigtableEmulatorExtension bigtableEmulator = BigtableEmulatorExtension.create();
+  public final BigtableEmulatorExtension bigtableEmulator = BigtableEmulatorExtension.create();
 
   private BigtableDataClient client;
   private BigtableTableAdminClient tableAdminClient;
@@ -375,7 +375,9 @@ class StorageManagerTest {
     for (int chunk = 0; chunk < 2; chunk++) {
       final BulkMutation bulkMutation = BulkMutation.create(CONTACTS_TABLE_ID);
 
-      for (int i = 0; i < StorageItemsTable.MAX_MUTATIONS; i++) {
+      // Each setCell() is a mutation
+      final int setCellCallsPerLoop = 2;
+      for (int i = 0; i < StorageItemsTable.MAX_MUTATIONS; i += setCellCallsPerLoop) {
         bulkMutation.add(String.format("%s#contact#somekey%d_%05d", userId, chunk, i),
             Mutation.create()
                 .setCell(StorageItemsTable.FAMILY, StorageItemsTable.COLUMN_DATA, "data" + String.format("%03d", i))

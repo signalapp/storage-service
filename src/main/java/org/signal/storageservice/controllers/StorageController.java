@@ -85,7 +85,7 @@ public class StorageController {
     distributionSummary(INSERT_DISTRIBUTION_SUMMARY_NAME, userAgent).record(writeOperation.getInsertItemCount());
     distributionSummary(DELETE_DISTRIBUTION_SUMMARY_NAME, userAgent).record(writeOperation.getDeleteKeyCount());
 
-    if (writeOperation.getInsertItemCount() + writeOperation.getDeleteKeyCount() > StorageItemsTable.MAX_MUTATIONS) {
+    if (writeOperation.getInsertItemCount() * StorageItemsTable.MUTATIONS_PER_INSERT + writeOperation.getDeleteKeyCount() > StorageItemsTable.MAX_MUTATIONS) {
       return CompletableFuture.failedFuture(new WebApplicationException(Status.REQUEST_ENTITY_TOO_LARGE));
     }
 

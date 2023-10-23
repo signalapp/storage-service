@@ -26,7 +26,6 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Response;
@@ -358,7 +357,7 @@ class StorageControllerTest {
         .setValue(ByteString.copyFromUtf8("A manifest"))
         .build();
 
-    final int insertCount = 1 + StorageItemsTable.MAX_MUTATIONS / 2;
+    final int insertCount = 1 + StorageItemsTable.MAX_MUTATIONS / 2 / StorageItemsTable.MUTATIONS_PER_INSERT;
     final int deleteCount = 1 + StorageItemsTable.MAX_MUTATIONS / 2;
 
    final WriteOperation.Builder builder = WriteOperation.newBuilder()

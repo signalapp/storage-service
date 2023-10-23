@@ -35,6 +35,7 @@ public class StorageItemsTable extends Table {
   public static final String COLUMN_KEY = "k";
 
   public static final int MAX_MUTATIONS = 100_000;
+  public static final int MUTATIONS_PER_INSERT = 2;
 
   private final MetricRegistry metricRegistry = SharedMetricRegistries.getOrCreate(StorageMetrics.NAME);
   private final Timer getTimer = metricRegistry.timer(name(StorageItemsTable.class, "get"));
@@ -52,6 +53,7 @@ public class StorageItemsTable extends Table {
     for (StorageItem insert : inserts) {
       bulkMutation.add(getRowKeyFor(user, insert.getKey()),
           Mutation.create()
+              // each setCell() counts as mutation. If the below code changes, update MUTATIONS_PER_INSERT
               .setCell(FAMILY, ByteString.copyFromUtf8(COLUMN_DATA), 0, insert.getValue())
               .setCell(FAMILY, ByteString.copyFromUtf8(COLUMN_KEY), 0, insert.getKey()));
     }
