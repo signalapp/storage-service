@@ -8,6 +8,7 @@ package org.signal.storageservice.controllers;
 import static com.codahale.metrics.MetricRegistry.name;
 
 import com.codahale.metrics.annotation.Timed;
+import com.google.common.net.HttpHeaders;
 import com.google.protobuf.ByteString;
 import io.dropwizard.auth.Auth;
 import io.dropwizard.util.Strings;
@@ -41,8 +42,6 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import org.apache.commons.codec.binary.Base64;
-import org.apache.http.HttpHeaders;
-import org.apache.http.HttpStatus;
 import org.signal.libsignal.zkgroup.NotarySignature;
 import org.signal.libsignal.zkgroup.ServerSecretParams;
 import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
@@ -241,7 +240,7 @@ public class GroupsController {
                               distributionSummary(LOG_SIZE_BYTES_DISTRIBUTION_SUMMARY_NAME, userAgent)
                                   .record(groupChanges.getSerializedSize());
 
-                              return Response.status(HttpStatus.SC_PARTIAL_CONTENT)
+                              return Response.status(Response.Status.PARTIAL_CONTENT)
                                                             .header(HttpHeaders.CONTENT_RANGE, String.format(Locale.US, "versions %d-%d/%d", fromVersion, fromVersion + logVersionLimit - 1, latestGroupVersion))
                                                             .entity(groupChanges)
                                                             .build();
