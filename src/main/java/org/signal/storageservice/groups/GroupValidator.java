@@ -55,9 +55,9 @@ public class GroupValidator {
 
   public GroupValidator(ServerZkProfileOperations profileOperations, GroupConfiguration groupConfiguration) {
     this.profileOperations = profileOperations;
-    this.maxGroupSize = groupConfiguration.getMaxGroupSize();
-    this.maxGroupTitleLengthBytes = groupConfiguration.getMaxGroupTitleLengthBytes();
-    this.maxGroupDescriptionLengthBytes = groupConfiguration.getMaxGroupDescriptionLengthBytes();
+    this.maxGroupSize = groupConfiguration.maxGroupSize();
+    this.maxGroupTitleLengthBytes = groupConfiguration.maxGroupTitleLengthBytes();
+    this.maxGroupDescriptionLengthBytes = groupConfiguration.maxGroupDescriptionLengthBytes();
   }
 
   public Member validateMember(Group group, Member member) throws BadRequestException {

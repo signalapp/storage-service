@@ -5,60 +5,33 @@
 
 package org.signal.storageservice.configuration;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
+import org.signal.storageservice.util.ExactlySize;
+import org.signal.storageservice.util.HexByteArrayAdapter;
 
-import com.google.common.annotations.VisibleForTesting;
-import org.apache.commons.codec.DecoderException;
-import org.apache.commons.codec.binary.Hex;
+import java.time.Duration;
 
-import javax.validation.constraints.NotEmpty;
 import javax.validation.constraints.Positive;
 
-public class GroupConfiguration {
-  @JsonProperty
-  @Positive
-  private int maxGroupSize;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 
-  @JsonProperty
-  @Positive
-  private int maxGroupTitleLengthBytes;
+public record GroupConfiguration(
+    @Positive int maxGroupSize,
+    @Positive int maxGroupTitleLengthBytes,
+    @Positive int maxGroupDescriptionLengthBytes,
+    @JsonDeserialize(using = HexByteArrayAdapter.Deserializing.class) @ExactlySize(32) byte[] externalServiceSecret,
+    Duration groupSendCredentialExpirationTime,
+    Duration groupSendCredentialMinimumLifetime) {
 
-  @JsonProperty
-  @Positive
-  private int maxGroupDescriptionLengthBytes;
+  public static final Duration DEFAULT_GROUP_SEND_CREDENTIAL_EXPIRATION_INTERVAL = Duration.ofDays(1);
+  public static final Duration DEFAULT_GROUP_SEND_CREDENTIAL_MINIMUM_LIFETIME = Duration.ofHours(2);
 
-  @JsonProperty
-  @NotEmpty
-  private String externalServiceSecret;
-
-  public int getMaxGroupSize() {
-    return maxGroupSize;
+  public GroupConfiguration {
+    if (groupSendCredentialExpirationTime == null) {
+      groupSendCredentialExpirationTime = DEFAULT_GROUP_SEND_CREDENTIAL_EXPIRATION_INTERVAL;
+    }
+    if (groupSendCredentialMinimumLifetime == null) {
+      groupSendCredentialMinimumLifetime = DEFAULT_GROUP_SEND_CREDENTIAL_MINIMUM_LIFETIME;
+    }
   }
 
-  @VisibleForTesting
-  public void setMaxGroupSize(int maxGroupSize) {
-    this.maxGroupSize = maxGroupSize;
-  }
-
-  public int getMaxGroupTitleLengthBytes() {
-    return maxGroupTitleLengthBytes;
-  }
-
-  @VisibleForTesting
-  public void setMaxGroupTitleLengthBytes(int maxGroupTitleLengthBytes) {
-    this.maxGroupTitleLengthBytes = maxGroupTitleLengthBytes;
-  }
-
-  public int getMaxGroupDescriptionLengthBytes() {
-    return maxGroupDescriptionLengthBytes;
-  }
-
-  @VisibleForTesting
-  public void setMaxGroupDescriptionLengthBytes(int maxGroupDescriptionLengthBytes) {
-    this.maxGroupDescriptionLengthBytes = maxGroupDescriptionLengthBytes;
-  }
-
-  public byte[] getExternalServiceSecret() throws DecoderException {
-    return Hex.decodeHex(externalServiceSecret);
-  }
 }

@@ -26,7 +26,7 @@ public class GroupUser implements Principal {
   @Nullable
   private final ByteString pniCiphertext;
 
-  GroupUser(ByteString aciCiphertext, @Nullable ByteString pniCiphertext, ByteString groupPublicKey, ByteString groupId) {
+  public GroupUser(ByteString aciCiphertext, @Nullable ByteString pniCiphertext, ByteString groupPublicKey, ByteString groupId) {
     this.aciCiphertext = aciCiphertext;
     this.pniCiphertext = pniCiphertext;
     this.groupPublicKey = groupPublicKey;

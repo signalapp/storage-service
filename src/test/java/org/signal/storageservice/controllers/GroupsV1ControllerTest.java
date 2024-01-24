@@ -6,7 +6,6 @@
 package org.signal.storageservice.controllers;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -24,35 +23,22 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.time.Clock;
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Response;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
-import org.signal.libsignal.protocol.ServiceId;
 import org.signal.libsignal.zkgroup.NotarySignature;
-import org.signal.libsignal.zkgroup.VerificationFailedException;
 import org.signal.libsignal.zkgroup.auth.ClientZkAuthOperations;
 import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
 import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
-import org.signal.libsignal.zkgroup.groupsend.GroupSendCredential;
-import org.signal.libsignal.zkgroup.groupsend.GroupSendCredentialPresentation;
-import org.signal.libsignal.zkgroup.groupsend.GroupSendCredentialResponse;
 import org.signal.libsignal.zkgroup.profiles.ClientZkProfileOperations;
 import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;
@@ -65,22 +51,19 @@ import org.signal.storageservice.storage.protos.groups.GroupChange.Actions;
 import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.ModifyAvatarAction;
 import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.ModifyTitleAction;
 import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.PromoteMemberPendingPniAciProfileKeyAction;
-import org.signal.storageservice.storage.protos.groups.GroupChangeResponse;
 import org.signal.storageservice.storage.protos.groups.GroupChanges;
 import org.signal.storageservice.storage.protos.groups.GroupChanges.GroupChangeState;
 import org.signal.storageservice.storage.protos.groups.GroupJoinInfo;
-import org.signal.storageservice.storage.protos.groups.GroupResponse;
 import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.storage.protos.groups.Member.Role;
 import org.signal.storageservice.storage.protos.groups.MemberPendingAdminApproval;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.AuthHelper;
 
-class GroupsControllerTest extends BaseGroupsControllerTest {
+class GroupsControllerV1Test extends BaseGroupsControllerTest {
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testCreateGroup(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testCreateGroup() {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -88,57 +71,41 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     ProfileKeyCredentialPresentation validUserTwoPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
 
     when(groupsManager.createGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())),
-            any(Group.class)))
+                                   any(Group.class)))
         .thenReturn(CompletableFuture.completedFuture(true));
 
     when(groupsManager.appendChangeRecord(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())),
-            eq(0),
-            any(GroupChange.class),
-            any(Group.class)))
+                                          eq(0),
+                                          any(GroupChange.class),
+                                          any(Group.class)))
         .thenReturn(CompletableFuture.completedFuture(true));
 
-    clock.pin(issueTime);
-    final Group group = Group.newBuilder()
-        .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
-        .setAccessControl(AccessControl.newBuilder()
-            .setMembers(AccessControl.AccessRequired.MEMBER)
-            .setAttributes(AccessControl.AccessRequired.MEMBER))
-        .setTitle(ByteString.copyFromUtf8("Some title"))
-        .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
-        .setVersion(0)
-        .addMembers(Member.newBuilder()
-            .setPresentation(ByteString.copyFrom(validUserPresentation.serialize()))
-            .setRole(Member.Role.ADMINISTRATOR)
-            .build())
-        .addMembers(Member.newBuilder()
-            .setPresentation(ByteString.copyFrom(validUserTwoPresentation.serialize()))
-            .setRole(Member.Role.DEFAULT)
-            .build())
-        .build();
+    Group group = Group.newBuilder()
+                       .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
+                       .setAccessControl(AccessControl.newBuilder()
+                                                      .setMembers(AccessControl.AccessRequired.MEMBER)
+                                                      .setAttributes(AccessControl.AccessRequired.MEMBER))
+                       .setTitle(ByteString.copyFromUtf8("Some title"))
+                       .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
+                       .setVersion(0)
+                       .addMembers(Member.newBuilder()
+                                         .setPresentation(ByteString.copyFrom(validUserPresentation.serialize()))
+                                         .setRole(Member.Role.ADMINISTRATOR)
+                                         .build())
+                       .addMembers(Member.newBuilder()
+                                         .setPresentation(ByteString.copyFrom(validUserTwoPresentation.serialize()))
+                                         .setRole(Member.Role.DEFAULT)
+                                         .build())
+                       .build();
 
 
-    final Group expected = group.toBuilder()
-        .clearMembers()
-        .addMembers(Member.newBuilder()
-            .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
-            .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
-            .setRole(Member.Role.ADMINISTRATOR))
-        .addMembers(Member.newBuilder()
-            .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
-            .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
-            .setRole(Member.Role.DEFAULT))
-        .build();
     Response response = resources.getJerseyTest()
-        .target("/v2/groups/")
-        .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
-        .put(Entity.entity(group.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+                                 .target("/v1/groups/")
+                                 .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+                                 .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
+                                 .put(Entity.entity(group.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(200);
-    final GroupResponse responseProto = GroupResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    assertThat(responseProto.getGroup()).isEqualTo(expected);
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
   }
 
   @Test
@@ -173,7 +140,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .put(Entity.entity(group.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -209,7 +176,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .put(Entity.entity(group.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -249,7 +216,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .put(Entity.entity(group.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -290,7 +257,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .put(Entity.entity(group.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -319,7 +286,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .put(Entity.entity(group.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -358,7 +325,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .put(Entity.entity(group.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -398,7 +365,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .put(Entity.entity(group.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -439,7 +406,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .put(Entity.entity(group.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -477,7 +444,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .put(Entity.entity(group.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -516,7 +483,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .put(Entity.entity(group.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -524,56 +491,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.getStatus()).isEqualTo(400);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testGetGroup(final Instant issueTime, final Instant lastValidTime) throws Exception {
-    GroupSecretParams groupSecretParams = GroupSecretParams.generate();
-    GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
-
-    ProfileKeyCredentialPresentation validUserPresentation    = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL    );
-    ProfileKeyCredentialPresentation validUserTwoPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
-
-    Group group = Group.newBuilder()
-        .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
-        .setAccessControl(AccessControl.newBuilder()
-            .setMembers(AccessControl.AccessRequired.MEMBER)
-            .setAttributes(AccessControl.AccessRequired.MEMBER))
-        .setTitle(ByteString.copyFromUtf8("Some title"))
-        .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
-        .setVersion(0)
-        .addMembers(Member.newBuilder()
-            .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
-            .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
-            .setRole(Member.Role.ADMINISTRATOR))
-        .addMembers(Member.newBuilder()
-            .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
-            .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
-            .setRole(Member.Role.DEFAULT))
-        .build();
-
-
-    clock.pin(issueTime);
-    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
-        .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
-
-    Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
-                                 .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-                                 .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
-                                 .get();
-
-    assertThat(response.getStatus()).isEqualTo(200);
-    assertThat(response.hasEntity()).isTrue();
-    assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
-
-    final GroupResponse actual = GroupResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, actual.getGroupSendCredentialResponse(), lastValidTime);
-    assertThat(actual.getGroup()).isEqualTo(group);
-  }
-
   @Test
-  void testGetGroupPendingMember() throws Exception {
+  void testGetGroup() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -581,33 +500,31 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     ProfileKeyCredentialPresentation validUserTwoPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
 
     Group group = Group.newBuilder()
-        .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
-        .setAccessControl(AccessControl.newBuilder()
-            .setMembers(AccessControl.AccessRequired.MEMBER)
-            .setAttributes(AccessControl.AccessRequired.MEMBER))
-        .setTitle(ByteString.copyFromUtf8("Some title"))
-        .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
-        .setVersion(0)
-        .addMembers(Member.newBuilder()
-            .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
-            .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
-            .setRole(Member.Role.DEFAULT))
-        .addMembersPendingProfileKey(
-            MemberPendingProfileKey.newBuilder()
-                .setMember(Member.newBuilder()
-                    .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
-                    .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
-                    .setRole(Member.Role.ADMINISTRATOR))
-                .setAddedByUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
-                .setTimestamp(1234567890000L))
-        .build();
+                       .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
+                       .setAccessControl(AccessControl.newBuilder()
+                                                      .setMembers(AccessControl.AccessRequired.MEMBER)
+                                                      .setAttributes(AccessControl.AccessRequired.MEMBER))
+                       .setTitle(ByteString.copyFromUtf8("Some title"))
+                       .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
+                       .setVersion(0)
+                       .addMembers(Member.newBuilder()
+                                         .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
+                                         .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
+                                         .setRole(Member.Role.ADMINISTRATOR)
+                                         .build())
+                       .addMembers(Member.newBuilder()
+                                         .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
+                                         .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
+                                         .setRole(Member.Role.DEFAULT)
+                                         .build())
+                       .build();
 
 
     when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .get();
@@ -616,9 +533,10 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupResponse actual = GroupResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    assertThat(actual.getGroupSendCredentialResponse()).isEmpty();
-    assertThat(actual.getGroup()).isEqualTo(group);
+    byte[] entity = response.readEntity(InputStream.class).readAllBytes();
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    assertThat(Group.parseFrom(entity)).isEqualTo(group);
   }
 
   @Test
@@ -651,7 +569,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     setMockGroupState(groupBuilder);
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/join/" + inviteLinkPasswordString)
+                                 .target("/v1/groups/join/" + inviteLinkPasswordString)
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_THREE_AUTH_CREDENTIAL))
                                  .get();
@@ -664,7 +582,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
-                                 .target("/v2/groups/join/" + inviteLinkPasswordString)
+                                 .target("/v1/groups/join/" + inviteLinkPasswordString)
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_THREE_AUTH_CREDENTIAL))
                                  .get();
@@ -678,7 +596,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
-                        .target("/v2/groups/join/" + inviteLinkPasswordString)
+                        .target("/v1/groups/join/" + inviteLinkPasswordString)
                         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_THREE_AUTH_CREDENTIAL))
                         .get();
@@ -702,7 +620,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
-                        .target("/v2/groups/join/foo" + inviteLinkPasswordString)
+                        .target("/v1/groups/join/foo" + inviteLinkPasswordString)
                         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_THREE_AUTH_CREDENTIAL))
                         .get();
@@ -715,7 +633,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
-                        .target("/v2/groups/join/" + inviteLinkPasswordString)
+                        .target("/v1/groups/join/" + inviteLinkPasswordString)
                         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_THREE_AUTH_CREDENTIAL))
                         .get();
@@ -731,7 +649,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
-                        .target("/v2/groups/join/" + inviteLinkPasswordString)
+                        .target("/v1/groups/join/" + inviteLinkPasswordString)
                         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_THREE_AUTH_CREDENTIAL))
                         .get();
@@ -753,7 +671,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     setMockGroupState(groupBuilder);
 
     response = resources.getJerseyTest()
-                        .target("/v2/groups/join/")
+                        .target("/v1/groups/join/")
                         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_THREE_AUTH_CREDENTIAL))
                         .get();
@@ -799,7 +717,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
                                  .get();
@@ -817,7 +735,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
                                  .get();
@@ -870,7 +788,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                          .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -878,9 +796,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.getStatus()).isEqualTo(400);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testModifyGroupTitle(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testModifyGroupTitle() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -923,9 +840,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                           .setTitle(ByteString.copyFromUtf8("Another title")))
                                                          .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -934,8 +850,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -958,8 +873,6 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
   }
 
   @Test
@@ -1001,7 +914,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                          .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1058,7 +971,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                          .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1109,7 +1022,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                              .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1120,9 +1033,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     verify(groupsManager, never()).appendChangeRecord(any(), anyInt(), any(), any());
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testModifyGroupDescription(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testModifyGroupDescription() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -1166,9 +1078,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                   .setDescription(ByteString.copyFromUtf8("Another description")))
                                              .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1177,8 +1088,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group> captor = ArgumentCaptor.forClass(Group.class);
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -1202,13 +1112,10 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testModifyGroupAnnouncementsOnly(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testModifyGroupAnnouncementsOnly() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -1251,7 +1158,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .build();
 
     Response response = resources.getJerseyTest()
-        .target("/v2/groups/")
+        .target("/v1/groups/")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
         .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1260,9 +1167,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     verify(groupsManager, never()).updateGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), any());
     verify(groupsManager, never()).appendChangeRecord(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), anyInt(), any(), any());
 
-    clock.pin(issueTime);
     response = resources.getJerseyTest()
-        .target("/v2/groups/")
+        .target("/v1/groups/")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
         .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1271,8 +1177,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group> captor = ArgumentCaptor.forClass(Group.class);
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -1296,13 +1201,10 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
         new NotarySignature(signedChange.getServerSignature().toByteArray()));
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testModifyGroupAvatarAndTitle(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testModifyGroupAvatarAndTitle() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -1351,9 +1253,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                           .setTitle(ByteString.copyFromUtf8("Another title")))
                                                          .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1362,8 +1263,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -1389,13 +1289,10 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
 
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testModifyGroupTimer(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testModifyGroupTimer() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -1439,9 +1336,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                                                         .build())
                                                          .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1450,8 +1346,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -1475,8 +1370,6 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
 
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
   }
 
   @Test
@@ -1517,7 +1410,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                          .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1528,9 +1421,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     verifyNoMoreInteractions(groupsManager);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testDeleteMember(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testDeleteMember() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -1557,6 +1449,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                          .build())
                        .build();
 
+
     when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
 
@@ -1566,7 +1459,6 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     when(groupsManager.appendChangeRecord(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(1), any(GroupChange.class), any(Group.class)))
         .thenReturn(CompletableFuture.completedFuture(true));
 
-
     GroupChange.Actions groupChange = GroupChange.Actions.newBuilder()
                                                          .setVersion(1)
                                                          .addDeleteMembers(Actions.DeleteMemberAction.newBuilder()
@@ -1574,9 +1466,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                      .build())
                                                          .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1585,8 +1476,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -1611,8 +1501,6 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -1658,7 +1546,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                          .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1670,9 +1558,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
   }
 
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testAddMember(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testAddMember() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -1713,9 +1600,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                                .build()))
                                                          .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1724,8 +1610,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -1755,17 +1640,13 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                           .build())
                                                                              .build())
                           .build());
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
-
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testAddMemberSetJoinedViaInviteLink(final Instant issueTime, final Instant lastValidTime) {
+  @Test
+  void testAddMemberSetJoinedViaInviteLink() {
     final Group.Builder groupBuilder = Group.newBuilder();
     groupBuilder.setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()));
     groupBuilder.getAccessControlBuilder().setMembers(AccessControl.AccessRequired.MEMBER);
@@ -1800,9 +1681,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                .setJoinFromInviteLink(true)
                                                                                                .build())
                                                          .build();
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1813,9 +1693,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     verifyNoMoreInteractions(groupsManager);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testAddMemberWhoIsAlreadyPendingProfileKey(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testAddMemberWhoIsAlreadyPendingProfileKey() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -1866,9 +1745,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                                .build()))
                                                          .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1877,8 +1755,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -1910,16 +1787,13 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                               .build())
                                                                                  .build())
                               .build());
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testAddMemberWhoIsAlreadyPendingAdminApproval(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testAddMemberWhoIsAlreadyPendingAdminApproval() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -1966,9 +1840,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                                .build()))
                                                          .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -1977,8 +1850,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -2010,8 +1882,6 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                               .build())
                                                                                  .build())
                               .build());
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -2053,7 +1923,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                          .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -2106,7 +1976,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                          .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -2151,7 +2021,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                          .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -2162,9 +2032,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     verifyNoMoreInteractions(groupsManager);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testModifyMemberPresentation(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testModifyMemberPresentation() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -2215,9 +2084,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .setProfileKey(ByteString.copyFrom(validUserTwoPresentationUpdate.getProfileKeyCiphertext().serialize()))
         .setPresentation(ByteString.copyFrom(validUserTwoPresentationUpdate.getStructurallyValidV1PresentationBytes()));
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -2226,8 +2094,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -2248,8 +2115,6 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions())).isEqualTo(expectedGroupChangeResponseBuilder.build());
-    assertValidSendCredential(
-        AuthHelper.VALID_USER_TWO, List.of(AuthHelper.VALID_USER), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -2296,7 +2161,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                          .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -2304,9 +2169,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.getStatus()).isEqualTo(403);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testAddMemberPendingProfileKey(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testAddMemberPendingProfileKey() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -2349,9 +2213,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                                      .build())
                                              .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -2360,8 +2223,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor            = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor      = ArgumentCaptor.forClass(GroupChange.class);
@@ -2390,7 +2252,6 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
-    assertValidSendCredential(AuthHelper.VALID_USER, List.of(), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -2442,7 +2303,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                              .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -2494,7 +2355,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                              .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -2502,9 +2363,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.getStatus()).isEqualTo(403);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testDeleteMemberPendingProfileKeyAsAdmin(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testDeleteMemberPendingProfileKeyAsAdmin() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -2549,9 +2409,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                                            .setDeletedUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize())))
                                              .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -2560,8 +2419,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -2581,14 +2439,14 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
-    assertValidSendCredential(AuthHelper.VALID_USER, List.of(), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
 
   }
 
-  void testDeleteMemberPendingProfileKeyAsInvitee(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testDeleteMemberPendingProfileKeyAsInvitee() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -2633,9 +2491,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                                            .setDeletedUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize())))
                                              .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -2644,8 +2501,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -2665,7 +2521,6 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()));
-    assertThat(responseProto.getGroupSendCredentialResponse()).isEmpty();
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -2724,7 +2579,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                              .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -2732,37 +2587,36 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.getStatus()).isEqualTo(403);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testAcceptMemberPendingProfileKeyInvitation(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testAcceptMemberPendingProfileKeyInvitation() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
-    ProfileKeyCredentialPresentation validUserPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL);
+    ProfileKeyCredentialPresentation validUserPresentation    = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL    );
     ProfileKeyCredentialPresentation validUserTwoPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
 
     Group group = Group.newBuilder()
-        .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
-        .setAccessControl(AccessControl.newBuilder()
-            .setMembers(AccessControl.AccessRequired.ADMINISTRATOR)
-            .setAttributes(AccessControl.AccessRequired.MEMBER))
-        .setTitle(ByteString.copyFromUtf8("Some title"))
-        .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
-        .setVersion(0)
-        .addMembers(Member.newBuilder()
-            .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
-            .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
-            .setRole(Member.Role.ADMINISTRATOR)
-            .build())
-        .addMembersPendingProfileKey(MemberPendingProfileKey.newBuilder()
-            .setAddedByUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
-            .setTimestamp(System.currentTimeMillis())
-            .setMember(Member.newBuilder()
-                .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
-                .setRole(Member.Role.DEFAULT)
-                .build())
-            .build())
-        .build();
+                       .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
+                       .setAccessControl(AccessControl.newBuilder()
+                                                      .setMembers(AccessControl.AccessRequired.ADMINISTRATOR)
+                                                      .setAttributes(AccessControl.AccessRequired.MEMBER))
+                       .setTitle(ByteString.copyFromUtf8("Some title"))
+                       .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
+                       .setVersion(0)
+                       .addMembers(Member.newBuilder()
+                                         .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
+                                         .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
+                                         .setRole(Member.Role.ADMINISTRATOR)
+                                         .build())
+                       .addMembersPendingProfileKey(MemberPendingProfileKey.newBuilder()
+                                                                           .setAddedByUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
+                                                                           .setTimestamp(System.currentTimeMillis())
+                                                                           .setMember(Member.newBuilder()
+                                                                                            .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
+                                                                                            .setRole(Member.Role.DEFAULT)
+                                                                                            .build())
+                                                                           .build())
+                       .build();
 
     when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
@@ -2774,23 +2628,24 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .thenReturn(CompletableFuture.completedFuture(true));
 
     GroupChange.Actions groupChange = Actions.newBuilder()
-        .setVersion(1)
-        .addPromoteMembersPendingProfileKey(Actions.PromoteMemberPendingProfileKeyAction.newBuilder()
-            .setPresentation(ByteString.copyFrom(validUserTwoPresentation.serialize())))
-        .build();
+                                             .setVersion(1)
+                                             .addPromoteMembersPendingProfileKey(Actions.PromoteMemberPendingProfileKeyAction.newBuilder()
+                                                                                                                             .setPresentation(ByteString.copyFrom(validUserTwoPresentation.serialize())))
+                                             .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-        .target("/v2/groups/")
-        .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
-        .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+                                 .target("/v1/groups/")
+                                 .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+                                 .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
+                                 .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    ArgumentCaptor<Group> captor = ArgumentCaptor.forClass(Group.class);
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
+
+    ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
 
     verify(groupsManager).updateGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), captor.capture());
@@ -2807,28 +2662,23 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(captor.getValue().getVersion()).isEqualTo(1);
 
     assertThat(captor.getValue().toBuilder()
-        .setVersion(0)
-        .build()).isEqualTo(group.toBuilder()
-            .removeMembersPendingProfileKey(0)
-            .addMembers(Member.newBuilder()
-                .setRole(Member.Role.DEFAULT)
-                .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
-                .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
-                .setJoinedAtVersion(1)
-                .build())
-            .build());
-
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+                     .setVersion(0)
+                     .build()).isEqualTo(group.toBuilder()
+                                              .removeMembersPendingProfileKey(0)
+                                              .addMembers(Member.newBuilder()
+                                                                .setRole(Member.Role.DEFAULT)
+                                                                .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
+                                                                .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
+                                                                .setJoinedAtVersion(1)
+                                                                .build())
+                                              .build());
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()));
-    assertValidSendCredential(
-        AuthHelper.VALID_USER_TWO, List.of(AuthHelper.VALID_USER), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
-        new NotarySignature(signedChange.getServerSignature().toByteArray()));
+                                                                   new NotarySignature(signedChange.getServerSignature().toByteArray()));
   }
 
   @Test
@@ -2878,7 +2728,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                              .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -2886,9 +2736,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.getStatus()).isEqualTo(403);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  public void testAcceptMemberPendingPniAciProfileKeyInvitation(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  public void testAcceptMemberPendingPniAciProfileKeyInvitation() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -2944,9 +2793,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
             .setPresentation(ByteString.copyFrom(validUserTwoPresentation.serialize())))
         .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-        .target("/v2/groups/")
+        .target("/v1/groups/")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL))
         .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -2955,8 +2803,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -3003,8 +2850,6 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
       assertThat(action.getProfileKey().isEmpty()).isFalse();
     }
 
-    assertValidSendCredential(
-        AuthHelper.VALID_USER_TWO, List.of(AuthHelper.VALID_USER), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
         new NotarySignature(signedChange.getServerSignature().toByteArray()));
   }
@@ -3067,7 +2912,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .build();
 
     Response response = resources.getJerseyTest()
-        .target("/v2/groups/")
+        .target("/v1/groups/")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
         .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -3075,9 +2920,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.getStatus()).isEqualTo(403);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testModifyMembersRole(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testModifyMembersRole() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -3120,9 +2964,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                                         .setMembersAccess(AccessControl.AccessRequired.ADMINISTRATOR))
                                                          .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -3131,8 +2974,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -3152,8 +2994,6 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -3205,7 +3045,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                          .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -3216,9 +3056,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     verifyNoMoreInteractions(groupsManager);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testModifyMemberRole(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testModifyMemberRole() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -3262,9 +3101,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                              .setRole(Member.Role.ADMINISTRATOR).build())
                                                          .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -3273,8 +3111,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -3296,8 +3133,6 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -3350,7 +3185,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                          .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/")
+                                 .target("/v1/groups/")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -3361,9 +3196,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     verifyNoMoreInteractions(groupsManager);
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testGetGroupLogsTest(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  void testGetGroupLogsTest() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -3461,9 +3295,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     when(groupsManager.getChangeRecords(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(group), isNull(), eq(false), eq(false), eq(1), eq(6)))
         .thenReturn(CompletableFuture.completedFuture(expectedChanges));
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/logs/1")
+                                 .target("/v1/groups/logs/1")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .get();
@@ -3473,10 +3306,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
     GroupChanges receivedChanges = GroupChanges.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, receivedChanges.getGroupSendCredentialResponse(), lastValidTime);
-    assertThat(receivedChanges.toBuilder().clearGroupSendCredentialResponse().build())
-        .isEqualTo(GroupChanges.newBuilder().addAllGroupChanges(expectedChanges).build());
+    assertThat(receivedChanges).isEqualTo(GroupChanges.newBuilder().addAllGroupChanges(expectedChanges).build());
   }
 
   @Test
@@ -3520,7 +3350,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .thenReturn(CompletableFuture.completedFuture(expectedChanges.subList(0, 4)));
 
     Response response = resources.getJerseyTest()
-        .target("/v2/groups/logs/6")
+        .target("/v1/groups/logs/6")
         .queryParam("limit", "4")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
@@ -3576,7 +3406,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .thenReturn(CompletableFuture.completedFuture(expectedChanges.subList(0, 4)));
 
     Response response = resources.getJerseyTest()
-        .target("/v2/groups/logs/6")
+        .target("/v1/groups/logs/6")
         .queryParam("limit", "4")
         .queryParam("maxSupportedChangeEpoch", "0")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
@@ -3633,7 +3463,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .thenReturn(CompletableFuture.completedFuture(expectedChanges.subList(0, 64)));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/logs/6")
+                                 .target("/v1/groups/logs/6")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .get();
@@ -3681,7 +3511,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/logs/1")
+                                 .target("/v1/groups/logs/1")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .get();
@@ -3729,7 +3559,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     // Verify that non-admin member has correct `joinedAtVersion`
     {
       Response response = resources.getJerseyTest()
-                                   .target("/v2/groups/joined_at_version")
+                                   .target("/v1/groups/joined_at_version")
                                    .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                    .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                    .get();
@@ -3744,7 +3574,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     // Verify that admin member has correct `joinedAtVersion`
     {
       Response response = resources.getJerseyTest()
-                                   .target("/v2/groups/joined_at_version")
+                                   .target("/v1/groups/joined_at_version")
                                    .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                    .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
                                    .get();
@@ -3762,7 +3592,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     // Verify that non-member don't get 200
     {
       Response response = resources.getJerseyTest()
-                                   .target("/v2/groups/joined_at_version")
+                                   .target("/v1/groups/joined_at_version")
                                    .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                    .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_THREE_AUTH_CREDENTIAL))
                                    .get();
@@ -3781,7 +3611,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/avatar/form")
+                                 .target("/v1/groups/avatar/form")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                  .get();
@@ -3831,7 +3661,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
 
     Response response = resources.getJerseyTest()
-                                .target("/v2/groups/token")
+                                .target("/v1/groups/token")
                                 .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                 .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
                                 .get();
@@ -3872,7 +3702,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/token")
+                                 .target("/v1/groups/token")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
                                  .get();
@@ -3890,7 +3720,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/token")
+                                 .target("/v1/groups/token")
                                  .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
                                  .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
                                  .get();
@@ -3935,7 +3765,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .thenReturn(CompletableFuture.completedFuture(List.of()));
 
     resources.getJerseyTest()
-        .target("/v2/groups/logs/0")
+        .target("/v1/groups/logs/0")
         .queryParam("limit", "1")
         .queryParam("maxSupportedChangeEpoch", "0")
         .queryParam("includeFirstState", "true")
@@ -3958,7 +3788,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .build();
 
     Response response = resources.getJerseyTest()
-        .target("/v2/groups/")
+        .target("/v1/groups/")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
         .method("PATCH", Entity.entity(actions.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -3967,8 +3797,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class));
 
     ArgumentCaptor<Group> captor = ArgumentCaptor.forClass(Group.class);
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -3999,15 +3828,13 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(resultActions.getModifyMemberRolesCount()).as("check only one modify member role action").isEqualTo(1);
     assertThat(resultActions.getModifyMemberRoles(0).getRole()).as("check setting the remaining member to admin").isEqualTo(Role.ADMINISTRATOR);
     assertThat(resultActions.getModifyMemberRoles(0).getUserId()).as("check user id promoted to admin was the remaining group member").isEqualTo(group.getMembers(1).getUserId());
-    assertThat(responseProto.getGroupSendCredentialResponse()).isEmpty();
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
         new NotarySignature(signedChange.getServerSignature().toByteArray()));
   }
 
-  @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  public void testAcceptMemberPendingPniAndAciInvitations(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @Test
+  public void testAcceptMemberPendingPniAndAciInvitations() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -4078,9 +3905,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
             .setPresentation(ByteString.copyFrom(validUserTwoPresentation.serialize())))
         .build();
 
-    clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-        .target("/v2/groups/")
+        .target("/v1/groups/")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL))
         .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
@@ -4089,8 +3915,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
-    final GroupChangeResponse responseProto = GroupChangeResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    final GroupChange signedChange = responseProto.getGroupChange();
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
     ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
     ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
@@ -4122,8 +3947,6 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .build());
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
-    assertValidSendCredential(
-        AuthHelper.VALID_USER_TWO, List.of(AuthHelper.VALID_USER), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(aciCipherText);
@@ -4148,33 +3971,4 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     }
     return groupChangeStateBuilder.build();
   }
-
-  static Stream<Arguments> sendCredentialTimes() {
-    // return values are issue time, last valid second
-    return Stream.of(
-        // Issued middle of the UTC day, expires end of that UTC day
-        Arguments.of(Instant.parse("2024-01-17T12:00:00.00Z"), Instant.parse("2024-01-18T00:00:00.00Z")),
-
-        // Issued close to the end of the UTC day, expires end of the *next* UTC day
-        Arguments.of(Instant.parse("2024-01-17T23:00:00.00Z"), Instant.parse("2024-01-19T00:00:00.00Z")));
-  }
-
-  private void assertValidSendCredential(
-      final ServiceId.Aci requester,
-      final List<ServiceId> otherMembers,
-      final GroupSecretParams groupSecretParams,
-      final ByteString serializedCredentialResponse,
-      final Instant expectedLastValidTime) throws Exception {
-    final List<ServiceId> allMembers = Stream.concat(Stream.of(requester), otherMembers.stream()).collect(Collectors.toList());
-    final GroupSendCredentialResponse deserializedCredentialResponse =
-        new GroupSendCredentialResponse(serializedCredentialResponse.toByteArray());
-    final GroupSendCredential received = deserializedCredentialResponse.receive(
-        allMembers, requester, expectedLastValidTime, AuthHelper.GROUPS_SERVER_KEY.getPublicParams(), groupSecretParams);
-    final GroupSendCredentialPresentation presentation = received.present(AuthHelper.GROUPS_SERVER_KEY.getPublicParams());
-    presentation.verify(otherMembers, expectedLastValidTime, AuthHelper.GROUPS_SERVER_KEY);
-    assertThrows(
-        VerificationFailedException.class,
-        () -> presentation.verify(otherMembers, expectedLastValidTime.plus(Duration.ofSeconds(1)), AuthHelper.GROUPS_SERVER_KEY));
-  }
-
 }

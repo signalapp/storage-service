@@ -22,7 +22,7 @@ class GroupsControllerPhoneNumberPrivacyTest extends BaseGroupsControllerTest {
                 .setJoinedAtVersion(0)
                 .build())
             .setAddedByUserId(validUserId)
-            .setTimestamp(currentTime)
+            .setTimestamp(clock.millis())
             .build());
 
     setupGroupsManagerBehaviors(groupBuilder.build());

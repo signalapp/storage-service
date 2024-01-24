@@ -19,13 +19,16 @@ import java.security.MessageDigest;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.ws.rs.BadRequestException;
@@ -42,8 +45,11 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import org.apache.commons.codec.binary.Base64;
+import org.signal.libsignal.zkgroup.InvalidInputException;
 import org.signal.libsignal.zkgroup.NotarySignature;
 import org.signal.libsignal.zkgroup.ServerSecretParams;
+import org.signal.libsignal.zkgroup.groups.UuidCiphertext;
+import org.signal.libsignal.zkgroup.groupsend.GroupSendCredentialResponse;
 import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
 import org.signal.storageservice.auth.ExternalGroupCredentialGenerator;
 import org.signal.storageservice.auth.GroupUser;
@@ -62,6 +68,8 @@ import org.signal.storageservice.storage.protos.groups.AvatarUploadAttributes;
 import org.signal.storageservice.storage.protos.groups.ExternalGroupCredential;
 import org.signal.storageservice.storage.protos.groups.Group;
 import org.signal.storageservice.storage.protos.groups.GroupChange;
+import org.signal.storageservice.storage.protos.groups.GroupChangeResponse;
+import org.signal.storageservice.storage.protos.groups.GroupResponse;
 import org.signal.storageservice.storage.protos.groups.GroupChange.Actions;
 import org.signal.storageservice.storage.protos.groups.GroupChanges;
 import org.signal.storageservice.storage.protos.groups.GroupJoinInfo;
@@ -70,7 +78,7 @@ import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.CollectionUtil;
 import org.signal.storageservice.util.Pair;
 
-@Path("/v1/groups")
+@Path("/v2/groups")
 public class GroupsController {
   private static final int LOG_VERSION_LIMIT = 64;
   private static final int INVITE_LINKS_CHANGE_EPOCH = 1;
@@ -83,6 +91,7 @@ public class GroupsController {
 
   private final Clock clock;
   private final GroupsManager groupsManager;
+  private final GroupConfiguration groupConfiguration;
   private final ServerSecretParams serverSecretParams;
   private final GroupValidator groupValidator;
   private final GroupChangeApplicator groupChangeApplicator;
@@ -102,6 +111,7 @@ public class GroupsController {
       ExternalGroupCredentialGenerator externalGroupCredentialGenerator) {
     this.clock = clock;
     this.groupsManager = groupsManager;
+    this.groupConfiguration = groupConfiguration;
     this.serverSecretParams = serverSecretParams;
     this.groupValidator = new GroupValidator(new ServerZkProfileOperations(serverSecretParams), groupConfiguration);
     this.groupChangeApplicator = new GroupChangeApplicator(this.groupValidator);
@@ -120,7 +130,10 @@ public class GroupsController {
       }
 
       if (GroupAuth.isMember(user, group.get()) || GroupAuth.isMemberPendingProfileKey(user, group.get())) {
-        return Response.ok(group.get()).build();
+        final GroupResponse.Builder responseBuilder = GroupResponse.newBuilder().setGroup(group.get());
+        getSerializedGroupSendCredentialIfMember(group.get(), user)
+            .ifPresent(responseBuilder::setGroupSendCredentialResponse);
+        return Response.ok(responseBuilder.build()).build();
       } else  {
         return Response.status(Response.Status.FORBIDDEN).build();
       }
@@ -248,9 +261,13 @@ public class GroupsController {
       } else {
         return groupsManager.getChangeRecords(user.getGroupId(), group.get(), maxSupportedChangeEpoch.orElse(null), includeFirstState, includeLastState, fromVersion, latestGroupVersion + 1)
                             .thenApply(records -> {
-                              final GroupChanges groupChanges = GroupChanges.newBuilder()
-                                  .addAllGroupChanges(records)
-                                  .build();
+                              final GroupChanges.Builder groupChangesBuilder = GroupChanges.newBuilder()
+                                  .addAllGroupChanges(records);
+
+                              getSerializedGroupSendCredentialIfMember(group.get(), user)
+                                  .ifPresent(groupChangesBuilder::setGroupSendCredentialResponse);
+
+                              final GroupChanges groupChanges = groupChangesBuilder.build();
 
                               distributionSummary(LOG_SIZE_BYTES_DISTRIBUTION_SUMMARY_NAME, userAgent)
                                   .record(groupChanges.getSerializedSize());
@@ -365,21 +382,34 @@ public class GroupsController {
     groupValidator.validateFinalGroupState(validatedGroup);
 
     return groupsManager.createGroup(user.getGroupId(), validatedGroup)
-                        .thenCompose(created -> {
-                          if (!created) return CompletableFuture.completedFuture(false);
-                          else          return groupsManager.appendChangeRecord(user.getGroupId(), 0, initialGroupChange, validatedGroup);
-                        })
-                        .thenApply(result -> {
-                          if (result) return Response.ok().build();
-                          else        return Response.status(Response.Status.CONFLICT).build();
-                        });
+        .thenCompose(
+            created -> {
+              if (!created) {
+                return CompletableFuture.completedFuture(false);
+              } else {
+                return groupsManager.appendChangeRecord(user.getGroupId(), 0, initialGroupChange, validatedGroup);
+              }
+            }).thenApply(
+                result -> {
+                  if (result) {
+                    final GroupResponse.Builder responseBuilder = GroupResponse.newBuilder().setGroup(validatedGroup);
+                    getSerializedGroupSendCredentialIfMember(validatedGroup, user)
+                        .ifPresent(responseBuilder::setGroupSendCredentialResponse);
+                    return Response.ok(responseBuilder.build()).build();
+                  } else {
+                    return Response.status(Response.Status.CONFLICT).build();
+                  }
+                });
   }
 
   @Timed
   @PATCH
   @Produces(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
   @Consumes(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-  public CompletableFuture<Response> modifyGroup(@Auth GroupUser user, @QueryParam("inviteLinkPassword") String inviteLinkPasswordString, @NoUnknownFields GroupChange.Actions submittedActions) {
+  public CompletableFuture<Response> modifyGroup(
+      @Auth GroupUser user,
+      @QueryParam("inviteLinkPassword") String inviteLinkPasswordString,
+      @NoUnknownFields GroupChange.Actions submittedActions) {
     final byte[] inviteLinkPassword;
     if (Strings.isNullOrEmpty(inviteLinkPasswordString)) {
       inviteLinkPassword = null;
@@ -482,29 +512,34 @@ public class GroupsController {
 
       actions = actionsBuilder.setSourceUuid(sourceUuid).build();
 
-      byte[]          serializedActions = actions.toByteArray();
-      int             version           = actions.getVersion();
-      NotarySignature signature         = serverSecretParams.sign(serializedActions);
-      GroupChange     signedGroupChange = GroupChange.newBuilder()
-                                                     .setActions(ByteString.copyFrom(serializedActions))
-                                                     .setServerSignature(ByteString.copyFrom(signature.serialize()))
-                                                     .setChangeEpoch(changeEpoch)
-                                                     .build();
-      Group           updatedGroupState = modifiedGroupBuilder.setVersion(version).build();
+      final byte[] serializedActions = actions.toByteArray();
+      final int version = actions.getVersion();
+      final NotarySignature signature = serverSecretParams.sign(serializedActions);
+      final GroupChange signedGroupChange = GroupChange.newBuilder()
+          .setActions(ByteString.copyFrom(serializedActions))
+          .setServerSignature(ByteString.copyFrom(signature.serialize()))
+          .setChangeEpoch(changeEpoch)
+          .build();
+      final Group updatedGroupState = modifiedGroupBuilder.setVersion(version).build();
 
       groupValidator.validateFinalGroupState(updatedGroupState);
 
       return groupsManager.updateGroup(user.getGroupId(), updatedGroupState)
-                          .thenCompose(result -> {
-                            if (result.isPresent()) {
-                              return CompletableFuture.completedFuture(Response.status(Response.Status.CONFLICT).entity(result.get()).build());
-                            }
+          .thenCompose(result -> {
+                if (result.isPresent()) {
+                  return CompletableFuture.completedFuture(Response.status(Response.Status.CONFLICT).entity(result.get()).build());
+                }
 
-                            return groupsManager.appendChangeRecord(user.getGroupId(), version, signedGroupChange, updatedGroupState)
-                                                .thenApply(success -> Response.ok(signedGroupChange).build());
-                          });
-
-    });
+                final GroupChangeResponse.Builder responseBuilder =
+                    GroupChangeResponse.newBuilder().setGroupChange(signedGroupChange);
+                getSerializedGroupSendCredentialIfMember(updatedGroupState, user)
+                    .ifPresent(responseBuilder::setGroupSendCredentialResponse);
+                final GroupChangeResponse response = responseBuilder.build();
+                return groupsManager.appendChangeRecord(
+                    user.getGroupId(), version, signedGroupChange, updatedGroupState)
+                    .thenApply(success -> Response.ok(response).build());
+              });
+        });
   }
 
   @Timed
@@ -530,4 +565,49 @@ public class GroupsController {
       }
     });
   }
+
+  // Returns a serialized GroupSendCredentialResponse for the user in this group, if the user is a
+  // member, and nothing otherwise (which is normal: some endpoints that would normally attach a
+  // send credential can legitimately be accessed by group nonmembers (or people may become
+  // nonmembers as a result of handling the request, e.g. a modify-group request to leave the
+  // group).
+  private Optional<ByteString> getSerializedGroupSendCredentialIfMember(Group group, GroupUser user) {
+    final Instant expiration = getSendCredentialExpirationTime();
+
+    return GroupAuth.getMember(user, group).map(
+        requestingMember ->
+            ByteString.copyFrom(
+                GroupSendCredentialResponse
+                    .issueCredential(
+                        group.getMembersList().stream().map(GroupsController::uuidCiphertext).collect(Collectors.toList()),
+                        uuidCiphertext(requestingMember),
+                        expiration,
+                        serverSecretParams,
+                        new SecureRandom())
+                    .serialize()));
+  }
+
+  private static UuidCiphertext uuidCiphertext(Member member) {
+    try {
+      return new UuidCiphertext(member.getUserId().toByteArray());
+    } catch (InvalidInputException e) {
+      // we already know this is a valid userid because it came either from our own storage or already-validated auth
+      throw new AssertionError(e);
+    }
+  }
+
+  private Instant getSendCredentialExpirationTime() {
+    final Instant now = clock.instant();
+
+    // We must truncate to a day boundary or libsignal will reject the credential to prevent fingerprinting
+    final Instant expiration = now.plus(groupConfiguration.groupSendCredentialExpirationTime()).truncatedTo(ChronoUnit.DAYS);
+
+    if (Duration.between(now, expiration).compareTo(groupConfiguration.groupSendCredentialMinimumLifetime()) < 0) {
+      // We're close enough to the end of the UTC day that we would issue a uselessly short send
+      // credential; extend it by a full day so we're still day-boundary-aligned
+      return expiration.plus(Duration.ofDays(1));
+    }
+    return expiration;
+  }
+
 }

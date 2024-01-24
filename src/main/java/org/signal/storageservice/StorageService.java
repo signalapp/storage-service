@@ -38,6 +38,7 @@ import org.signal.storageservice.auth.User;
 import org.signal.storageservice.auth.UserAuthenticator;
 import org.signal.storageservice.controllers.BackupsController;
 import org.signal.storageservice.controllers.GroupsController;
+import org.signal.storageservice.controllers.GroupsV1Controller;
 import org.signal.storageservice.controllers.HealthCheckController;
 import org.signal.storageservice.controllers.StorageController;
 import org.signal.storageservice.metrics.CpuUsageGauge;
@@ -120,7 +121,7 @@ public class StorageService extends Application<StorageServiceConfiguration> {
     UserAuthenticator      userAuthenticator      = new UserAuthenticator(new ExternalServiceCredentialValidator(config.getAuthenticationConfiguration().getKey()));
     GroupUserAuthenticator groupUserAuthenticator = new GroupUserAuthenticator(new ServerZkAuthOperations(serverSecretParams));
     ExternalGroupCredentialGenerator externalGroupCredentialGenerator = new ExternalGroupCredentialGenerator(
-        config.getGroupConfiguration().getExternalServiceSecret(), Clock.systemUTC());
+        config.getGroupConfiguration().externalServiceSecret(), Clock.systemUTC());
 
     AuthFilter<BasicCredentials, User>      userAuthFilter      = new BasicCredentialAuthFilter.Builder<User>().setAuthenticator(userAuthenticator).buildAuthFilter();
     AuthFilter<BasicCredentials, GroupUser> groupUserAuthFilter = new BasicCredentialAuthFilter.Builder<GroupUser>().setAuthenticator(groupUserAuthenticator).buildAuthFilter();
@@ -135,6 +136,7 @@ public class StorageService extends Application<StorageServiceConfiguration> {
     environment.jersey().register(new BackupsController(backupsManager));
     environment.jersey().register(new StorageController(storageManager));
     environment.jersey().register(new GroupsController(Clock.systemUTC(), groupsManager, serverSecretParams, policySigner, postPolicyGenerator, config.getGroupConfiguration(), externalGroupCredentialGenerator));
+    environment.jersey().register(new GroupsV1Controller(Clock.systemUTC(), groupsManager, serverSecretParams, policySigner, postPolicyGenerator, config.getGroupConfiguration(), externalGroupCredentialGenerator));
 
     environment.jersey().register(new MetricsApplicationEventListener());
 

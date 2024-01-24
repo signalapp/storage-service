@@ -32,9 +32,8 @@ import org.signal.storageservice.util.AuthHelper;
 class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
   @Override
   protected GroupConfiguration getGroupConfiguration() {
-    final GroupConfiguration groupConfiguration = super.getGroupConfiguration();
-    groupConfiguration.setMaxGroupSize(2);
-    return groupConfiguration;
+    final GroupConfiguration base = super.getGroupConfiguration();
+    return new GroupConfiguration(2, base.maxGroupTitleLengthBytes(), base.maxGroupDescriptionLengthBytes(), base.externalServiceSecret(), base.groupSendCredentialExpirationTime(), base.groupSendCredentialMinimumLifetime());
   }
 
   @Test

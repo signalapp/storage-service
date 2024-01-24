@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -54,16 +55,17 @@ import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.util.AuthHelper;
 import org.signal.storageservice.util.SystemMapper;
 import org.signal.storageservice.util.Util;
+import org.signal.storageservice.util.TestClock;
 
 @ExtendWith(DropwizardExtensionsSupport.class)
 abstract class BaseGroupsControllerTest {
-  protected final ExternalGroupCredentialGenerator groupCredentialGenerator   = new ExternalGroupCredentialGenerator(Util.generateSecretBytes(32), Clock.systemUTC());
-  protected final GroupSecretParams                groupSecretParams          = GroupSecretParams.generate();
-  protected final GroupPublicParams                groupPublicParams          = groupSecretParams.getPublicParams();
-  protected final ProfileKeyCredentialPresentation validUserPresentation      = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL);
-  protected final ProfileKeyCredentialPresentation validUserTwoPresentation   = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
+  protected final ExternalGroupCredentialGenerator groupCredentialGenerator = new ExternalGroupCredentialGenerator(Util.generateSecretBytes(32), Clock.systemUTC());
+  protected final GroupSecretParams groupSecretParams = GroupSecretParams.generate();
+  protected final GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
+  protected final ProfileKeyCredentialPresentation validUserPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL);
+  protected final ProfileKeyCredentialPresentation validUserTwoPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
   protected final ProfileKeyCredentialPresentation validUserThreePresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_THREE_PROFILE_CREDENTIAL);
-  protected final ProfileKeyCredentialPresentation validUserFourPresentation  = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_FOUR_PROFILE_CREDENTIAL);
+  protected final ProfileKeyCredentialPresentation validUserFourPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_FOUR_PROFILE_CREDENTIAL);
   protected final ByteString validUserId = ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize());
   protected final ByteString validUserPniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PNI_AUTH_CREDENTIAL).getPniCiphertext().serialize());
   protected final ByteString validUserTwoId = ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize());
@@ -72,32 +74,31 @@ abstract class BaseGroupsControllerTest {
   protected final ByteString validUserThreePniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_THREE_PNI_AUTH_CREDENTIAL).getPniCiphertext().serialize());
   protected final ByteString validUserFourId = ByteString.copyFrom(validUserFourPresentation.getUuidCiphertext().serialize());
   protected final ByteString validUserFourPniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_FOUR_PNI_AUTH_CREDENTIAL).getPniCiphertext().serialize());
-  protected final GroupsManager                    groupsManager              = mock(GroupsManager.class);
-  protected final Clock                            clock                      = mock(Clock.class);
-  protected       long                             currentTime;
-  protected final PostPolicyGenerator              postPolicyGenerator        = new PostPolicyGenerator("us-west-1", "profile-bucket", "accessKey");
-  protected final PolicySigner                     policySigner               = new PolicySigner("accessSecret", "us-west-1");
-  protected final Group                            group                      = Group.newBuilder()
-                                                                                     .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
-                                                                                     .setAccessControl(AccessControl.newBuilder()
-                                                                                                                    .setMembers(AccessControl.AccessRequired.MEMBER)
-                                                                                                                    .setAttributes(AccessControl.AccessRequired.MEMBER))
-                                                                                     .setTitle(ByteString.copyFromUtf8("Some title"))
-                                                                                     .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
-                                                                                     .setVersion(0)
-                                                                                     .addMembers(Member.newBuilder()
-                                                                                                       .setUserId(validUserId)
-                                                                                                       .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
-                                                                                                       .setRole(Member.Role.ADMINISTRATOR)
-                                                                                                       .setJoinedAtVersion(0)
-                                                                                                       .build())
-                                                                                     .addMembers(Member.newBuilder()
-                                                                                                       .setUserId(validUserTwoId)
-                                                                                                       .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
-                                                                                                       .setRole(Member.Role.DEFAULT)
-                                                                                                       .setJoinedAtVersion(0)
-                                                                                                       .build())
-                                                                                     .build();
+  protected final GroupsManager groupsManager = mock(GroupsManager.class);
+  protected final TestClock clock = TestClock.pinned(Instant.now());
+  protected final PostPolicyGenerator postPolicyGenerator = new PostPolicyGenerator("us-west-1", "profile-bucket", "accessKey");
+  protected final PolicySigner policySigner = new PolicySigner("accessSecret", "us-west-1");
+  protected final Group group = Group.newBuilder()
+      .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
+      .setAccessControl(AccessControl.newBuilder()
+          .setMembers(AccessControl.AccessRequired.MEMBER)
+          .setAttributes(AccessControl.AccessRequired.MEMBER))
+      .setTitle(ByteString.copyFromUtf8("Some title"))
+      .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
+      .setVersion(0)
+      .addMembers(Member.newBuilder()
+          .setUserId(validUserId)
+          .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
+          .setRole(Member.Role.ADMINISTRATOR)
+          .setJoinedAtVersion(0)
+          .build())
+      .addMembers(Member.newBuilder()
+          .setUserId(validUserTwoId)
+          .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
+          .setRole(Member.Role.DEFAULT)
+          .setJoinedAtVersion(0)
+          .build())
+      .build();
 
 
   protected final ResourceExtension resources = ResourceExtension.builder()
@@ -107,15 +108,12 @@ abstract class BaseGroupsControllerTest {
                                                                  .addProvider(new ProtocolBufferValidationErrorMessageBodyWriter())
                                                                  .addProvider(new InvalidProtocolBufferExceptionMapper())
                                                                  .setMapper(SystemMapper.getMapper())
+                                                                 .addResource(new GroupsV1Controller(clock, groupsManager, AuthHelper.GROUPS_SERVER_KEY, policySigner, postPolicyGenerator, getGroupConfiguration(), groupCredentialGenerator))
                                                                  .addResource(new GroupsController(clock, groupsManager, AuthHelper.GROUPS_SERVER_KEY, policySigner, postPolicyGenerator, getGroupConfiguration(), groupCredentialGenerator))
                                                                  .build();
 
   protected GroupConfiguration getGroupConfiguration() {
-    final GroupConfiguration groupConfiguration = new GroupConfiguration();
-    groupConfiguration.setMaxGroupSize(42);
-    groupConfiguration.setMaxGroupTitleLengthBytes(1024);
-    groupConfiguration.setMaxGroupDescriptionLengthBytes(8192);
-    return groupConfiguration;
+    return new GroupConfiguration(42, 1024, 8192, new byte[32], null, null);
   }
 
   protected String avatarFor(byte[] groupId) {
@@ -130,9 +128,7 @@ abstract class BaseGroupsControllerTest {
 
   @BeforeEach
   void resetGroupsManager() {
-    reset(groupsManager, clock);
-    currentTime = System.currentTimeMillis();
-    when(clock.millis()).thenReturn(currentTime);
+    reset(groupsManager);
   }
 
   protected void setupGroupsManagerBehaviors(Group group) {

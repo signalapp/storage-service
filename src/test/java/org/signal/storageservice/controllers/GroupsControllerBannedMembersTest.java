@@ -57,7 +57,7 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     assertThat(response.hasEntity()).isTrue();
     assertThat(response.getStringHeaders()).doesNotContainKey("x-signal-forbidden-reason");
 
-    groupBuilder.addMembersBannedBuilder().setUserId(ByteString.copyFrom(validUserFourPresentation.getUuidCiphertext().serialize())).setTimestamp(currentTime);
+    groupBuilder.addMembersBannedBuilder().setUserId(ByteString.copyFrom(validUserFourPresentation.getUuidCiphertext().serialize())).setTimestamp(clock.millis());
 
     setMockGroupState(groupBuilder);
     response = getGroupJoinInfoWithPassword(inviteLinkPasswordString);
@@ -77,7 +77,7 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.hasEntity()).isTrue();
 
-    groupBuilder.addMembersBannedBuilder().setUserId(groupBuilder.getMembers(1).getUserId()).setTimestamp(currentTime);
+    groupBuilder.addMembersBannedBuilder().setUserId(groupBuilder.getMembers(1).getUserId()).setTimestamp(clock.millis());
     groupBuilder.removeMembers(1);
 
     setMockGroupState(groupBuilder);
@@ -97,7 +97,7 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.hasEntity()).isTrue();
 
-    groupBuilder.addMembersBannedBuilder().setUserId(groupBuilder.getMembers(0).getUserId()).setTimestamp(currentTime);
+    groupBuilder.addMembersBannedBuilder().setUserId(groupBuilder.getMembers(0).getUserId()).setTimestamp(clock.millis());
     groupBuilder.removeMembers(0);
 
     setMockGroupState(groupBuilder);
@@ -121,7 +121,7 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     Response response = createGroup(groupBuilder);
     assertThat(response.getStatus()).isEqualTo(200);
 
-    groupBuilder.addMembersBannedBuilder().setUserId(ByteString.copyFrom(validUserFourPresentation.getUuidCiphertext().serialize())).setTimestamp(currentTime);
+    groupBuilder.addMembersBannedBuilder().setUserId(ByteString.copyFrom(validUserFourPresentation.getUuidCiphertext().serialize())).setTimestamp(clock.millis());
 
     response = createGroup(groupBuilder);
     assertThat(response.getStatus()).isEqualTo(400);
@@ -139,8 +139,8 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     setupGroupsManagerForWrites();
     Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
 
-    actionsBuilder.getAddMembersBannedBuilder(0).getAddedBuilder().setTimestamp(currentTime);
-    groupBuilder.setVersion(1).addMembersBannedBuilder().setUserId(validUserThreeId).setTimestamp(currentTime);
+    actionsBuilder.getAddMembersBannedBuilder(0).getAddedBuilder().setTimestamp(clock.millis());
+    groupBuilder.setVersion(1).addMembersBannedBuilder().setUserId(validUserThreeId).setTimestamp(clock.millis());
     assertThat(response.getStatus()).isEqualTo(200);
     verifyGroupModification(groupBuilder, actionsBuilder, 4, response, validUserId);
   }
@@ -166,7 +166,7 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     final Group.Builder groupBuilder = group.toBuilder();
     final GroupChange.Actions.Builder actionsBuilder = GroupChange.Actions.newBuilder();
 
-    groupBuilder.addMembersBannedBuilder().setUserId(validUserThreeId).setTimestamp(currentTime);
+    groupBuilder.addMembersBannedBuilder().setUserId(validUserThreeId).setTimestamp(clock.millis());
     actionsBuilder.addDeleteMembersBannedBuilder().setDeletedUserId(validUserThreeId);
     actionsBuilder.setVersion(1);
 
@@ -185,7 +185,7 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     final GroupChange.Actions.Builder actionsBuilder = GroupChange.Actions.newBuilder();
 
     groupBuilder.getAccessControlBuilder().setMembers(AccessRequired.ADMINISTRATOR);
-    groupBuilder.addMembersBannedBuilder().setUserId(validUserThreeId).setTimestamp(currentTime);
+    groupBuilder.addMembersBannedBuilder().setUserId(validUserThreeId).setTimestamp(clock.millis());
     actionsBuilder.addDeleteMembersBannedBuilder().setDeletedUserId(validUserThreeId);
     actionsBuilder.setVersion(1);
 
@@ -202,7 +202,7 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     final Group.Builder groupBuilder = group.toBuilder();
     final GroupChange.Actions.Builder actionsBuilder = GroupChange.Actions.newBuilder();
 
-    groupBuilder.addMembersBannedBuilder().setUserId(validUserThreeId).setTimestamp(currentTime);
+    groupBuilder.addMembersBannedBuilder().setUserId(validUserThreeId).setTimestamp(clock.millis());
     actionsBuilder.addDeleteMembersBannedBuilder().setDeletedUserId(validUserThreeId);
     actionsBuilder.setVersion(1);
 
