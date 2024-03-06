@@ -2082,7 +2082,7 @@ class GroupsControllerV1Test extends BaseGroupsControllerTest {
     expectedGroupChangeResponseBuilder.getModifyMemberProfileKeysBuilder(0)
         .setUserId(ByteString.copyFrom(validUserTwoPresentationUpdate.getUuidCiphertext().serialize()))
         .setProfileKey(ByteString.copyFrom(validUserTwoPresentationUpdate.getProfileKeyCiphertext().serialize()))
-        .setPresentation(ByteString.copyFrom(validUserTwoPresentationUpdate.getStructurallyValidV1PresentationBytes()));
+        .clearPresentation();
 
     Response response = resources.getJerseyTest()
                                  .target("/v1/groups/")

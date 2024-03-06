@@ -270,8 +270,6 @@ public class GroupValidator {
       return ModifyMemberProfileKeyAction.newBuilder()
           .setUserId(ByteString.copyFrom(presentation.getUuidCiphertext().serialize()))
           .setProfileKey(ByteString.copyFrom(presentation.getProfileKeyCiphertext().serialize()))
-          .setPresentation(ByteString.copyFrom(presentation.getStructurallyValidV1PresentationBytes()))
-          // TODO: some time after clients stop reading the presentation, stop setting it here
           .build();
     }).collect(Collectors.toList());
     if (CollectionUtil.containsDuplicates(validatedActions.stream().map(ModifyMemberProfileKeyAction::getUserId))) {
@@ -289,8 +287,6 @@ public class GroupValidator {
       return PromoteMemberPendingProfileKeyAction.newBuilder()
           .setUserId(ByteString.copyFrom(presentation.getUuidCiphertext().serialize()))
           .setProfileKey(ByteString.copyFrom(presentation.getProfileKeyCiphertext().serialize()))
-          .setPresentation(ByteString.copyFrom(presentation.getStructurallyValidV1PresentationBytes()))
-          // TODO: some time after clients stop reading the presentation, stop setting it here
           .build();
     }).collect(Collectors.toList());
     if (CollectionUtil.containsDuplicates(validatedActions.stream().map(PromoteMemberPendingProfileKeyAction::getUserId))) {

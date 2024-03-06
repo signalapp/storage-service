@@ -2213,7 +2213,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     expectedGroupChangeResponseBuilder.getModifyMemberProfileKeysBuilder(0)
         .setUserId(ByteString.copyFrom(validUserTwoPresentationUpdate.getUuidCiphertext().serialize()))
         .setProfileKey(ByteString.copyFrom(validUserTwoPresentationUpdate.getProfileKeyCiphertext().serialize()))
-        .setPresentation(ByteString.copyFrom(validUserTwoPresentationUpdate.getStructurallyValidV1PresentationBytes()));
+        .clearPresentation();
 
     clock.pin(issueTime);
     Response response = resources.getJerseyTest()
