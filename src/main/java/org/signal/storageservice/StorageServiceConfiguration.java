@@ -6,7 +6,7 @@
 package org.signal.storageservice;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.dropwizard.Configuration;
+import io.dropwizard.core.Configuration;
 import org.signal.storageservice.configuration.AuthenticationConfiguration;
 import org.signal.storageservice.configuration.BigTableConfiguration;
 import org.signal.storageservice.configuration.CdnConfiguration;

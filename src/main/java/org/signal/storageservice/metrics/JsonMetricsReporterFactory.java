@@ -9,7 +9,7 @@ import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.ScheduledReporter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import io.dropwizard.metrics.BaseReporterFactory;
+import io.dropwizard.metrics.common.BaseReporterFactory;
 
 import javax.validation.constraints.NotNull;
 import java.net.UnknownHostException;

@@ -11,7 +11,6 @@ import com.codahale.metrics.annotation.Timed;
 import com.google.common.net.HttpHeaders;
 import com.google.protobuf.ByteString;
 import io.dropwizard.auth.Auth;
-import io.dropwizard.util.Strings;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Tags;
@@ -28,7 +27,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import javax.ws.rs.BadRequestException;
@@ -45,6 +43,7 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Response;
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.lang3.StringUtils;
 import org.signal.libsignal.zkgroup.InvalidInputException;
 import org.signal.libsignal.zkgroup.NotarySignature;
 import org.signal.libsignal.zkgroup.ServerSecretParams;
@@ -68,11 +67,11 @@ import org.signal.storageservice.storage.protos.groups.AvatarUploadAttributes;
 import org.signal.storageservice.storage.protos.groups.ExternalGroupCredential;
 import org.signal.storageservice.storage.protos.groups.Group;
 import org.signal.storageservice.storage.protos.groups.GroupChange;
-import org.signal.storageservice.storage.protos.groups.GroupChangeResponse;
-import org.signal.storageservice.storage.protos.groups.GroupResponse;
 import org.signal.storageservice.storage.protos.groups.GroupChange.Actions;
+import org.signal.storageservice.storage.protos.groups.GroupChangeResponse;
 import org.signal.storageservice.storage.protos.groups.GroupChanges;
 import org.signal.storageservice.storage.protos.groups.GroupJoinInfo;
+import org.signal.storageservice.storage.protos.groups.GroupResponse;
 import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.CollectionUtil;
@@ -146,7 +145,7 @@ public class GroupsController {
   @Path("/join/{inviteLinkPassword: [^/]*}")
   public CompletableFuture<Response> getGroupJoinInfo(@Auth GroupUser user, @PathParam("inviteLinkPassword") String inviteLinkPasswordString) {
     final byte[] inviteLinkPassword;
-    if (Strings.isNullOrEmpty(inviteLinkPasswordString)) {
+    if (StringUtils.isEmpty(inviteLinkPasswordString)) {
       inviteLinkPassword = null;
     } else {
       inviteLinkPassword = Base64.decodeBase64(inviteLinkPasswordString);
@@ -411,7 +410,7 @@ public class GroupsController {
       @QueryParam("inviteLinkPassword") String inviteLinkPasswordString,
       @NoUnknownFields GroupChange.Actions submittedActions) {
     final byte[] inviteLinkPassword;
-    if (Strings.isNullOrEmpty(inviteLinkPasswordString)) {
+    if (StringUtils.isEmpty(inviteLinkPasswordString)) {
       inviteLinkPassword = null;
     } else {
       inviteLinkPassword = Base64.decodeBase64(inviteLinkPasswordString);
