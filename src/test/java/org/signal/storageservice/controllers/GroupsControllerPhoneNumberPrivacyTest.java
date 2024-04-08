@@ -38,7 +38,7 @@ class GroupsControllerPhoneNumberPrivacyTest extends BaseGroupsControllerTest {
     try (Response response = resources.getJerseyTest()
         .target("/v1/groups/")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_THREE_PNI_AUTH_CREDENTIAL))
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_THREE_AUTH_CREDENTIAL))
         .method("PATCH", Entity.entity(actionsBuilder.build().toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF))) {
 
       verifyGroupModification(groupBuilder, actionsBuilder, 0, response, validUserThreePniId);

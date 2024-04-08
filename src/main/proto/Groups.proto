@@ -246,7 +246,7 @@ message ExternalGroupCredential {
 
 message GroupResponse {
   Group group = 1;
-  bytes group_send_credential_response = 2;
+  bytes group_send_endorsements_response = 2;
 }
 
 message GroupChanges {
@@ -256,10 +256,10 @@ message GroupChanges {
   }
 
   repeated GroupChangeState groupChanges = 1;
-  bytes group_send_credential_response = 2;
+  bytes group_send_endorsements_response = 2;
 }
 
 message GroupChangeResponse {
   GroupChange group_change = 1;
-  bytes group_send_credential_response = 2;
+  bytes group_send_endorsements_response = 2;
 }

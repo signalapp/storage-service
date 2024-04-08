@@ -2751,7 +2751,7 @@ class GroupsControllerV1Test extends BaseGroupsControllerTest {
 
     final ByteString pniCiphertext = ByteString.copyFrom(
         new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams())
-            .createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL)
+            .createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL)
             .getPniCiphertext()
             .serialize());
 
@@ -2796,7 +2796,7 @@ class GroupsControllerV1Test extends BaseGroupsControllerTest {
     Response response = resources.getJerseyTest()
         .target("/v1/groups/")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL))
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
         .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(200);
@@ -2869,7 +2869,7 @@ class GroupsControllerV1Test extends BaseGroupsControllerTest {
 
     final ByteString pniCiphertext = ByteString.copyFrom(
         new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams())
-            .createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL)
+            .createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL)
             .getPniCiphertext()
             .serialize());
 
@@ -3848,7 +3848,7 @@ class GroupsControllerV1Test extends BaseGroupsControllerTest {
 
     final ByteString pniCiphertext = ByteString.copyFrom(
         new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams())
-            .createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL)
+            .createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL)
             .getPniCiphertext()
             .serialize());
 
@@ -3908,7 +3908,7 @@ class GroupsControllerV1Test extends BaseGroupsControllerTest {
     Response response = resources.getJerseyTest()
         .target("/v1/groups/")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL))
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
         .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(200);

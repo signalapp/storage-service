@@ -24,7 +24,7 @@ import org.signal.storageservice.storage.protos.groups.GroupChange;
 import org.signal.storageservice.storage.protos.groups.GroupChanges.GroupChangeState;
 import org.signal.storageservice.storage.protos.groups.Member.Role;
 import org.signal.storageservice.util.AuthHelper;
-import org.signal.libsignal.zkgroup.auth.AuthCredential;
+import org.signal.libsignal.zkgroup.auth.AuthCredentialWithPni;
 
 class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
   @Test
@@ -294,7 +294,7 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
         .get();
   }
 
-  private Response modifyGroup(AuthCredential authCredential, GroupChange.Actions.Builder groupChangeActionsBuilder) {
+  private Response modifyGroup(AuthCredentialWithPni authCredential, GroupChange.Actions.Builder groupChangeActionsBuilder) {
     return resources.getJerseyTest()
         .target("/v1/groups")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)

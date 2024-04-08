@@ -67,13 +67,13 @@ abstract class BaseGroupsControllerTest {
   protected final ProfileKeyCredentialPresentation validUserThreePresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_THREE_PROFILE_CREDENTIAL);
   protected final ProfileKeyCredentialPresentation validUserFourPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_FOUR_PROFILE_CREDENTIAL);
   protected final ByteString validUserId = ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize());
-  protected final ByteString validUserPniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PNI_AUTH_CREDENTIAL).getPniCiphertext().serialize());
+  protected final ByteString validUserPniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL).getPniCiphertext().serialize());
   protected final ByteString validUserTwoId = ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize());
-  protected final ByteString validUserTwoPniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL).getPniCiphertext().serialize());
+  protected final ByteString validUserTwoPniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL).getPniCiphertext().serialize());
   protected final ByteString validUserThreeId = ByteString.copyFrom(validUserThreePresentation.getUuidCiphertext().serialize());
-  protected final ByteString validUserThreePniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_THREE_PNI_AUTH_CREDENTIAL).getPniCiphertext().serialize());
+  protected final ByteString validUserThreePniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_THREE_AUTH_CREDENTIAL).getPniCiphertext().serialize());
   protected final ByteString validUserFourId = ByteString.copyFrom(validUserFourPresentation.getUuidCiphertext().serialize());
-  protected final ByteString validUserFourPniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_FOUR_PNI_AUTH_CREDENTIAL).getPniCiphertext().serialize());
+  protected final ByteString validUserFourPniId = ByteString.copyFrom(new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_FOUR_AUTH_CREDENTIAL).getPniCiphertext().serialize());
   protected final GroupsManager groupsManager = mock(GroupsManager.class);
   protected final TestClock clock = TestClock.pinned(Instant.now());
   protected final PostPolicyGenerator postPolicyGenerator = new PostPolicyGenerator("us-west-1", "profile-bucket", "accessKey");

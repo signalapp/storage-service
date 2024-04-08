@@ -33,7 +33,7 @@ class GroupsControllerMaxSizeTest extends BaseGroupsControllerTest {
   @Override
   protected GroupConfiguration getGroupConfiguration() {
     final GroupConfiguration base = super.getGroupConfiguration();
-    return new GroupConfiguration(2, base.maxGroupTitleLengthBytes(), base.maxGroupDescriptionLengthBytes(), base.externalServiceSecret(), base.groupSendCredentialExpirationTime(), base.groupSendCredentialMinimumLifetime());
+    return new GroupConfiguration(2, base.maxGroupTitleLengthBytes(), base.maxGroupDescriptionLengthBytes(), base.externalServiceSecret(), base.groupSendEndorsementExpirationTime(), base.groupSendEndorsementMinimumLifetime());
   }
 
   @Test

@@ -19,18 +19,18 @@ public record GroupConfiguration(
     @Positive int maxGroupTitleLengthBytes,
     @Positive int maxGroupDescriptionLengthBytes,
     @JsonDeserialize(using = HexByteArrayAdapter.Deserializing.class) @ExactlySize(32) byte[] externalServiceSecret,
-    Duration groupSendCredentialExpirationTime,
-    Duration groupSendCredentialMinimumLifetime) {
+    Duration groupSendEndorsementExpirationTime,
+    Duration groupSendEndorsementMinimumLifetime) {
 
-  public static final Duration DEFAULT_GROUP_SEND_CREDENTIAL_EXPIRATION_INTERVAL = Duration.ofDays(1);
-  public static final Duration DEFAULT_GROUP_SEND_CREDENTIAL_MINIMUM_LIFETIME = Duration.ofHours(2);
+  public static final Duration DEFAULT_GROUP_SEND_ENDORSEMENT_EXPIRATION_INTERVAL = Duration.ofDays(1);
+  public static final Duration DEFAULT_GROUP_SEND_ENDORSEMENT_MINIMUM_LIFETIME = Duration.ofHours(6);
 
   public GroupConfiguration {
-    if (groupSendCredentialExpirationTime == null) {
-      groupSendCredentialExpirationTime = DEFAULT_GROUP_SEND_CREDENTIAL_EXPIRATION_INTERVAL;
+    if (groupSendEndorsementExpirationTime == null) {
+      groupSendEndorsementExpirationTime = DEFAULT_GROUP_SEND_ENDORSEMENT_EXPIRATION_INTERVAL;
     }
-    if (groupSendCredentialMinimumLifetime == null) {
-      groupSendCredentialMinimumLifetime = DEFAULT_GROUP_SEND_CREDENTIAL_MINIMUM_LIFETIME;
+    if (groupSendEndorsementMinimumLifetime == null) {
+      groupSendEndorsementMinimumLifetime = DEFAULT_GROUP_SEND_ENDORSEMENT_MINIMUM_LIFETIME;
     }
   }
 

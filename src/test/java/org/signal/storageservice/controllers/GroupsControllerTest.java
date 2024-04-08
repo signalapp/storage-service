@@ -32,7 +32,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.ws.rs.client.Entity;
@@ -50,9 +49,12 @@ import org.signal.libsignal.zkgroup.VerificationFailedException;
 import org.signal.libsignal.zkgroup.auth.ClientZkAuthOperations;
 import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
 import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
-import org.signal.libsignal.zkgroup.groupsend.GroupSendCredential;
-import org.signal.libsignal.zkgroup.groupsend.GroupSendCredentialPresentation;
-import org.signal.libsignal.zkgroup.groupsend.GroupSendCredentialResponse;
+import org.signal.libsignal.zkgroup.groups.UuidCiphertext;
+import org.signal.libsignal.zkgroup.groupsend.GroupSendDerivedKeyPair;
+import org.signal.libsignal.zkgroup.groupsend.GroupSendEndorsement;
+import org.signal.libsignal.zkgroup.groupsend.GroupSendEndorsementsResponse;
+import org.signal.libsignal.zkgroup.groupsend.GroupSendFullToken;
+import org.signal.libsignal.zkgroup.groupsend.GroupSendEndorsementsResponse.ReceivedEndorsements;
 import org.signal.libsignal.zkgroup.profiles.ClientZkProfileOperations;
 import org.signal.libsignal.zkgroup.profiles.ProfileKeyCredentialPresentation;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;
@@ -137,8 +139,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.getStatus()).isEqualTo(200);
     final GroupResponse responseProto = GroupResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
     assertThat(responseProto.getGroup()).isEqualTo(expected);
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
   }
 
   @Test
@@ -567,8 +569,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
     final GroupResponse actual = GroupResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, actual.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, actual.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
     assertThat(actual.getGroup()).isEqualTo(group);
   }
 
@@ -617,7 +619,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
 
     final GroupResponse actual = GroupResponse.parseFrom(response.readEntity(InputStream.class).readAllBytes());
-    assertThat(actual.getGroupSendCredentialResponse()).isEmpty();
+    assertThat(actual.getGroupSendEndorsementsResponse()).isEmpty();
     assertThat(actual.getGroup()).isEqualTo(group);
   }
 
@@ -958,8 +960,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
   }
 
   @Test
@@ -1202,8 +1204,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
   }
 
   @ParameterizedTest
@@ -1296,8 +1298,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
         new NotarySignature(signedChange.getServerSignature().toByteArray()));
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
   }
 
   @ParameterizedTest
@@ -1389,8 +1391,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
 
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
   }
 
   @ParameterizedTest
@@ -1475,8 +1477,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
 
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
   }
 
   @Test
@@ -1611,8 +1613,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER, List.of(), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -1755,8 +1757,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                           .build())
                                                                              .build())
                           .build());
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
 
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
@@ -1910,8 +1912,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                               .build())
                                                                                  .build())
                               .build());
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -2010,8 +2012,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                                                                               .build())
                                                                                  .build())
                               .build());
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -2248,8 +2250,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions())).isEqualTo(expectedGroupChangeResponseBuilder.build());
-    assertValidSendCredential(
-        AuthHelper.VALID_USER_TWO, List.of(AuthHelper.VALID_USER), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER_TWO, List.of(AuthHelper.VALID_USER), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -2390,7 +2392,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
-    assertValidSendCredential(AuthHelper.VALID_USER, List.of(), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(AuthHelper.VALID_USER, List.of(), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -2581,7 +2583,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
-    assertValidSendCredential(AuthHelper.VALID_USER, List.of(), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(AuthHelper.VALID_USER, List.of(), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -2665,7 +2667,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()));
-    assertThat(responseProto.getGroupSendCredentialResponse()).isEmpty();
+    assertThat(responseProto.getGroupSendEndorsementsResponse()).isEmpty();
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -2824,8 +2826,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()));
-    assertValidSendCredential(
-        AuthHelper.VALID_USER_TWO, List.of(AuthHelper.VALID_USER), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER_TWO, List.of(AuthHelper.VALID_USER), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
         new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -2902,7 +2904,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
     final ByteString pniCiphertext = ByteString.copyFrom(
         new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams())
-            .createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL)
+            .createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL)
             .getPniCiphertext()
             .serialize());
 
@@ -2948,7 +2950,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     Response response = resources.getJerseyTest()
         .target("/v2/groups/")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL))
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
         .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(200);
@@ -3003,8 +3005,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
       assertThat(action.getProfileKey().isEmpty()).isFalse();
     }
 
-    assertValidSendCredential(
-        AuthHelper.VALID_USER_TWO, List.of(AuthHelper.VALID_USER), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER_TWO, List.of(AuthHelper.VALID_USER), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
         new NotarySignature(signedChange.getServerSignature().toByteArray()));
   }
@@ -3024,7 +3026,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
     final ByteString pniCiphertext = ByteString.copyFrom(
         new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams())
-            .createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL)
+            .createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL)
             .getPniCiphertext()
             .serialize());
 
@@ -3152,8 +3154,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -3296,8 +3298,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -3362,8 +3364,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
   }
 
   @ParameterizedTest
-  @MethodSource("sendCredentialTimes")
-  void testGetGroupLogsTest(final Instant issueTime, final Instant lastValidTime) throws Exception {
+  @MethodSource("sendCredentialLogsTimes")
+  void testGetGroupLogsTest(final Instant issueTime, final Instant cachedTime, final Instant lastValidTime) throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
@@ -3463,19 +3465,24 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
     clock.pin(issueTime);
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/logs/1")
-                                 .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-                                 .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
-                                 .get();
+        .target("/v2/groups/logs/1")
+        .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
+        .header("Cached-Send-Endorsements", String.valueOf(cachedTime.getEpochSecond()))
+        .get();
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.hasEntity()).isTrue();
 
     GroupChanges receivedChanges = GroupChanges.parseFrom(response.readEntity(InputStream.class).readAllBytes());
 
-    assertValidSendCredential(
-        AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, receivedChanges.getGroupSendCredentialResponse(), lastValidTime);
-    assertThat(receivedChanges.toBuilder().clearGroupSendCredentialResponse().build())
+    if (lastValidTime != null) {
+      assertValidSendEndorsements(
+          AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, receivedChanges.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
+    } else {
+      assertThat(receivedChanges.getGroupSendEndorsementsResponse()).isEmpty();
+    }
+    assertThat(receivedChanges.toBuilder().clearGroupSendEndorsementsResponse().build())
         .isEqualTo(GroupChanges.newBuilder().addAllGroupChanges(expectedChanges).build());
   }
 
@@ -3524,6 +3531,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .queryParam("limit", "4")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
+        .header("Cached-Send-Endorsements", "0")
         .get();
 
     assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_PARTIAL_CONTENT);
@@ -3581,6 +3589,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .queryParam("maxSupportedChangeEpoch", "0")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
+        .header("Cached-Send-Endorsements", "0")
         .get();
 
     assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_PARTIAL_CONTENT);
@@ -3633,10 +3642,11 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .thenReturn(CompletableFuture.completedFuture(expectedChanges.subList(0, 64)));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/logs/6")
-                                 .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-                                 .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
-                                 .get();
+        .target("/v2/groups/logs/6")
+        .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
+        .header("Cached-Send-Endorsements", "0")
+        .get();
 
     assertThat(response.getStatus()).isEqualTo(HttpStatus.SC_PARTIAL_CONTENT);
     assertThat(response.getHeaderString(HttpHeaders.CONTENT_RANGE)).isEqualTo("versions 6-69/70");
@@ -3681,10 +3691,11 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v2/groups/logs/1")
-                                 .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-                                 .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
-                                 .get();
+        .target("/v2/groups/logs/1")
+        .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
+        .header("Cached-Send-Endorsements", "0")
+        .get();
 
     assertThat(response.getStatus()).isEqualTo(403);
     assertThat(response.hasEntity()).isFalse();
@@ -3942,6 +3953,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .queryParam("includeLastState", "true")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
+        .header("Cached-Send-Endorsements", "0")
         .get();
 
     verify(groupsManager).getChangeRecords(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(group), eq(Integer.valueOf(0)), eq(true), eq(true), eq(0), eq(1));
@@ -3999,7 +4011,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(resultActions.getModifyMemberRolesCount()).as("check only one modify member role action").isEqualTo(1);
     assertThat(resultActions.getModifyMemberRoles(0).getRole()).as("check setting the remaining member to admin").isEqualTo(Role.ADMINISTRATOR);
     assertThat(resultActions.getModifyMemberRoles(0).getUserId()).as("check user id promoted to admin was the remaining group member").isEqualTo(group.getMembers(1).getUserId());
-    assertThat(responseProto.getGroupSendCredentialResponse()).isEmpty();
+    assertThat(responseProto.getGroupSendEndorsementsResponse()).isEmpty();
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
         new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -4021,7 +4033,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
     final ByteString pniCiphertext = ByteString.copyFrom(
         new ClientZkAuthOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams())
-            .createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL)
+            .createAuthCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL)
             .getPniCiphertext()
             .serialize());
 
@@ -4082,7 +4094,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     Response response = resources.getJerseyTest()
         .target("/v2/groups/")
         .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_PNI_AUTH_CREDENTIAL))
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
         .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(200);
@@ -4122,8 +4134,8 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         .build());
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
-    assertValidSendCredential(
-        AuthHelper.VALID_USER_TWO, List.of(AuthHelper.VALID_USER), groupSecretParams, responseProto.getGroupSendCredentialResponse(), lastValidTime);
+    assertValidSendEndorsements(
+        AuthHelper.VALID_USER_TWO, List.of(AuthHelper.VALID_USER), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(aciCipherText);
@@ -4159,22 +4171,49 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
         Arguments.of(Instant.parse("2024-01-17T23:00:00.00Z"), Instant.parse("2024-01-19T00:00:00.00Z")));
   }
 
-  private void assertValidSendCredential(
+  static Stream<Arguments> sendCredentialLogsTimes() {
+    // return values are issue time, cached expiry time, last valid second; last-valid is null if we don't want endorsements
+    return Stream.of(
+        // Issued middle of the UTC day, don't have any yet, expires end of that UTC day
+        Arguments.of(Instant.parse("2024-01-17T12:00:00.00Z"), Instant.ofEpochSecond(0), Instant.parse("2024-01-18T00:00:00.00Z")),
+
+        // Issued middle of the UTC day, have expired endorsements, expires end of that UTC day
+        Arguments.of(Instant.parse("2024-01-17T12:00:00.00Z"), Instant.parse("2024-01-17T00:00:00.00Z"), Instant.parse("2024-01-18T00:00:00.00Z")),
+
+        // Issued middle of the UTC day, have endorsements expiring soon, expires end of that UTC day
+        Arguments.of(Instant.parse("2024-01-17T12:00:00.00Z"), Instant.parse("2024-01-17T10:00:00.00Z"), Instant.parse("2024-01-18T00:00:00.00Z")),
+
+        // Issued middle of the UTC day, have plenty of time, get nothing
+        Arguments.of(Instant.parse("2024-01-17T12:00:00.00Z"), Instant.parse("2024-01-17T22:00:00.00Z"), null),
+
+        // Issued close to the end of the UTC day, don't have any yet, expires end of the *next* UTC day
+        Arguments.of(Instant.parse("2024-01-17T23:00:00.00Z"), Instant.ofEpochSecond(0), Instant.parse("2024-01-19T00:00:00.00Z")),
+
+        // Issued close to the end of the UTC day, have expired endorsements, expires end of the *next* UTC day
+        Arguments.of(Instant.parse("2024-01-17T23:00:00.00Z"), Instant.parse("2024-01-17T00:00:00.00Z"), Instant.parse("2024-01-19T00:00:00.00Z")),
+
+        // Issued close to the end of the UTC day, expiring soon, expires end of the *next* UTC day
+        Arguments.of(Instant.parse("2024-01-17T23:00:00.00Z"), Instant.parse("2024-01-18T04:00:00.00Z"), Instant.parse("2024-01-19T00:00:00.00Z")),
+
+        // Issued close to the end of the UTC day, have plenty of time, get nothing
+        Arguments.of(Instant.parse("2024-01-17T23:00:00.00Z"), Instant.parse("2024-01-18T10:00:00.00Z"), null));
+  }
+
+  private void assertValidSendEndorsements(
       final ServiceId.Aci requester,
       final List<ServiceId> otherMembers,
       final GroupSecretParams groupSecretParams,
       final ByteString serializedCredentialResponse,
+      final Instant issueTime,
       final Instant expectedLastValidTime) throws Exception {
-    final List<ServiceId> allMembers = Stream.concat(Stream.of(requester), otherMembers.stream()).collect(Collectors.toList());
-    final GroupSendCredentialResponse deserializedCredentialResponse =
-        new GroupSendCredentialResponse(serializedCredentialResponse.toByteArray());
-    final GroupSendCredential received = deserializedCredentialResponse.receive(
-        allMembers, requester, expectedLastValidTime, AuthHelper.GROUPS_SERVER_KEY.getPublicParams(), groupSecretParams);
-    final GroupSendCredentialPresentation presentation = received.present(AuthHelper.GROUPS_SERVER_KEY.getPublicParams());
-    presentation.verify(otherMembers, expectedLastValidTime, AuthHelper.GROUPS_SERVER_KEY);
-    assertThrows(
-        VerificationFailedException.class,
-        () -> presentation.verify(otherMembers, expectedLastValidTime.plus(Duration.ofSeconds(1)), AuthHelper.GROUPS_SERVER_KEY));
+    final List<ServiceId> allMembers = Stream.concat(Stream.of(requester), otherMembers.stream()).toList();
+    final GroupSendEndorsementsResponse deserializedCredentialResponse =
+        new GroupSendEndorsementsResponse(serializedCredentialResponse.toByteArray());
+    final ReceivedEndorsements received = deserializedCredentialResponse.receive(
+        allMembers, requester, issueTime, groupSecretParams, AuthHelper.GROUPS_SERVER_KEY.getPublicParams());
+    assertThat(deserializedCredentialResponse.getExpiration()).isEqualTo(expectedLastValidTime);
+    final GroupSendFullToken token = received.combinedEndorsement().toFullToken(groupSecretParams, expectedLastValidTime);
+    token.verify(otherMembers, expectedLastValidTime, GroupSendDerivedKeyPair.forExpiration(expectedLastValidTime, AuthHelper.GROUPS_SERVER_KEY));
   }
 
 }

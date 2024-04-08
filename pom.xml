@@ -104,7 +104,7 @@
         <dependency>
             <groupId>org.signal</groupId>
             <artifactId>libsignal-server</artifactId>
-            <version>0.37.0</version>
+            <version>0.44.0</version>
         </dependency>
         <dependency>
             <groupId>net.logstash.logback</groupId>

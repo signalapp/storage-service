@@ -8,6 +8,7 @@ package org.signal.storageservice.controllers;
 import com.codahale.metrics.annotation.Timed;
 import io.dropwizard.auth.Auth;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.Consumes;
@@ -72,15 +73,16 @@ public class GroupsV1Controller extends GroupsController {
   public CompletableFuture<Response> getGroupLogs(
       @Auth GroupUser user,
       @HeaderParam(javax.ws.rs.core.HttpHeaders.USER_AGENT) String userAgent,
+      @HeaderParam("Cached-Send-Endorsements") Long ignored_usedByV2Only,
       @PathParam("fromVersion") int fromVersion,
       @QueryParam("limit") @DefaultValue("64") int limit,
       @QueryParam("maxSupportedChangeEpoch") Optional<Integer> maxSupportedChangeEpoch,
       @QueryParam("includeFirstState") boolean includeFirstState,
       @QueryParam("includeLastState") boolean includeLastState) {
-    return super.getGroupLogs(user, userAgent, fromVersion, limit, maxSupportedChangeEpoch, includeFirstState, includeLastState)
+    return super.getGroupLogs(user, userAgent, Instant.now().getEpochSecond(), fromVersion, limit, maxSupportedChangeEpoch, includeFirstState, includeLastState)
         .thenApply(response -> {
               if (response.getEntity() instanceof final GroupChanges gc) {
-                return Response.fromResponse(response).entity(gc.toBuilder().clearGroupSendCredentialResponse().build()).build();
+                return Response.fromResponse(response).entity(gc.toBuilder().clearGroupSendEndorsementsResponse().build()).build();
               }
               return response;
             });

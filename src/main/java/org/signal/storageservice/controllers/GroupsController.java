@@ -10,6 +10,7 @@ import static com.codahale.metrics.MetricRegistry.name;
 import com.codahale.metrics.annotation.Timed;
 import com.google.common.net.HttpHeaders;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.InvalidProtocolBufferException;
 import io.dropwizard.auth.Auth;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Metrics;
@@ -22,6 +23,7 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.HexFormat;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -48,7 +50,8 @@ import org.signal.libsignal.zkgroup.InvalidInputException;
 import org.signal.libsignal.zkgroup.NotarySignature;
 import org.signal.libsignal.zkgroup.ServerSecretParams;
 import org.signal.libsignal.zkgroup.groups.UuidCiphertext;
-import org.signal.libsignal.zkgroup.groupsend.GroupSendCredentialResponse;
+import org.signal.libsignal.zkgroup.groupsend.GroupSendDerivedKeyPair;
+import org.signal.libsignal.zkgroup.groupsend.GroupSendEndorsementsResponse;
 import org.signal.libsignal.zkgroup.profiles.ServerZkProfileOperations;
 import org.signal.storageservice.auth.ExternalGroupCredentialGenerator;
 import org.signal.storageservice.auth.GroupUser;
@@ -68,6 +71,7 @@ import org.signal.storageservice.storage.protos.groups.ExternalGroupCredential;
 import org.signal.storageservice.storage.protos.groups.Group;
 import org.signal.storageservice.storage.protos.groups.GroupChange;
 import org.signal.storageservice.storage.protos.groups.GroupChange.Actions;
+import org.signal.storageservice.storage.protos.groups.GroupChanges.GroupChangeState;
 import org.signal.storageservice.storage.protos.groups.GroupChangeResponse;
 import org.signal.storageservice.storage.protos.groups.GroupChanges;
 import org.signal.storageservice.storage.protos.groups.GroupJoinInfo;
@@ -76,6 +80,8 @@ import org.signal.storageservice.storage.protos.groups.Member;
 import org.signal.storageservice.storage.protos.groups.MemberPendingProfileKey;
 import org.signal.storageservice.util.CollectionUtil;
 import org.signal.storageservice.util.Pair;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Path("/v2/groups")
 public class GroupsController {
@@ -99,6 +105,8 @@ public class GroupsController {
   private final PostPolicyGenerator policyGenerator;
 
   private final ExternalGroupCredentialGenerator externalGroupCredentialGenerator;
+
+  private static final Logger logger = LoggerFactory.getLogger(GroupsController.class);
 
   public GroupsController(
       Clock clock,
@@ -128,10 +136,12 @@ public class GroupsController {
         return Response.status(Response.Status.NOT_FOUND).build();
       }
 
-      if (GroupAuth.isMember(user, group.get()) || GroupAuth.isMemberPendingProfileKey(user, group.get())) {
+      final boolean fullMember = GroupAuth.isMember(user, group.get());
+      if (fullMember || GroupAuth.isMemberPendingProfileKey(user, group.get())) {
         final GroupResponse.Builder responseBuilder = GroupResponse.newBuilder().setGroup(group.get());
-        getSerializedGroupSendCredentialIfMember(group.get(), user)
-            .ifPresent(responseBuilder::setGroupSendCredentialResponse);
+        if (fullMember) {
+          responseBuilder.setGroupSendEndorsementsResponse(getSerializedGroupSendEndorsements(group.get()));
+        }
         return Response.ok(responseBuilder.build()).build();
       } else  {
         return Response.status(Response.Status.FORBIDDEN).build();
@@ -216,11 +226,20 @@ public class GroupsController {
   public CompletableFuture<Response> getGroupLogs(
       @Auth GroupUser user,
       @HeaderParam(javax.ws.rs.core.HttpHeaders.USER_AGENT) String userAgent,
+      @HeaderParam("Cached-Send-Endorsements") Long cachedSendEndorsementsExpiration,
       @PathParam("fromVersion") int fromVersion,
       @QueryParam("limit") @DefaultValue("64") int limit,
       @QueryParam("maxSupportedChangeEpoch") Optional<Integer> maxSupportedChangeEpoch,
       @QueryParam("includeFirstState") boolean includeFirstState,
       @QueryParam("includeLastState") boolean includeLastState) {
+    if (cachedSendEndorsementsExpiration == null) {
+      // we can't just use @NotNull yet because /v1/groups/logs/{fromVersion}, implemented by
+      // GroupsV1Controller which subclasses this class, doesn't require (or indeed expect) the
+      // Cached-Send-Endorsements header.
+      return CompletableFuture.completedFuture(Response.status(Response.Status.BAD_REQUEST).build());
+    }
+    final Duration cachedSendEndorsementsTtl = Duration.between(clock.instant(), Instant.ofEpochSecond(cachedSendEndorsementsExpiration));
+
     return groupsManager.getGroup(user.getGroupId()).thenCompose(group -> {
       if (group.isEmpty()) {
         return CompletableFuture.completedFuture(Response.status(Response.Status.NOT_FOUND).build());
@@ -244,37 +263,70 @@ public class GroupsController {
       final int logVersionLimit = Math.max(1, Math.min(limit, LOG_VERSION_LIMIT)); // 1 ≤ limit ≤ LOG_VERSION_LIMIT
       if (latestGroupVersion + 1 - fromVersion > logVersionLimit) {
         return groupsManager.getChangeRecords(user.getGroupId(), group.get(), maxSupportedChangeEpoch.orElse(null), includeFirstState, includeLastState, fromVersion, fromVersion + logVersionLimit)
-                            .thenApply(records -> {
-                              final GroupChanges groupChanges = GroupChanges.newBuilder()
-                                  .addAllGroupChanges(records)
-                                  .build();
+            .thenApply(records -> {
+                  final GroupChanges groupChanges = GroupChanges.newBuilder()
+                      .addAllGroupChanges(records)
+                      .build();
 
-                              distributionSummary(LOG_SIZE_BYTES_DISTRIBUTION_SUMMARY_NAME, userAgent)
-                                  .record(groupChanges.getSerializedSize());
+                  // We don't include group send endorsements on non-final pages of
+                  // logs. However we also don't pass any kind of state back to the
+                  // client for them to send to us on the request for the next page.
+                  // This means that when sending the last page of results, we won't
+                  // know if there were membership changes in the first pages. Therefore
+                  // clients must, if they get back partial logs results, send back a
+                  // zero Cached-Send-Endorsements time for subsequent requests, so that
+                  // we *always* send back a new endorsement on the last page of a
+                  // multi-page logs fetch.
 
-                              return Response.status(Response.Status.PARTIAL_CONTENT)
-                                                            .header(HttpHeaders.CONTENT_RANGE, String.format(Locale.US, "versions %d-%d/%d", fromVersion, fromVersion + logVersionLimit - 1, latestGroupVersion))
-                                                            .entity(groupChanges)
-                                                            .build();
-                            });
+                  return Response.status(Response.Status.PARTIAL_CONTENT)
+                      .header(HttpHeaders.CONTENT_RANGE, String.format(Locale.US, "versions %d-%d/%d", fromVersion, fromVersion + logVersionLimit - 1, latestGroupVersion))
+                      .entity(groupChanges)
+                      .build();
+                });
       } else {
         return groupsManager.getChangeRecords(user.getGroupId(), group.get(), maxSupportedChangeEpoch.orElse(null), includeFirstState, includeLastState, fromVersion, latestGroupVersion + 1)
                             .thenApply(records -> {
                               final GroupChanges.Builder groupChangesBuilder = GroupChanges.newBuilder()
                                   .addAllGroupChanges(records);
 
-                              getSerializedGroupSendCredentialIfMember(group.get(), user)
-                                  .ifPresent(groupChangesBuilder::setGroupSendCredentialResponse);
+                              if (cachedSendEndorsementsTtl.compareTo(groupConfiguration.groupSendEndorsementMinimumLifetime()) < 0 ||
+                                  hasAnyMembershipChanges(user.getGroupId(), records)) {
+                                groupChangesBuilder.setGroupSendEndorsementsResponse(getSerializedGroupSendEndorsements(group.get()));
+                              }
 
-                              final GroupChanges groupChanges = groupChangesBuilder.build();
-
-                              distributionSummary(LOG_SIZE_BYTES_DISTRIBUTION_SUMMARY_NAME, userAgent)
-                                  .record(groupChanges.getSerializedSize());
-
-                              return Response.ok(groupChanges).build();
+                              return Response.ok(groupChangesBuilder.build()).build();
                             });
       }
-    });
+    }).thenApply(resp -> {
+          distributionSummary(LOG_SIZE_BYTES_DISTRIBUTION_SUMMARY_NAME, userAgent)
+              .record(resp.getLength());
+          return resp;
+        });
+  }
+
+  private static boolean hasAnyMembershipChanges(ByteString groupId, Iterable<GroupChangeState> records) {
+    for (GroupChangeState groupChangeState : records) {
+      try {
+        GroupChange.Actions actions = GroupChange.Actions.parseFrom(groupChangeState.getGroupChange().getActions());
+        if (actions.getAddMembersCount() > 0 ||
+            actions.getDeleteMembersCount() > 0 ||
+            actions.getPromoteMembersPendingProfileKeyCount() > 0 ||
+            actions.getPromoteMembersPendingAdminApprovalCount() > 0 ||
+            actions.getPromoteMembersPendingPniAciProfileKeyCount() > 0) {
+          // We could try to be clever and keep track of the added and removed members across all
+          // changes in the list to see whether the net effect is nonzero, but it's probably not
+          // worth the effort.
+          return true;
+        }
+      } catch (InvalidProtocolBufferException e) {
+        // this should never happen, but if it does, be conservative and assume we had a membership
+        // change rather than 500ing, since unparseable state in the group table isn't something
+        // that will go away
+        logger.error("unparseable protocol buffer in group change logs for group %s", HexFormat.of().formatHex(groupId.toByteArray()));
+        return true;
+      }
+    }
+    return false;
   }
 
   private static DistributionSummary distributionSummary(final String name, final String userAgent) {
@@ -391,10 +443,12 @@ public class GroupsController {
             }).thenApply(
                 result -> {
                   if (result) {
-                    final GroupResponse.Builder responseBuilder = GroupResponse.newBuilder().setGroup(validatedGroup);
-                    getSerializedGroupSendCredentialIfMember(validatedGroup, user)
-                        .ifPresent(responseBuilder::setGroupSendCredentialResponse);
-                    return Response.ok(responseBuilder.build()).build();
+                    return Response.ok(
+                        GroupResponse.newBuilder()
+                            .setGroup(validatedGroup)
+                            .setGroupSendEndorsementsResponse(getSerializedGroupSendEndorsements(validatedGroup))
+                            .build())
+                        .build();
                   } else {
                     return Response.status(Response.Status.CONFLICT).build();
                   }
@@ -531,8 +585,10 @@ public class GroupsController {
 
                 final GroupChangeResponse.Builder responseBuilder =
                     GroupChangeResponse.newBuilder().setGroupChange(signedGroupChange);
-                getSerializedGroupSendCredentialIfMember(updatedGroupState, user)
-                    .ifPresent(responseBuilder::setGroupSendCredentialResponse);
+                // the change might have made the requester no longer a member of the group, so check that before sending GSEs
+                if (GroupAuth.isMember(user, updatedGroupState)) {
+                  responseBuilder.setGroupSendEndorsementsResponse(getSerializedGroupSendEndorsements(updatedGroupState));
+                }
                 final GroupChangeResponse response = responseBuilder.build();
                 return groupsManager.appendChangeRecord(
                     user.getGroupId(), version, signedGroupChange, updatedGroupState)
@@ -565,25 +621,21 @@ public class GroupsController {
     });
   }
 
-  // Returns a serialized GroupSendCredentialResponse for the user in this group, if the user is a
-  // member, and nothing otherwise (which is normal: some endpoints that would normally attach a
-  // send credential can legitimately be accessed by group nonmembers (or people may become
-  // nonmembers as a result of handling the request, e.g. a modify-group request to leave the
-  // group).
-  private Optional<ByteString> getSerializedGroupSendCredentialIfMember(Group group, GroupUser user) {
-    final Instant expiration = getSendCredentialExpirationTime();
+  // Returns a serialized GroupSendEndorsementsResponse for this group.
+  private ByteString getSerializedGroupSendEndorsements(Group group) {
+    final Instant expiration = getSendEndorsementsExpirationTime();
 
-    return GroupAuth.getMember(user, group).map(
-        requestingMember ->
-            ByteString.copyFrom(
-                GroupSendCredentialResponse
-                    .issueCredential(
-                        group.getMembersList().stream().map(GroupsController::uuidCiphertext).collect(Collectors.toList()),
-                        uuidCiphertext(requestingMember),
-                        expiration,
-                        serverSecretParams,
-                        new SecureRandom())
-                    .serialize()));
+    // optimization note: this could be memoized if it ends up notable on profiles; it depends only
+    // on the current time and our long-lived secrets
+    final GroupSendDerivedKeyPair keyPair = GroupSendDerivedKeyPair.forExpiration(expiration, serverSecretParams);
+
+    return ByteString.copyFrom(
+        GroupSendEndorsementsResponse
+            .issue(
+                group.getMembersList().stream().map(GroupsController::uuidCiphertext).collect(Collectors.toList()),
+                keyPair,
+                new SecureRandom())
+            .serialize());
   }
 
   private static UuidCiphertext uuidCiphertext(Member member) {
@@ -595,13 +647,13 @@ public class GroupsController {
     }
   }
 
-  private Instant getSendCredentialExpirationTime() {
+  private Instant getSendEndorsementsExpirationTime() {
     final Instant now = clock.instant();
 
     // We must truncate to a day boundary or libsignal will reject the credential to prevent fingerprinting
-    final Instant expiration = now.plus(groupConfiguration.groupSendCredentialExpirationTime()).truncatedTo(ChronoUnit.DAYS);
+    final Instant expiration = now.plus(groupConfiguration.groupSendEndorsementExpirationTime()).truncatedTo(ChronoUnit.DAYS);
 
-    if (Duration.between(now, expiration).compareTo(groupConfiguration.groupSendCredentialMinimumLifetime()) < 0) {
+    if (Duration.between(now, expiration).compareTo(groupConfiguration.groupSendEndorsementMinimumLifetime()) < 0) {
       // We're close enough to the end of the UTC day that we would issue a uselessly short send
       // credential; extend it by a full day so we're still day-boundary-aligned
       return expiration.plus(Duration.ofDays(1));
