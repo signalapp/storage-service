@@ -40,7 +40,7 @@
             <dependency>
                 <groupId>com.google.cloud</groupId>
                 <artifactId>libraries-bom</artifactId>
-                <version>26.42.0</version>
+                <version>26.47.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -90,6 +90,13 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-bigtable</artifactId>
+            <exclusions>
+                <exclusion>
+                    <!-- may be removed once Google libraries-bom includes 3.25.5+ -->
+                    <groupId>com.google.protobuf</groupId>
+                    <artifactId>protobuf-java</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>commons-codec</groupId>
@@ -145,6 +152,7 @@
         <dependency>
             <groupId>com.google.protobuf</groupId>
             <artifactId>protobuf-java</artifactId>
+            <version>3.25.5</version>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
