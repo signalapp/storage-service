@@ -42,6 +42,16 @@ public class StorageManifestsTable extends Table {
     super(client, tableId);
   }
 
+  /**
+   * Updates the {@link StorageManifest} for the given user. The update is applied if and only if no manifest exists for
+   * the given user <em>or</em> the given {@code manifest}'s version is exactly one greater than the version of the
+   * existing manifest.
+   *
+   * @param user the user for whom to store an updated manifest
+   * @param manifest the updated manifest to store
+   *
+   * @return a future that yields {@code true} if the manifest was updated or {@code false} otherwise
+   */
   public CompletableFuture<Boolean> set(User user, StorageManifest manifest) {
     Mutation updateManifestMutation = Mutation.create()
                                               .setCell(FAMILY, COLUMN_VERSION, 0, String.valueOf(manifest.getVersion()))

@@ -29,12 +29,31 @@ public class StorageManager {
     this.itemsTable     = new StorageItemsTable(client, contactsTableId);
   }
 
+  /**
+   * Updates a manifest and applies mutations to stored items.
+   *
+   * @param user the user for whom to update manifests and mutate stored items
+   * @param manifest the new manifest to store
+   * @param inserts a list of new items to store
+   * @param deletes a list of item identifiers to delete
+   *
+   * @return a future that completes when all updates and mutations have been applied; the future yields an empty value
+   * if all updates and mutations were applied successfully, or the latest stored version of the {@code StorageManifest}
+   * if the given {@code manifest}'s version is not exactly one version ahead of the stored manifest
+   *
+   * @see StorageManifestsTable#set(User, StorageManifest)
+   */
   public CompletableFuture<Optional<StorageManifest>> set(User user, StorageManifest manifest, List<StorageItem> inserts, List<ByteString> deletes) {
     return manifestsTable.set(user, manifest)
-                         .thenCompose(updated -> {
-                           if (updated) {
-                             return itemsTable.set(user, inserts, deletes).thenApply(nothing -> Optional.empty());
+                         .thenCompose(manifestUpdated -> {
+                           if (manifestUpdated) {
+                             return inserts.isEmpty() && deletes.isEmpty()
+                                 ? CompletableFuture.completedFuture(Optional.empty())
+                                 : itemsTable.set(user, inserts, deletes).thenApply(nothing -> Optional.empty());
                            } else {
+                             // The new manifest's version wasn't the expected value, and it's likely that the manifest
+                             // was updated by a separate thread/process. Return a copy of the most recent stored
+                             // manifest.
                              return getManifest(user).thenApply(retrieved -> Optional.of(retrieved.orElseThrow()));
                            }
                          });

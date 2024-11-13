@@ -6,10 +6,10 @@
 package org.signal.storageservice.storage;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -21,6 +21,7 @@ import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
+import com.google.cloud.bigtable.data.v2.models.TableId;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
@@ -28,8 +29,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
 import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
@@ -285,18 +286,14 @@ class GroupsManagerTest {
   @Test
   void testReadError() {
     BigtableDataClient client = mock(BigtableDataClient.class);
-    when(client.readRowAsync(anyString(), any(ByteString.class))).thenReturn(ApiFutures.immediateFailedFuture(new RuntimeException("Bad news")));
+    when(client.readRowAsync(any(TableId.class), any(ByteString.class)))
+        .thenReturn(ApiFutures.immediateFailedFuture(new RuntimeException("Bad news")));
 
     GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
 
-    try {
-      groupsManager.getGroup(ByteString.copyFrom(new byte[16])).get();
-      throw new AssertionError();
-    } catch (InterruptedException e) {
-      throw new AssertionError(e);
-    } catch (ExecutionException e) {
-      assertThat(e.getCause().getMessage()).isEqualTo("Bad news");
-    }
+    assertThatThrownBy(() -> groupsManager.getGroup(ByteString.copyFrom(new byte[16])).get())
+        .isInstanceOf(ExecutionException.class)
+        .hasRootCauseMessage("Bad news");
   }
 
   @Test

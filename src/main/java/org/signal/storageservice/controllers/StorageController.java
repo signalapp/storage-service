@@ -89,15 +89,11 @@ public class StorageController {
       return CompletableFuture.failedFuture(new WebApplicationException(Status.REQUEST_ENTITY_TOO_LARGE));
     }
 
-    CompletableFuture<Void> future;
+    final CompletableFuture<Void> clearAllFuture = writeOperation.getClearAll()
+        ? storageManager.clearItems(user)
+        : CompletableFuture.completedFuture(null);
 
-    if (writeOperation.getClearAll()) {
-      future = storageManager.clearItems(user);
-    } else {
-      future = CompletableFuture.completedFuture(null);
-    }
-
-    return future.thenCompose(ignored -> storageManager.set(user, writeOperation.getManifest(), writeOperation.getInsertItemList(), writeOperation.getDeleteKeyList()))
+    return clearAllFuture.thenCompose(ignored -> storageManager.set(user, writeOperation.getManifest(), writeOperation.getInsertItemList(), writeOperation.getDeleteKeyList()))
                  .thenApply(manifest -> {
                    if (manifest.isPresent())
                      return Response.status(409).entity(manifest.get()).build();

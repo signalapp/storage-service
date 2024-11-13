@@ -6,12 +6,12 @@
 package org.signal.storageservice.storage;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
+import static org.assertj.core.api.AssertionsForClassTypes.assertThatThrownBy;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -28,8 +28,10 @@ import com.google.cloud.bigtable.data.v2.models.Query;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
+import com.google.cloud.bigtable.data.v2.models.TableId;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -141,21 +143,16 @@ class StorageManagerTest {
   @Test
   void testReadError() {
     BigtableDataClient client = mock(BigtableDataClient.class);
-    when(client.readRowAsync(anyString(), any(ByteString.class))).thenReturn(
+    when(client.readRowAsync(any(TableId.class), any(ByteString.class))).thenReturn(
         ApiFutures.immediateFailedFuture(new RuntimeException("Bad news")));
 
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
     StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
 
-    try {
-      contactsManager.getManifest(user).get();
-      throw new AssertionError();
-    } catch (InterruptedException e) {
-      throw new AssertionError(e);
-    } catch (ExecutionException e) {
-      assertThat(e.getCause().getMessage()).isEqualTo("Bad news");
-    }
+    assertThatThrownBy(() -> contactsManager.getManifest(user).get())
+        .isInstanceOf(ExecutionException.class)
+        .hasRootCauseMessage("Bad news");
   }
 
   @Test
@@ -287,6 +284,20 @@ class StorageManagerTest {
     assertThat(contacts.size()).isEqualTo(1);
     assertThat(contacts.get(0).getKey().toStringUtf8()).isEqualTo("updatedkey");
     assertThat(contacts.get(0).getValue().toStringUtf8()).isEqualTo("updatedvalue");
+  }
+
+  @Test
+  void testSetNoMutations() {
+    final User user = new User(UUID.randomUUID());
+    final StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+
+    final StorageManifest manifest = StorageManifest.newBuilder()
+        .setVersion(1)
+        .setValue(ByteString.copyFromUtf8("A manifest"))
+        .build();
+
+    assertTrue(contactsManager.set(user, manifest, Collections.emptyList(), Collections.emptyList()).join().isEmpty());
+    assertEquals(Optional.of(manifest), contactsManager.getManifest(user).join());
   }
 
   @Test
