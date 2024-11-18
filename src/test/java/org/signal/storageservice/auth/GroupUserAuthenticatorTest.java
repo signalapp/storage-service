@@ -57,7 +57,7 @@ class GroupUserAuthenticatorTest {
     final ServerZkAuthOperations serverZkAuthOperations = new ServerZkAuthOperations(SERVER_SECRET_PARAMS);
     final ClientZkAuthOperations clientZkAuthOperations = new ClientZkAuthOperations(SERVER_SECRET_PARAMS.getPublicParams());
 
-    final AuthCredentialWithPniResponse authCredentialWithPniResponse = serverZkAuthOperations.issueAuthCredentialWithPniAsServiceId(aci, pni, redemptionInstant);
+    final AuthCredentialWithPniResponse authCredentialWithPniResponse = serverZkAuthOperations.issueAuthCredentialWithPniZkc(aci, pni, redemptionInstant);
     final AuthCredentialWithPni authCredentialWithPni = clientZkAuthOperations.receiveAuthCredentialWithPniAsServiceId(aci, pni, redemptionInstant.getEpochSecond(), authCredentialWithPniResponse);
     final AuthCredentialPresentation authCredentialPresentation = clientZkAuthOperations.createAuthCredentialPresentation(GROUP_SECRET_PARAMS, authCredentialWithPni);
 
