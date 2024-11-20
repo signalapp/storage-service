@@ -478,7 +478,12 @@ public class GroupsController {
         return CompletableFuture.completedFuture(Response.status(Response.Status.CONFLICT).entity(group.get()).build());
       }
 
+      if (!submittedActions.getGroupId().isEmpty()) {
+        throw new BadRequestException("requested actions must not set group id");
+      }
+
       Actions actions = submittedActions.toBuilder()
+                                        .setGroupId(user.getGroupId())
                                         .clearAddMembers()
                                         .addAllAddMembers(groupValidator.validateAddMember(user, inviteLinkPassword, group.get(), submittedActions.getAddMembersList()))
                                         .clearAddMembersPendingProfileKey()

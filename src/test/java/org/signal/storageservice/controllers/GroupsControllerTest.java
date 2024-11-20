@@ -954,9 +954,10 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                      .build()).isEqualTo(group);
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
+    assertThat(Actions.parseFrom(signedChange.getActions()).getGroupId()).isEqualTo(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
-    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
+    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearGroupId().clearSourceUuid().build()).isEqualTo(groupChange);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -1198,9 +1199,10 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
     assertThat(signedChange.getChangeEpoch()).isEqualTo(2);
+    assertThat(Actions.parseFrom(signedChange.getActions()).getGroupId()).isEqualTo(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
-    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
+    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearGroupId().clearSourceUuid().build()).isEqualTo(groupChange);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -1292,9 +1294,10 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
     assertThat(signedChange.getChangeEpoch()).isEqualTo(3);
+    assertThat(Actions.parseFrom(signedChange.getActions()).getGroupId()).isEqualTo(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
-    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
+    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearGroupId().clearSourceUuid().build()).isEqualTo(groupChange);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
         new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -1384,9 +1387,10 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                      .build()).isEqualTo(group);
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
+    assertThat(Actions.parseFrom(signedChange.getActions()).getGroupId()).isEqualTo(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(2);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
-    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
+    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearGroupId().clearSourceUuid().build()).isEqualTo(groupChange);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -1470,9 +1474,10 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                      .build()).isEqualTo(group);
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
+    assertThat(Actions.parseFrom(signedChange.getActions()).getGroupId()).isEqualTo(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
-    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
+    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearGroupId().clearSourceUuid().build()).isEqualTo(groupChange);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));
@@ -1525,6 +1530,58 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                  .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(403);
+
+    verify(groupsManager).getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())));
+    verifyNoMoreInteractions(groupsManager);
+  }
+
+  @Test
+  void testModifyGroupWithGroupId() {
+    GroupSecretParams groupSecretParams = GroupSecretParams.generate();
+    GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
+
+    ProfileKeyCredentialPresentation validUserPresentation    = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL    );
+    ProfileKeyCredentialPresentation validUserTwoPresentation = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
+
+    Group group = Group.newBuilder()
+        .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
+        .setAccessControl(AccessControl.newBuilder()
+            .setMembers(AccessControl.AccessRequired.MEMBER)
+            .setAttributes(AccessControl.AccessRequired.MEMBER))
+        .setTitle(ByteString.copyFromUtf8("Some title"))
+        .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
+        .setVersion(0)
+        .addMembers(Member.newBuilder()
+            .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
+            .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
+            .setRole(Member.Role.ADMINISTRATOR)
+            .build())
+        .addMembers(Member.newBuilder()
+            .setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
+            .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
+            .setRole(Member.Role.DEFAULT)
+            .build())
+        .build();
+
+
+    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
+        .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
+
+    GroupChange.Actions groupChange = Actions.newBuilder()
+        .setVersion(1)
+        .setModifyTitle(ModifyTitleAction.newBuilder()
+            .setTitle(ByteString.copyFromUtf8("Another title")))
+        .setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))
+        .build();
+
+    try (Response response = resources.getJerseyTest()
+        .target("/v2/groups/")
+        .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
+        .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF))) {
+
+      assertThat(response.getStatus()).isEqualTo(400);
+    }
 
     verify(groupsManager).getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())));
     verifyNoMoreInteractions(groupsManager);
@@ -1610,9 +1667,10 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                      .build()).isEqualTo(group);
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
+    assertThat(Actions.parseFrom(signedChange.getActions()).getGroupId()).isEqualTo(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
-    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
+    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearGroupId().clearSourceUuid().build()).isEqualTo(groupChange);
     assertValidSendEndorsements(
         AuthHelper.VALID_USER, List.of(), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
 
@@ -1747,10 +1805,11 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                      .build()).isEqualTo(group);
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
+    assertThat(Actions.parseFrom(signedChange.getActions()).getGroupId()).isEqualTo(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
 
-    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearVersion().clearSourceUuid().build())
+    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearGroupId().clearVersion().clearSourceUuid().build())
         .isEqualTo(Actions.newBuilder().addAddMembers(Actions.AddMemberAction.newBuilder().setAdded(Member.newBuilder().setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
                                                                                                           .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
                                                                                                           .setRole(Member.Role.DEFAULT)
@@ -1902,10 +1961,11 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                      .build()).isEqualTo(group);
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
+    assertThat(Actions.parseFrom(signedChange.getActions()).getGroupId()).isEqualTo(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
 
-    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearVersion().clearSourceUuid().build())
+    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearGroupId().clearVersion().clearSourceUuid().build())
             .isEqualTo(Actions.newBuilder().addAddMembers(Actions.AddMemberAction.newBuilder().setAdded(Member.newBuilder().setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
                                                                                                               .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
                                                                                                               .setRole(Member.Role.DEFAULT)
@@ -2002,10 +2062,11 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                      .build()).isEqualTo(group);
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
+    assertThat(Actions.parseFrom(signedChange.getActions()).getGroupId()).isEqualTo(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
 
-    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearVersion().clearSourceUuid().build())
+    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearGroupId().clearVersion().clearSourceUuid().build())
             .isEqualTo(Actions.newBuilder().addAddMembers(Actions.AddMemberAction.newBuilder().setAdded(Member.newBuilder().setUserId(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()))
                                                                                                               .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
                                                                                                               .setRole(Member.Role.DEFAULT)
@@ -2211,6 +2272,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                                                          .build();
 
     GroupChange.Actions.Builder expectedGroupChangeResponseBuilder = groupChange.toBuilder()
+        .setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))
         .setSourceUuid(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()));
     expectedGroupChangeResponseBuilder.getModifyMemberProfileKeysBuilder(0)
         .setUserId(ByteString.copyFrom(validUserTwoPresentationUpdate.getUuidCiphertext().serialize()))
@@ -2247,6 +2309,7 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                      .build()).isEqualTo(group);
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
+    assertThat(Actions.parseFrom(signedChange.getActions()).getGroupId()).isEqualTo(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions())).isEqualTo(expectedGroupChangeResponseBuilder.build());
@@ -3151,9 +3214,10 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                      .build()).isEqualTo(group);
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
+    assertThat(Actions.parseFrom(signedChange.getActions()).getGroupId()).isEqualTo(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
-    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
+    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearGroupId().clearSourceUuid().build()).isEqualTo(groupChange);
     assertValidSendEndorsements(
         AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
 
@@ -3295,9 +3359,10 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
                      .build()).isEqualTo(group);
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
+    assertThat(Actions.parseFrom(signedChange.getActions()).getGroupId()).isEqualTo(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
-    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
+    assertThat(Actions.parseFrom(signedChange.getActions()).toBuilder().clearGroupId().clearSourceUuid().build()).isEqualTo(groupChange);
     assertValidSendEndorsements(
         AuthHelper.VALID_USER, List.of(AuthHelper.VALID_USER_TWO), groupSecretParams, responseProto.getGroupSendEndorsementsResponse(), issueTime, lastValidTime);
 
@@ -4004,10 +4069,11 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
     assertThat(signedChange).as("check returned change matches the saved change").isEqualTo(changeCaptor.getValue());
 
     Actions resultActions = Actions.parseFrom(signedChange.getActions());
+    assertThat(resultActions.getGroupId()).as("check group id").isEqualTo(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(resultActions.getVersion()).as("check change version").isEqualTo(1);
     assertThat(resultActions.getSourceUuid()).as("check source of the change is correct").isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
-    assertThat(resultActions.toBuilder().clearSourceUuid().build()).as("check that the actions were modified from the input").isNotEqualTo(actions);
-    assertThat(resultActions.toBuilder().clearSourceUuid().clearModifyMemberRoles().build()).as("check that the actions were modified by adding modify member roles").isEqualTo(actions);
+    assertThat(resultActions.toBuilder().clearGroupId().clearSourceUuid().build()).as("check that the actions were modified from the input").isNotEqualTo(actions);
+    assertThat(resultActions.toBuilder().clearGroupId().clearSourceUuid().clearModifyMemberRoles().build()).as("check that the actions were modified by adding modify member roles").isEqualTo(actions);
     assertThat(resultActions.getModifyMemberRolesCount()).as("check only one modify member role action").isEqualTo(1);
     assertThat(resultActions.getModifyMemberRoles(0).getRole()).as("check setting the remaining member to admin").isEqualTo(Role.ADMINISTRATOR);
     assertThat(resultActions.getModifyMemberRoles(0).getUserId()).as("check user id promoted to admin was the remaining group member").isEqualTo(group.getMembers(1).getUserId());

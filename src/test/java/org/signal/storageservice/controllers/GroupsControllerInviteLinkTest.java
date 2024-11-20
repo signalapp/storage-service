@@ -84,9 +84,10 @@ class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
             .isEqualTo(group);
 
     assertThat(signedChange).isEqualTo(changeCaptor.getValue());
+    assertThat(GroupChange.Actions.parseFrom(signedChange.getActions()).getGroupId()).isEqualTo(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(GroupChange.Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
     assertThat(GroupChange.Actions.parseFrom(signedChange.getActions()).getSourceUuid()).isEqualTo(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()));
-    assertThat(GroupChange.Actions.parseFrom(signedChange.getActions()).toBuilder().clearSourceUuid().build()).isEqualTo(groupChange);
+    assertThat(GroupChange.Actions.parseFrom(signedChange.getActions()).toBuilder().clearGroupId().clearSourceUuid().build()).isEqualTo(groupChange);
 
     AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
                                                                    new NotarySignature(signedChange.getServerSignature().toByteArray()));

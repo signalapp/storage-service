@@ -139,6 +139,7 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     setupGroupsManagerForWrites();
     Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
 
+    actionsBuilder.setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     actionsBuilder.getAddMembersBannedBuilder(0).getAddedBuilder().setTimestamp(clock.millis());
     groupBuilder.setVersion(1).addMembersBannedBuilder().setUserId(validUserThreeId).setTimestamp(clock.millis());
     assertThat(response.getStatus()).isEqualTo(200);
@@ -174,6 +175,7 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     setupGroupsManagerForWrites();
     Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
 
+    actionsBuilder.setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     groupBuilder.setVersion(1).clearMembersBanned();
     assertThat(response.getStatus()).isEqualTo(200);
     verifyGroupModification(groupBuilder, actionsBuilder, 4, response, validUserId);
@@ -210,6 +212,7 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     setupGroupsManagerForWrites();
     Response response = modifyGroup(AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL, actionsBuilder);
 
+    actionsBuilder.setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     groupBuilder.setVersion(1).clearMembersBanned();
     assertThat(response.getStatus()).isEqualTo(200);
     verifyGroupModification(groupBuilder, actionsBuilder, 4, response, validUserTwoId);

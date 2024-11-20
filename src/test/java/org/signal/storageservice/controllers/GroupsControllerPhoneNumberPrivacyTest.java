@@ -2,6 +2,7 @@ package org.signal.storageservice.controllers;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.core.Response;
+import com.google.protobuf.ByteString;
 import org.junit.jupiter.api.Test;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;
 import org.signal.storageservice.storage.protos.groups.Group;
@@ -41,6 +42,7 @@ class GroupsControllerPhoneNumberPrivacyTest extends BaseGroupsControllerTest {
         .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_THREE_AUTH_CREDENTIAL))
         .method("PATCH", Entity.entity(actionsBuilder.build().toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF))) {
 
+      actionsBuilder.setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
       verifyGroupModification(groupBuilder, actionsBuilder, 0, response, validUserThreePniId);
     }
   }
