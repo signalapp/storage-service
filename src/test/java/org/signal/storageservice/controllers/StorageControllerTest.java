@@ -39,7 +39,7 @@ import org.signal.storageservice.auth.User;
 import org.signal.storageservice.providers.InvalidProtocolBufferExceptionMapper;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;
 import org.signal.storageservice.providers.ProtocolBufferMessageBodyProvider;
-import org.signal.storageservice.storage.StorageItemsTable;
+import org.signal.storageservice.storage.bigtable.StorageItemsTable;
 import org.signal.storageservice.storage.StorageManager;
 import org.signal.storageservice.storage.protos.contacts.ReadOperation;
 import org.signal.storageservice.storage.protos.contacts.StorageItem;

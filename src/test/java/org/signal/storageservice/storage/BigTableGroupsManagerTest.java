@@ -34,6 +34,9 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
 import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
+import org.signal.storageservice.storage.bigtable.BigTableGroupsManager;
+import org.signal.storageservice.storage.bigtable.GroupLogTable;
+import org.signal.storageservice.storage.bigtable.GroupsTable;
 import org.signal.storageservice.storage.protos.groups.AccessControl;
 import org.signal.storageservice.storage.protos.groups.Group;
 import org.signal.storageservice.storage.protos.groups.GroupChange;
@@ -43,7 +46,7 @@ import org.signal.storageservice.storage.protos.groups.GroupChanges.GroupChangeS
 import org.signal.storageservice.util.AuthHelper;
 import org.signal.storageservice.util.Conversions;
 
-class GroupsManagerTest {
+class BigTableGroupsManagerTest {
 
   private static final String GROUPS_TABLE_ID     = "groups-table";
   private static final String GROUP_LOGS_TABLE_ID = "group-logs-table";
@@ -67,7 +70,7 @@ class GroupsManagerTest {
 
   @Test
   void testCreateGroup() throws Exception {
-    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager groupsManager = new BigTableGroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
 
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
@@ -100,7 +103,7 @@ class GroupsManagerTest {
 
   @Test
   void testCreateGroupConflict() throws Exception {
-    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager groupsManager = new BigTableGroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
 
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
@@ -147,7 +150,7 @@ class GroupsManagerTest {
 
   @Test
   void testUpdateGroup() throws Exception {
-    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager groupsManager = new BigTableGroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
 
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
@@ -189,7 +192,7 @@ class GroupsManagerTest {
 
   @Test
   void testUpdateStaleGroup() throws Exception {
-    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager groupsManager = new BigTableGroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
 
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
@@ -232,7 +235,7 @@ class GroupsManagerTest {
 
   @Test
   void testGetGroup() throws Exception {
-    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager groupsManager = new BigTableGroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
 
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
@@ -258,7 +261,7 @@ class GroupsManagerTest {
 
   @Test
   void testGetGroupNotFound() throws Exception {
-    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager groupsManager = new BigTableGroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
 
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
@@ -289,7 +292,7 @@ class GroupsManagerTest {
     when(client.readRowAsync(any(TableId.class), any(ByteString.class)))
         .thenReturn(ApiFutures.immediateFailedFuture(new RuntimeException("Bad news")));
 
-    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager groupsManager = new BigTableGroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
 
     assertThatThrownBy(() -> groupsManager.getGroup(ByteString.copyFrom(new byte[16])).get())
         .isInstanceOf(ExecutionException.class)
@@ -298,7 +301,7 @@ class GroupsManagerTest {
 
   @Test
   void testAppendLog() throws ExecutionException, InterruptedException, InvalidProtocolBufferException {
-    GroupsManager     groupsManager     = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager     groupsManager     = new BigTableGroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
     ByteString        groupId           = ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize());
@@ -340,7 +343,7 @@ class GroupsManagerTest {
 
   @Test
   void testQueryLog() throws ExecutionException, InterruptedException, InvalidProtocolBufferException {
-    GroupsManager     groupsManager     = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager     groupsManager     = new BigTableGroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
     ByteString        groupId           = ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize());

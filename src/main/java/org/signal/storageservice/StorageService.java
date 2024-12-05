@@ -57,6 +57,9 @@ import org.signal.storageservice.s3.PostPolicyGenerator;
 import org.signal.storageservice.storage.BackupsManager;
 import org.signal.storageservice.storage.GroupsManager;
 import org.signal.storageservice.storage.StorageManager;
+import org.signal.storageservice.storage.bigtable.BigTableBackupsManager;
+import org.signal.storageservice.storage.bigtable.BigTableGroupsManager;
+import org.signal.storageservice.storage.bigtable.BigTableStorageManager;
 import org.signal.storageservice.util.HostnameUtil;
 import org.signal.storageservice.util.UncaughtExceptionHandler;
 import org.signal.storageservice.util.logging.LoggingUnhandledExceptionMapper;
@@ -100,9 +103,9 @@ public class StorageService extends Application<StorageServiceConfiguration> {
                                                                     .build();
     BigtableDataClient bigtableDataClient = BigtableDataClient.create(bigtableDataSettings);
     ServerSecretParams serverSecretParams = new ServerSecretParams(config.getZkConfiguration().getServerSecret());
-    StorageManager     storageManager     = new StorageManager(bigtableDataClient, config.getBigTableConfiguration().getContactManifestsTableId(), config.getBigTableConfiguration().getContactsTableId());
-    GroupsManager      groupsManager      = new GroupsManager(bigtableDataClient, config.getBigTableConfiguration().getGroupsTableId(), config.getBigTableConfiguration().getGroupLogsTableId());
-    BackupsManager backupsManager = new BackupsManager(bigtableTableAdminClient, config.getBigTableConfiguration().getClusterId(), List.of(
+    StorageManager     storageManager     = new BigTableStorageManager(bigtableDataClient, config.getBigTableConfiguration().getContactManifestsTableId(), config.getBigTableConfiguration().getContactsTableId());
+    GroupsManager      groupsManager      = new BigTableGroupsManager(bigtableDataClient, config.getBigTableConfiguration().getGroupsTableId(), config.getBigTableConfiguration().getGroupLogsTableId());
+    BackupsManager backupsManager = new BigTableBackupsManager(bigtableTableAdminClient, config.getBigTableConfiguration().getClusterId(), List.of(
             config.getBigTableConfiguration().getContactManifestsTableId(),
             config.getBigTableConfiguration().getContactsTableId(),
             config.getBigTableConfiguration().getGroupLogsTableId(),
