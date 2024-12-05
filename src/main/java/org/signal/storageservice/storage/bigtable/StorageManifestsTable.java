@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-package org.signal.storageservice.storage;
+package org.signal.storageservice.storage.bigtable;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SharedMetricRegistries;
@@ -14,6 +14,7 @@ import com.google.cloud.bigtable.data.v2.models.Mutation;
 import com.google.cloud.bigtable.data.v2.models.Row;
 import com.google.cloud.bigtable.data.v2.models.RowCell;
 import com.google.cloud.bigtable.data.v2.models.RowMutation;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 import org.signal.storageservice.auth.User;
 import org.signal.storageservice.metrics.StorageMetrics;
@@ -27,10 +28,10 @@ import static com.codahale.metrics.MetricRegistry.name;
 
 public class StorageManifestsTable extends Table {
 
-  static final String FAMILY         = "m";
+  public static final String FAMILY         = "m";
 
-  static final String COLUMN_VERSION = "ver";
-  static final String COLUMN_DATA    = "dat";
+  public static final String COLUMN_VERSION = "ver";
+  public static final String COLUMN_DATA    = "dat";
 
   private final MetricRegistry metricRegistry       = SharedMetricRegistries.getOrCreate(StorageMetrics.NAME);
   private final Timer          getTimer             = metricRegistry.timer(name(StorageManifestsTable.class, "get"            ));

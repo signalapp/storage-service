@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
-package org.signal.storageservice.storage;
+package org.signal.storageservice.storage.bigtable;
 
 import com.codahale.metrics.Timer;
 import com.google.api.core.ApiFuture;

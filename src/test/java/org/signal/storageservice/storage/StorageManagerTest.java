@@ -42,6 +42,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
 import org.signal.storageservice.auth.User;
+import org.signal.storageservice.storage.bigtable.BigTableStorageManager;
+import org.signal.storageservice.storage.bigtable.StorageItemsTable;
+import org.signal.storageservice.storage.bigtable.StorageManifestsTable;
 import org.signal.storageservice.storage.protos.contacts.StorageItem;
 import org.signal.storageservice.storage.protos.contacts.StorageManifest;
 
@@ -85,7 +88,7 @@ class StorageManagerTest {
   void testReadManifest() throws ExecutionException, InterruptedException {
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new BigTableStorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
 
     client.mutateRow(RowMutation.create(MANIFESTS_TABLE_ID, userId + "#manifest",
         Mutation.create()
@@ -102,7 +105,7 @@ class StorageManagerTest {
   void testGetManifestIfNotVersionDifferent() throws Exception {
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new BigTableStorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
 
     client.mutateRow(RowMutation.create(MANIFESTS_TABLE_ID, UUID.randomUUID() + "#manifest",
         Mutation.create()
@@ -124,7 +127,7 @@ class StorageManagerTest {
   void testGetManifestIfNotVersionSame() throws Exception {
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new BigTableStorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
 
     client.mutateRow(RowMutation.create(MANIFESTS_TABLE_ID, UUID.randomUUID() + "#manifest",
         Mutation.create()
@@ -148,7 +151,7 @@ class StorageManagerTest {
 
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new BigTableStorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
 
     assertThatThrownBy(() -> contactsManager.getManifest(user).get())
         .isInstanceOf(ExecutionException.class)
@@ -159,7 +162,7 @@ class StorageManagerTest {
   void testSetEmptyManifest() throws Exception {
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new BigTableStorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
 
     StorageManifest manifest = StorageManifest.newBuilder()
         .setVersion(1)
@@ -192,7 +195,7 @@ class StorageManagerTest {
   void testSetStaleManifest() throws Exception {
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new BigTableStorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
 
     StorageManifest manifest = StorageManifest.newBuilder()
         .setVersion(1)
@@ -242,7 +245,7 @@ class StorageManagerTest {
   void testSetUpdatedManifest() throws Exception {
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new BigTableStorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
 
     StorageManifest manifest = StorageManifest.newBuilder()
         .setVersion(1)
@@ -289,7 +292,7 @@ class StorageManagerTest {
   @Test
   void testSetNoMutations() {
     final User user = new User(UUID.randomUUID());
-    final StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    final StorageManager contactsManager = new BigTableStorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
 
     final StorageManifest manifest = StorageManifest.newBuilder()
         .setVersion(1)
@@ -307,7 +310,7 @@ class StorageManagerTest {
 
     UUID secondUserId = UUID.randomUUID();
 
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new BigTableStorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
 
     for (int i = 0; i < 100; i++) {
       client.mutateRow(
@@ -381,7 +384,7 @@ class StorageManagerTest {
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
 
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new BigTableStorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
 
     for (int chunk = 0; chunk < 2; chunk++) {
       final BulkMutation bulkMutation = BulkMutation.create(CONTACTS_TABLE_ID);
@@ -417,7 +420,7 @@ class StorageManagerTest {
     UUID secondUserId = UUID.randomUUID();
     User secondUser = new User(secondUserId);
 
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new BigTableStorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
 
     client.mutateRow(RowMutation.create(MANIFESTS_TABLE_ID, userId + "#manifest",
         Mutation.create()
