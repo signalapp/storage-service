@@ -12,6 +12,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.dropwizard.metrics.common.BaseReporterFactory;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
 import javax.validation.Valid;
@@ -22,6 +23,7 @@ import org.coursera.metrics.datadog.DefaultMetricNameFormatterFactory;
 import org.coursera.metrics.datadog.DynamicTagsCallbackFactory;
 import org.coursera.metrics.datadog.MetricNameFormatterFactory;
 import org.coursera.metrics.datadog.transport.AbstractTransportFactory;
+import org.signal.storageservice.StorageServiceVersion;
 
 @JsonTypeName("signal-datadog")
 public class SignalDatadogReporterFactory extends BaseReporterFactory {
@@ -64,10 +66,21 @@ public class SignalDatadogReporterFactory extends BaseReporterFactory {
 
   @Override
   public ScheduledReporter build(final MetricRegistry registry) {
+
+    final List<String> combinedTags;
+    final String versionTag = "version:" + StorageServiceVersion.getServiceVersion();
+
+    if (tags != null) {
+      combinedTags = new ArrayList<>(tags);
+      combinedTags.add(versionTag);
+    } else {
+      combinedTags = new ArrayList<>((List.of(versionTag)));
+    }
+
     return DatadogReporter.forRegistry(registry)
         .withTransport(transport.build())
         .withHost(deriveHost())
-        .withTags(tags)
+        .withTags(combinedTags)
         .withPrefix(prefix)
         .withExpansions(expansions)
         .withMetricNameFormatter(metricNameFormatter.build())
