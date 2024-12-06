@@ -12,6 +12,7 @@ import org.signal.storageservice.configuration.BigTableConfiguration;
 import org.signal.storageservice.configuration.CdnConfiguration;
 import org.signal.storageservice.configuration.DatadogConfiguration;
 import org.signal.storageservice.configuration.GroupConfiguration;
+import org.signal.storageservice.configuration.WarmupConfiguration;
 import org.signal.storageservice.configuration.ZkConfiguration;
 
 import javax.validation.Valid;
@@ -49,6 +50,11 @@ public class StorageServiceConfiguration extends Configuration {
   @NotNull
   private DatadogConfiguration datadog;
 
+  @JsonProperty
+  @Valid
+  @NotNull
+  private WarmupConfiguration warmup = new WarmupConfiguration(5);
+
   public BigTableConfiguration getBigTableConfiguration() {
     return bigtable;
   }
@@ -71,5 +77,9 @@ public class StorageServiceConfiguration extends Configuration {
 
   public DatadogConfiguration getDatadogConfiguration() {
     return datadog;
+  }
+
+  public WarmupConfiguration getWarmUpConfiguration() {
+    return warmup;
   }
 }

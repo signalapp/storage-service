@@ -30,6 +30,9 @@ import io.micrometer.core.instrument.Tags;
 import io.micrometer.datadog.DatadogMeterRegistry;
 import java.time.Clock;
 import java.util.List;
+import java.util.Set;
+import org.signal.libsignal.zkgroup.ServerSecretParams;
+import org.signal.libsignal.zkgroup.auth.ServerZkAuthOperations;
 import org.signal.storageservice.auth.ExternalGroupCredentialGenerator;
 import org.signal.storageservice.auth.ExternalServiceCredentialValidator;
 import org.signal.storageservice.auth.GroupUser;
@@ -40,6 +43,7 @@ import org.signal.storageservice.controllers.BackupsController;
 import org.signal.storageservice.controllers.GroupsController;
 import org.signal.storageservice.controllers.GroupsV1Controller;
 import org.signal.storageservice.controllers.HealthCheckController;
+import org.signal.storageservice.controllers.ReadinessController;
 import org.signal.storageservice.controllers.StorageController;
 import org.signal.storageservice.metrics.CpuUsageGauge;
 import org.signal.storageservice.metrics.FileDescriptorGauge;
@@ -60,8 +64,6 @@ import org.signal.storageservice.storage.StorageManager;
 import org.signal.storageservice.util.HostnameUtil;
 import org.signal.storageservice.util.UncaughtExceptionHandler;
 import org.signal.storageservice.util.logging.LoggingUnhandledExceptionMapper;
-import org.signal.libsignal.zkgroup.ServerSecretParams;
-import org.signal.libsignal.zkgroup.auth.ServerZkAuthOperations;
 
 public class StorageService extends Application<StorageServiceConfiguration> {
 
@@ -133,6 +135,12 @@ public class StorageService extends Application<StorageServiceConfiguration> {
     environment.jersey().register(new PolymorphicAuthValueFactoryProvider.Binder<>(ImmutableSet.of(User.class, GroupUser.class)));
 
     environment.jersey().register(new HealthCheckController());
+    environment.jersey().register(new ReadinessController(bigtableDataClient,
+        Set.of(config.getBigTableConfiguration().getGroupsTableId(),
+            config.getBigTableConfiguration().getGroupLogsTableId(),
+            config.getBigTableConfiguration().getContactsTableId(),
+            config.getBigTableConfiguration().getContactManifestsTableId()),
+        config.getWarmUpConfiguration().count()));
     environment.jersey().register(new BackupsController(backupsManager));
     environment.jersey().register(new StorageController(storageManager));
     environment.jersey().register(new GroupsController(Clock.systemUTC(), groupsManager, serverSecretParams, policySigner, postPolicyGenerator, config.getGroupConfiguration(), externalGroupCredentialGenerator));
