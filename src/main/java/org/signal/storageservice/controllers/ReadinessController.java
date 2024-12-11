@@ -32,7 +32,7 @@ public class ReadinessController {
       // Note: unless one of these queries throws an unchecked exception, this will still invariably return a 200,
       // meaning the instance may be put in service before all warmups have run, depending on the load balancer
       // configuration.
-      tableIds.forEach(tableId -> client.readRows(Query.create(tableId).limit(1)));
+      tableIds.forEach(tableId -> client.readRows(Query.create(tableId).limit(1)).stream().findAny());
     }
 
     return "ready";
