@@ -21,18 +21,7 @@ public class ZkConfiguration {
   @NotNull
   private byte[] serverSecret;
 
-  @JsonProperty
-  @JsonSerialize(using = ByteArrayAdapter.Serializing.class)
-  @JsonDeserialize(using = ByteArrayAdapter.Deserializing.class)
-  @NotNull
-  private byte[] serverPublic;
-
   public byte[] getServerSecret() {
     return serverSecret;
   }
-
-  public byte[] getServerPublic() {
-    return serverPublic;
-  }
-
 }
