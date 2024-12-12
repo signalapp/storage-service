@@ -1,5 +1,5 @@
 configuration_repo = ../configuration
-configuration_files = config/production.yml config/staging.yml config/staging-build.properties config/production-build.properties config/appengine-production/app.yaml config/appengine-production/cron.yaml config/appengine-staging/app.yaml config/appengine-staging/cron.yaml
+configuration_files = config/production.yml config/staging.yml config/staging-build.properties config/production-build.properties config/appengine-production/app.yaml config/appengine-staging/app.yaml
 
 .NOTPARALLEL:
 .PHONY: help copy-config deploy-staging deploy-production

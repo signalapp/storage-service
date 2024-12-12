@@ -21,10 +21,6 @@ public class BigTableConfiguration {
 
   @JsonProperty
   @NotEmpty
-  private String clusterId;
-
-  @JsonProperty
-  @NotEmpty
   private String contactManifestsTableId;
 
   @JsonProperty
@@ -46,10 +42,6 @@ public class BigTableConfiguration {
 
   public String getInstanceId() {
     return instanceId;
-  }
-
-  public String getClusterId() {
-    return clusterId;
   }
 
   public String getContactManifestsTableId() {

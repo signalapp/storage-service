@@ -11,8 +11,6 @@ import com.codahale.metrics.SharedMetricRegistries;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.google.cloud.bigtable.admin.v2.BigtableTableAdminClient;
-import com.google.cloud.bigtable.admin.v2.BigtableTableAdminSettings;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
 import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.common.collect.ImmutableMap;
@@ -29,7 +27,6 @@ import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.datadog.DatadogMeterRegistry;
 import java.time.Clock;
-import java.util.List;
 import java.util.Set;
 import org.signal.libsignal.zkgroup.ServerSecretParams;
 import org.signal.libsignal.zkgroup.auth.ServerZkAuthOperations;
@@ -39,7 +36,6 @@ import org.signal.storageservice.auth.GroupUser;
 import org.signal.storageservice.auth.GroupUserAuthenticator;
 import org.signal.storageservice.auth.User;
 import org.signal.storageservice.auth.UserAuthenticator;
-import org.signal.storageservice.controllers.BackupsController;
 import org.signal.storageservice.controllers.GroupsController;
 import org.signal.storageservice.controllers.GroupsV1Controller;
 import org.signal.storageservice.controllers.HealthCheckController;
@@ -58,7 +54,6 @@ import org.signal.storageservice.providers.ProtocolBufferMessageBodyProvider;
 import org.signal.storageservice.providers.ProtocolBufferValidationErrorMessageBodyWriter;
 import org.signal.storageservice.s3.PolicySigner;
 import org.signal.storageservice.s3.PostPolicyGenerator;
-import org.signal.storageservice.storage.BackupsManager;
 import org.signal.storageservice.storage.GroupsManager;
 import org.signal.storageservice.storage.StorageManager;
 import org.signal.storageservice.util.HostnameUtil;
@@ -90,12 +85,6 @@ public class StorageService extends Application<StorageServiceConfiguration> {
 
     UncaughtExceptionHandler.register();
 
-    BigtableTableAdminSettings bigtableTableAdminSettings = BigtableTableAdminSettings.newBuilder()
-                                                                                      .setProjectId(config.getBigTableConfiguration().getProjectId())
-                                                                                      .setInstanceId(config.getBigTableConfiguration().getInstanceId())
-                                                                                      .build();
-    BigtableTableAdminClient bigtableTableAdminClient = BigtableTableAdminClient.create(bigtableTableAdminSettings);
-
     BigtableDataSettings bigtableDataSettings = BigtableDataSettings.newBuilder()
                                                                     .setProjectId(config.getBigTableConfiguration().getProjectId())
                                                                     .setInstanceId(config.getBigTableConfiguration().getInstanceId())
@@ -104,11 +93,6 @@ public class StorageService extends Application<StorageServiceConfiguration> {
     ServerSecretParams serverSecretParams = new ServerSecretParams(config.getZkConfiguration().getServerSecret());
     StorageManager     storageManager     = new StorageManager(bigtableDataClient, config.getBigTableConfiguration().getContactManifestsTableId(), config.getBigTableConfiguration().getContactsTableId());
     GroupsManager      groupsManager      = new GroupsManager(bigtableDataClient, config.getBigTableConfiguration().getGroupsTableId(), config.getBigTableConfiguration().getGroupLogsTableId());
-    BackupsManager backupsManager = new BackupsManager(bigtableTableAdminClient, config.getBigTableConfiguration().getClusterId(), List.of(
-            config.getBigTableConfiguration().getContactManifestsTableId(),
-            config.getBigTableConfiguration().getContactsTableId(),
-            config.getBigTableConfiguration().getGroupLogsTableId(),
-            config.getBigTableConfiguration().getGroupsTableId()));
 
     environment.getObjectMapper().configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     environment.getObjectMapper().setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.NONE);
@@ -141,7 +125,6 @@ public class StorageService extends Application<StorageServiceConfiguration> {
             config.getBigTableConfiguration().getContactsTableId(),
             config.getBigTableConfiguration().getContactManifestsTableId()),
         config.getWarmUpConfiguration().count()));
-    environment.jersey().register(new BackupsController(backupsManager));
     environment.jersey().register(new StorageController(storageManager));
     environment.jersey().register(new GroupsController(Clock.systemUTC(), groupsManager, serverSecretParams, policySigner, postPolicyGenerator, config.getGroupConfiguration(), externalGroupCredentialGenerator));
     environment.jersey().register(new GroupsV1Controller(Clock.systemUTC(), groupsManager, serverSecretParams, policySigner, postPolicyGenerator, config.getGroupConfiguration(), externalGroupCredentialGenerator));
