@@ -341,24 +341,40 @@ public class GroupsController {
   @GET
   @Produces(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
   @Path("/avatar/form")
-  public AvatarUploadAttributes getAvatarUploadForm(@Auth GroupUser user) {
-    byte[] object = new byte[16];
-    new SecureRandom().nextBytes(object);
+  public CompletableFuture<Response> getAvatarUploadForm(@Auth GroupUser user) {
 
-    String               objectName = "groups/" + Base64.encodeBase64URLSafeString(user.getGroupId().toByteArray()) + "/" + Base64.encodeBase64URLSafeString(object);
-    ZonedDateTime        now        = ZonedDateTime.now(ZoneOffset.UTC);
-    Pair<String, String> policy     = policyGenerator.createFor(now, objectName, 3 * 1024 * 1024);
-    String               signature  = policySigner.getSignature(now, policy.second());
+    return groupsManager.getGroup(user.getGroupId()).thenApply(group -> {
 
-    return AvatarUploadAttributes.newBuilder()
-                                 .setKey(objectName)
-                                 .setCredential(policy.first())
-                                 .setAcl("private")
-                                 .setAlgorithm("AWS4-HMAC-SHA256")
-                                 .setDate(now.format(PostPolicyGenerator.AWS_DATE_TIME))
-                                 .setPolicy(policy.second())
-                                 .setSignature(signature)
-                                 .build();
+      if (group.isEmpty()) {
+        return Response.status(Response.Status.NOT_FOUND).build();
+      }
+
+      if (!GroupAuth.isModifyAttributesAllowed(user, group.get())) {
+        return Response.status(Response.Status.FORBIDDEN).build();
+      }
+
+      final byte[] object = new byte[16];
+      new SecureRandom().nextBytes(object);
+
+      final String objectName = "groups/"
+          + Base64.encodeBase64URLSafeString(user.getGroupId().toByteArray())
+          + "/"
+          + Base64.encodeBase64URLSafeString(object);
+      final ZonedDateTime now = ZonedDateTime.now(ZoneOffset.UTC);
+      final Pair<String, String> policy = policyGenerator.createFor(now, objectName, 3 * 1024 * 1024);
+      final String signature = policySigner.getSignature(now, policy.second());
+
+      return Response.ok(AvatarUploadAttributes.newBuilder()
+          .setKey(objectName)
+          .setCredential(policy.first())
+          .setAcl("private")
+          .setAlgorithm("AWS4-HMAC-SHA256")
+          .setDate(now.format(PostPolicyGenerator.AWS_DATE_TIME))
+          .setPolicy(policy.second())
+          .setSignature(signature)
+          .build())
+          .build();
+    });
   }
 
   @Timed

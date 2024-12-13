@@ -34,8 +34,12 @@ import javax.ws.rs.core.Response;
 import org.apache.http.HttpHeaders;
 import org.apache.http.HttpStatus;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.signal.libsignal.zkgroup.NotarySignature;
+import org.signal.libsignal.zkgroup.auth.AuthCredentialWithPni;
 import org.signal.libsignal.zkgroup.auth.ClientZkAuthOperations;
 import org.signal.libsignal.zkgroup.groups.GroupPublicParams;
 import org.signal.libsignal.zkgroup.groups.GroupSecretParams;
@@ -3618,27 +3622,90 @@ class GroupsControllerV1Test extends BaseGroupsControllerTest {
     verifyNoMoreInteractions(groupsManager);
   }
 
-  @Test
-  void testGetAvatarUpload() throws IOException {
+  @ParameterizedTest
+  @MethodSource
+  void testGetAvatarUpload(AccessControl.AccessRequired accessRequired, boolean isMemberAdmin, int expectedMemberStatusCode) throws IOException {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
 
+    ProfileKeyCredentialPresentation validUserPresentation = new ClientZkProfileOperations(
+        AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams,
+        AuthHelper.VALID_USER_PROFILE_CREDENTIAL);
+
+    ProfileKeyCredentialPresentation validAdminPresentation = new ClientZkProfileOperations(
+        AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams,
+        AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
+
+    AuthCredentialWithPni userAuthCredential = isMemberAdmin
+        ? AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL
+        : AuthHelper.VALID_USER_AUTH_CREDENTIAL;
+
+    Group group = Group.newBuilder()
+        .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
+        .setAccessControl(AccessControl.newBuilder()
+            .setMembers(accessRequired)
+            .setAttributes(accessRequired))
+        .setTitle(ByteString.copyFromUtf8("Some title"))
+        .setAvatar(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
+        .setVersion(7)
+        .addMembers(Member.newBuilder()
+            .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
+            .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
+            .setRole(Member.Role.DEFAULT)
+            .setJoinedAtVersion(2)
+            .build())
+        .addMembers(Member.newBuilder()
+            .setUserId(ByteString.copyFrom(validAdminPresentation.getUuidCiphertext().serialize()))
+            .setProfileKey(ByteString.copyFrom(validAdminPresentation.getProfileKeyCiphertext().serialize()))
+            .setRole(Member.Role.ADMINISTRATOR)
+            .setJoinedAtVersion(1)
+            .build())
+        .build();
+
+    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
+        .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
+
+    // Verify that member gets expected status
     Response response = resources.getJerseyTest()
-                                 .target("/v1/groups/avatar/form")
-                                 .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-                                 .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_AUTH_CREDENTIAL))
-                                 .get();
+        .target("/v1/groups/avatar/form")
+        .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+        .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, userAuthCredential))
+        .get();
 
-    assertThat(response.getStatus()).isEqualTo(200);
-    assertThat(response.hasEntity()).isTrue();
+    assertThat(response.getStatus()).isEqualTo(expectedMemberStatusCode);
+    if (expectedMemberStatusCode == 200) {
+      assertThat(response.hasEntity()).isTrue();
 
-    AvatarUploadAttributes uploadAttributes = AvatarUploadAttributes.parseFrom(response.readEntity(InputStream.class).readAllBytes());
+      AvatarUploadAttributes uploadAttributes = AvatarUploadAttributes.parseFrom(
+          response.readEntity(InputStream.class).readAllBytes());
 
-    assertThat(uploadAttributes.getKey()).startsWith("groups/" + Base64.getUrlEncoder().withoutPadding().encodeToString(groupPublicParams.getGroupIdentifier().serialize()));
-    assertThat(uploadAttributes.getAcl()).isEqualTo("private");
-    assertThat(uploadAttributes.getCredential()).isNotEmpty();
-    assertThat(uploadAttributes.getDate()).isNotEmpty();
-    assertThat(uploadAttributes.getSignature()).isNotEmpty();
+      assertThat(uploadAttributes.getKey()).startsWith("groups/" + Base64.getUrlEncoder().withoutPadding()
+          .encodeToString(groupPublicParams.getGroupIdentifier().serialize()));
+      assertThat(uploadAttributes.getAcl()).isEqualTo("private");
+      assertThat(uploadAttributes.getCredential()).isNotEmpty();
+      assertThat(uploadAttributes.getDate()).isNotEmpty();
+      assertThat(uploadAttributes.getSignature()).isNotEmpty();
+    }
+
+    // Verify that non-member gets 403
+    response = resources.getJerseyTest()
+        .target("/v2/groups/avatar/form")
+        .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+        .header("Authorization",
+            AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_THREE_AUTH_CREDENTIAL))
+        .get();
+
+    assertThat(response.getStatus()).isEqualTo(403);
+    assertThat(response.hasEntity()).isFalse();
+  }
+
+  static List<Arguments> testGetAvatarUpload() {
+    return List.of(
+        Arguments.of(AccessControl.AccessRequired.MEMBER, true, 200),
+        Arguments.of(AccessControl.AccessRequired.MEMBER, false, 200),
+        Arguments.of(AccessControl.AccessRequired.ADMINISTRATOR, true, 200),
+        Arguments.of(AccessControl.AccessRequired.ADMINISTRATOR, false, 403)
+    );
   }
 
   @Test
