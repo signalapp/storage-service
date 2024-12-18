@@ -345,12 +345,10 @@ public class GroupsController {
 
     return groupsManager.getGroup(user.getGroupId()).thenApply(group -> {
 
-      if (group.isEmpty()) {
-        return Response.status(Response.Status.NOT_FOUND).build();
-      }
-
-      if (!GroupAuth.isModifyAttributesAllowed(user, group.get())) {
-        return Response.status(Response.Status.FORBIDDEN).build();
+      if (group.isPresent()) {
+        if (!GroupAuth.isModifyAttributesAllowed(user, group.get())) {
+          return Response.status(Response.Status.FORBIDDEN).build();
+        }
       }
 
       final byte[] object = new byte[16];
