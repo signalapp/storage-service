@@ -47,7 +47,7 @@ public class MetricsRequestEventListener implements RequestEventListener {
 
         final List<String> userAgentValues = event.getContainerRequest().getRequestHeader("User-Agent");
 
-        if (!userAgentValues.isEmpty()) {
+        if (userAgentValues != null && !userAgentValues.isEmpty()) {
           try {
             final ClientPlatform platform = UserAgentUtil.getPlatformFromUserAgentString(userAgentValues.get(0));
             tags = tags.and(PLATFORM_TAG, platform.name().toLowerCase());
