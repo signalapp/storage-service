@@ -23,10 +23,9 @@ import io.dropwizard.logging.common.layout.LayoutFactory;
 import net.logstash.logback.appender.LogstashTcpSocketAppender;
 import net.logstash.logback.encoder.LogstashEncoder;
 import org.signal.storageservice.StorageServiceVersion;
+import org.signal.storageservice.util.logging.LoggingHostSupplier;
 
 import javax.validation.constraints.NotEmpty;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.time.Duration;
 
 @JsonTypeName("logstashtcpsocket")
@@ -78,11 +77,7 @@ public class LogstashTcpSocketAppenderFactory extends AbstractAppenderFactory<IL
 
     final LogstashEncoder encoder = new LogstashEncoder();
     final ObjectNode customFieldsNode = new ObjectNode(JsonNodeFactory.instance);
-    try {
-      customFieldsNode.set("host", TextNode.valueOf(InetAddress.getLocalHost().getHostName()));
-    } catch (UnknownHostException e) {
-      customFieldsNode.set("host", TextNode.valueOf("unknown"));
-    }
+    customFieldsNode.set("host", TextNode.valueOf(LoggingHostSupplier.getHost()));
     customFieldsNode.set("service", TextNode.valueOf("storage"));
     customFieldsNode.set("ddsource", TextNode.valueOf("logstash"));
     customFieldsNode.set("ddtags", TextNode.valueOf("env:" + environment + ",version:" + StorageServiceVersion.getServiceVersion()));
