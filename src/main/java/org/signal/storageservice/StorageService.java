@@ -56,8 +56,8 @@ import org.signal.storageservice.s3.PolicySigner;
 import org.signal.storageservice.s3.PostPolicyGenerator;
 import org.signal.storageservice.storage.GroupsManager;
 import org.signal.storageservice.storage.StorageManager;
-import org.signal.storageservice.util.HostnameUtil;
 import org.signal.storageservice.util.UncaughtExceptionHandler;
+import org.signal.storageservice.util.HostSupplier;
 import org.signal.storageservice.util.logging.LoggingUnhandledExceptionMapper;
 
 public class StorageService extends Application<StorageServiceConfiguration> {
@@ -76,7 +76,7 @@ public class StorageService extends Application<StorageServiceConfiguration> {
       datadogMeterRegistry.config().commonTags(
               Tags.of(
                   "service", "storage",
-                  "host", HostnameUtil.getLocalHostname(),
+                  "host", HostSupplier.getHost(),
                   "version", StorageServiceVersion.getServiceVersion(),
                   "env", config.getDatadogConfiguration().getEnvironment()));
 

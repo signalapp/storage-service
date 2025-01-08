@@ -20,13 +20,12 @@ import io.dropwizard.logging.common.AbstractAppenderFactory;
 import io.dropwizard.logging.common.async.AsyncAppenderFactory;
 import io.dropwizard.logging.common.filter.LevelFilterFactory;
 import io.dropwizard.logging.common.layout.LayoutFactory;
+import java.time.Duration;
+import javax.validation.constraints.NotEmpty;
 import net.logstash.logback.appender.LogstashTcpSocketAppender;
 import net.logstash.logback.encoder.LogstashEncoder;
 import org.signal.storageservice.StorageServiceVersion;
-import org.signal.storageservice.util.logging.LoggingHostSupplier;
-
-import javax.validation.constraints.NotEmpty;
-import java.time.Duration;
+import org.signal.storageservice.util.HostSupplier;
 
 @JsonTypeName("logstashtcpsocket")
 public class LogstashTcpSocketAppenderFactory extends AbstractAppenderFactory<ILoggingEvent> {
@@ -77,7 +76,7 @@ public class LogstashTcpSocketAppenderFactory extends AbstractAppenderFactory<IL
 
     final LogstashEncoder encoder = new LogstashEncoder();
     final ObjectNode customFieldsNode = new ObjectNode(JsonNodeFactory.instance);
-    customFieldsNode.set("host", TextNode.valueOf(LoggingHostSupplier.getHost()));
+    customFieldsNode.set("host", TextNode.valueOf(HostSupplier.getHost()));
     customFieldsNode.set("service", TextNode.valueOf("storage"));
     customFieldsNode.set("ddsource", TextNode.valueOf("logstash"));
     customFieldsNode.set("ddtags", TextNode.valueOf("env:" + environment + ",version:" + StorageServiceVersion.getServiceVersion()));
