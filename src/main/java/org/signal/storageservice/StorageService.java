@@ -45,6 +45,7 @@ import org.signal.storageservice.metrics.CpuUsageGauge;
 import org.signal.storageservice.metrics.FileDescriptorGauge;
 import org.signal.storageservice.metrics.FreeMemoryGauge;
 import org.signal.storageservice.metrics.MetricsApplicationEventListener;
+import org.signal.storageservice.metrics.MetricsUtil;
 import org.signal.storageservice.metrics.NetworkReceivedGauge;
 import org.signal.storageservice.metrics.NetworkSentGauge;
 import org.signal.storageservice.metrics.StorageMetrics;
@@ -67,21 +68,7 @@ public class StorageService extends Application<StorageServiceConfiguration> {
 
   @Override
   public void run(StorageServiceConfiguration config, Environment environment) throws Exception {
-    SharedMetricRegistries.add(StorageMetrics.NAME, environment.metrics());
-
-    {
-      final DatadogMeterRegistry datadogMeterRegistry = new DatadogMeterRegistry(
-          config.getDatadogConfiguration(), io.micrometer.core.instrument.Clock.SYSTEM);
-
-      datadogMeterRegistry.config().commonTags(
-              Tags.of(
-                  "service", "storage",
-                  "host", HostSupplier.getHost(),
-                  "version", StorageServiceVersion.getServiceVersion(),
-                  "env", config.getDatadogConfiguration().getEnvironment()));
-
-      Metrics.addRegistry(datadogMeterRegistry);
-    }
+    MetricsUtil.configureRegistries(config, environment);
 
     UncaughtExceptionHandler.register();
 
@@ -131,11 +118,7 @@ public class StorageService extends Application<StorageServiceConfiguration> {
 
     environment.jersey().register(new MetricsApplicationEventListener());
 
-    environment.metrics().register(name(CpuUsageGauge.class, "cpu"), new CpuUsageGauge());
-    environment.metrics().register(name(FreeMemoryGauge.class, "free_memory"), new FreeMemoryGauge());
-    environment.metrics().register(name(NetworkSentGauge.class, "bytes_sent"), new NetworkSentGauge());
-    environment.metrics().register(name(NetworkReceivedGauge.class, "bytes_received"), new NetworkReceivedGauge());
-    environment.metrics().register(name(FileDescriptorGauge.class, "fd_count"), new FileDescriptorGauge());
+    MetricsUtil.registerSystemResourceMetrics(environment);
   }
 
   public static void main(String[] argv) throws Exception {
