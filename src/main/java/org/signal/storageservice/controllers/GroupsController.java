@@ -322,7 +322,7 @@ public class GroupsController {
         // this should never happen, but if it does, be conservative and assume we had a membership
         // change rather than 500ing, since unparseable state in the group table isn't something
         // that will go away
-        logger.error("unparseable protocol buffer in group change logs for group %s", HexFormat.of().formatHex(groupId.toByteArray()));
+        logger.error("unparseable protocol buffer in group change logs for group {}", HexFormat.of().formatHex(groupId.toByteArray()));
         return true;
       }
     }
