@@ -10,8 +10,6 @@ import com.codahale.metrics.ScheduledReporter;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.dropwizard.metrics.common.BaseReporterFactory;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -24,6 +22,7 @@ import org.coursera.metrics.datadog.DynamicTagsCallbackFactory;
 import org.coursera.metrics.datadog.MetricNameFormatterFactory;
 import org.coursera.metrics.datadog.transport.AbstractTransportFactory;
 import org.signal.storageservice.StorageServiceVersion;
+import org.signal.storageservice.util.HostSupplier;
 
 @JsonTypeName("signal-datadog")
 public class SignalDatadogReporterFactory extends BaseReporterFactory {
@@ -79,7 +78,7 @@ public class SignalDatadogReporterFactory extends BaseReporterFactory {
 
     return DatadogReporter.forRegistry(registry)
         .withTransport(transport.build())
-        .withHost(deriveHost())
+        .withHost(HostSupplier.getHost())
         .withTags(combinedTags)
         .withPrefix(prefix)
         .withExpansions(expansions)
@@ -89,16 +88,5 @@ public class SignalDatadogReporterFactory extends BaseReporterFactory {
         .convertDurationsTo(getDurationUnit())
         .convertRatesTo(getRateUnit())
         .build();
-  }
-
-  private String deriveHost() {
-    if (host != null) {
-      return host;
-    }
-    try {
-      return InetAddress.getLocalHost().getHostName();
-    } catch (UnknownHostException e) {
-      throw new IllegalStateException("unable to calculate some name for local host", e);
-    }
   }
 }
