@@ -5,9 +5,6 @@
 
 package org.signal.storageservice;
 
-import static com.codahale.metrics.MetricRegistry.name;
-
-import com.codahale.metrics.SharedMetricRegistries;
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -23,9 +20,6 @@ import io.dropwizard.auth.basic.BasicCredentials;
 import io.dropwizard.core.Application;
 import io.dropwizard.core.setup.Bootstrap;
 import io.dropwizard.core.setup.Environment;
-import io.micrometer.core.instrument.Metrics;
-import io.micrometer.core.instrument.Tags;
-import io.micrometer.datadog.DatadogMeterRegistry;
 import java.time.Clock;
 import java.util.Set;
 import org.signal.libsignal.zkgroup.ServerSecretParams;
@@ -41,14 +35,9 @@ import org.signal.storageservice.controllers.GroupsV1Controller;
 import org.signal.storageservice.controllers.HealthCheckController;
 import org.signal.storageservice.controllers.ReadinessController;
 import org.signal.storageservice.controllers.StorageController;
-import org.signal.storageservice.metrics.CpuUsageGauge;
-import org.signal.storageservice.metrics.FileDescriptorGauge;
-import org.signal.storageservice.metrics.FreeMemoryGauge;
+import org.signal.storageservice.filters.TimestampResponseFilter;
 import org.signal.storageservice.metrics.MetricsApplicationEventListener;
 import org.signal.storageservice.metrics.MetricsUtil;
-import org.signal.storageservice.metrics.NetworkReceivedGauge;
-import org.signal.storageservice.metrics.NetworkSentGauge;
-import org.signal.storageservice.metrics.StorageMetrics;
 import org.signal.storageservice.providers.CompletionExceptionMapper;
 import org.signal.storageservice.providers.InvalidProtocolBufferExceptionMapper;
 import org.signal.storageservice.providers.ProtocolBufferMessageBodyProvider;
@@ -58,7 +47,6 @@ import org.signal.storageservice.s3.PostPolicyGenerator;
 import org.signal.storageservice.storage.GroupsManager;
 import org.signal.storageservice.storage.StorageManager;
 import org.signal.storageservice.util.UncaughtExceptionHandler;
-import org.signal.storageservice.util.HostSupplier;
 import org.signal.storageservice.util.logging.LoggingUnhandledExceptionMapper;
 
 public class StorageService extends Application<StorageServiceConfiguration> {
@@ -104,6 +92,8 @@ public class StorageService extends Application<StorageServiceConfiguration> {
 
     environment.jersey().register(new PolymorphicAuthDynamicFeature<>(ImmutableMap.of(User.class, userAuthFilter, GroupUser.class, groupUserAuthFilter)));
     environment.jersey().register(new PolymorphicAuthValueFactoryProvider.Binder<>(ImmutableSet.of(User.class, GroupUser.class)));
+
+    environment.jersey().register(new TimestampResponseFilter(Clock.systemUTC()));
 
     environment.jersey().register(new HealthCheckController());
     environment.jersey().register(new ReadinessController(bigtableDataClient,
