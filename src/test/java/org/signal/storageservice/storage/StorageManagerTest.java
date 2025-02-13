@@ -47,14 +47,16 @@ import org.signal.storageservice.storage.protos.contacts.StorageManifest;
 
 class StorageManagerTest {
 
-  private static final String CONTACTS_TABLE_ID = "test-table";
-  private static final String MANIFESTS_TABLE_ID = "manifest-table";
+  private static final String CONTACTS_TABLE_NAME = "test-table";
+  private static final TableId CONTACTS_TABLE_ID = TableId.of(CONTACTS_TABLE_NAME);
+
+  private static final String MANIFESTS_TABLE_NAME = "manifest-table";
+  private static final TableId MANIFESTS_TABLE_ID = TableId.of(MANIFESTS_TABLE_NAME);
 
   @RegisterExtension
   public final BigtableEmulatorExtension bigtableEmulator = BigtableEmulatorExtension.create();
 
   private BigtableDataClient client;
-  private BigtableTableAdminClient tableAdminClient;
 
   @BeforeEach
   void setup() throws IOException {
@@ -63,29 +65,29 @@ class StorageManagerTest {
             .setProjectId("foo")
             .setInstanceId("bar");
 
-    tableAdminClient = BigtableTableAdminClient.create(tableAdminSettings.build());
+    try (BigtableTableAdminClient tableAdminClient = BigtableTableAdminClient.create(tableAdminSettings.build())) {
 
-    tableAdminClient.createTable(CreateTableRequest.of(CONTACTS_TABLE_ID).addFamily(StorageItemsTable.FAMILY));
-    tableAdminClient.createTable(CreateTableRequest.of(MANIFESTS_TABLE_ID).addFamily(StorageManifestsTable.FAMILY));
+      tableAdminClient.createTable(CreateTableRequest.of(CONTACTS_TABLE_NAME).addFamily(StorageItemsTable.FAMILY));
+      tableAdminClient.createTable(CreateTableRequest.of(MANIFESTS_TABLE_NAME).addFamily(StorageManifestsTable.FAMILY));
 
-    BigtableDataSettings.Builder dataSettings = BigtableDataSettings.newBuilderForEmulator(bigtableEmulator.getPort())
-        .setProjectId("foo")
-        .setInstanceId("bar");
+      BigtableDataSettings.Builder dataSettings = BigtableDataSettings.newBuilderForEmulator(bigtableEmulator.getPort())
+          .setProjectId("foo")
+          .setInstanceId("bar");
 
-    client = BigtableDataClient.create(dataSettings.build());
+      client = BigtableDataClient.create(dataSettings.build());
+    }
   }
 
   @AfterEach
   void tearDown() {
     client.close();
-    tableAdminClient.close();
   }
 
   @Test
   void testReadManifest() throws ExecutionException, InterruptedException {
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_NAME, CONTACTS_TABLE_NAME);
 
     client.mutateRow(RowMutation.create(MANIFESTS_TABLE_ID, userId + "#manifest",
         Mutation.create()
@@ -102,7 +104,7 @@ class StorageManagerTest {
   void testGetManifestIfNotVersionDifferent() throws Exception {
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_NAME, CONTACTS_TABLE_NAME);
 
     client.mutateRow(RowMutation.create(MANIFESTS_TABLE_ID, UUID.randomUUID() + "#manifest",
         Mutation.create()
@@ -124,7 +126,7 @@ class StorageManagerTest {
   void testGetManifestIfNotVersionSame() throws Exception {
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_NAME, CONTACTS_TABLE_NAME);
 
     client.mutateRow(RowMutation.create(MANIFESTS_TABLE_ID, UUID.randomUUID() + "#manifest",
         Mutation.create()
@@ -148,7 +150,7 @@ class StorageManagerTest {
 
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_NAME, CONTACTS_TABLE_NAME);
 
     assertThatThrownBy(() -> contactsManager.getManifest(user).get())
         .isInstanceOf(ExecutionException.class)
@@ -159,7 +161,7 @@ class StorageManagerTest {
   void testSetEmptyManifest() throws Exception {
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_NAME, CONTACTS_TABLE_NAME);
 
     StorageManifest manifest = StorageManifest.newBuilder()
         .setVersion(1)
@@ -184,15 +186,15 @@ class StorageManagerTest {
     List<StorageItem> contacts = contactsManager.getItems(user, List.of(ByteString.copyFromUtf8("mykey"))).get();
 
     assertThat(contacts.size()).isEqualTo(1);
-    assertThat(contacts.get(0).getKey().toStringUtf8()).isEqualTo("mykey");
-    assertThat(contacts.get(0).getValue().toStringUtf8()).isEqualTo("myvalue");
+    assertThat(contacts.getFirst().getKey().toStringUtf8()).isEqualTo("mykey");
+    assertThat(contacts.getFirst().getValue().toStringUtf8()).isEqualTo("myvalue");
   }
 
   @Test
   void testSetStaleManifest() throws Exception {
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_NAME, CONTACTS_TABLE_NAME);
 
     StorageManifest manifest = StorageManifest.newBuilder()
         .setVersion(1)
@@ -234,15 +236,15 @@ class StorageManagerTest {
         List.of(ByteString.copyFromUtf8("mykey"), ByteString.copyFromUtf8("stalekey"))).get();
 
     assertThat(contacts.size()).isEqualTo(1);
-    assertThat(contacts.get(0).getKey().toStringUtf8()).isEqualTo("mykey");
-    assertThat(contacts.get(0).getValue().toStringUtf8()).isEqualTo("myvalue");
+    assertThat(contacts.getFirst().getKey().toStringUtf8()).isEqualTo("mykey");
+    assertThat(contacts.getFirst().getValue().toStringUtf8()).isEqualTo("myvalue");
   }
 
   @Test
   void testSetUpdatedManifest() throws Exception {
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_NAME, CONTACTS_TABLE_NAME);
 
     StorageManifest manifest = StorageManifest.newBuilder()
         .setVersion(1)
@@ -282,14 +284,14 @@ class StorageManagerTest {
         List.of(ByteString.copyFromUtf8("mykey"), ByteString.copyFromUtf8("updatedkey"))).get();
 
     assertThat(contacts.size()).isEqualTo(1);
-    assertThat(contacts.get(0).getKey().toStringUtf8()).isEqualTo("updatedkey");
-    assertThat(contacts.get(0).getValue().toStringUtf8()).isEqualTo("updatedvalue");
+    assertThat(contacts.getFirst().getKey().toStringUtf8()).isEqualTo("updatedkey");
+    assertThat(contacts.getFirst().getValue().toStringUtf8()).isEqualTo("updatedvalue");
   }
 
   @Test
   void testSetNoMutations() {
     final User user = new User(UUID.randomUUID());
-    final StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    final StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_NAME, CONTACTS_TABLE_NAME);
 
     final StorageManifest manifest = StorageManifest.newBuilder()
         .setVersion(1)
@@ -307,7 +309,7 @@ class StorageManagerTest {
 
     UUID secondUserId = UUID.randomUUID();
 
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_NAME, CONTACTS_TABLE_NAME);
 
     for (int i = 0; i < 100; i++) {
       client.mutateRow(
@@ -334,7 +336,7 @@ class StorageManagerTest {
     for (Row row : rows) {
       List<RowCell> cells = row.getCells(StorageItemsTable.FAMILY, StorageItemsTable.COLUMN_DATA);
       assertThat(cells.size()).isEqualTo(1);
-      assertThat(cells.get(0).getValue().toStringUtf8()).isEqualTo("data" + String.format("%03d", i));
+      assertThat(cells.getFirst().getValue().toStringUtf8()).isEqualTo("data" + String.format("%03d", i));
       i++;
     }
 
@@ -346,7 +348,7 @@ class StorageManagerTest {
     for (Row row : rows) {
       List<RowCell> cells = row.getCells(StorageItemsTable.FAMILY, StorageItemsTable.COLUMN_DATA);
       assertThat(cells.size()).isEqualTo(1);
-      assertThat(cells.get(0).getValue().toStringUtf8()).isEqualTo("seconddata" + String.format("%03d", i));
+      assertThat(cells.getFirst().getValue().toStringUtf8()).isEqualTo("seconddata" + String.format("%03d", i));
       i++;
     }
 
@@ -369,7 +371,7 @@ class StorageManagerTest {
     for (Row row : rows) {
       List<RowCell> cells = row.getCells(StorageItemsTable.FAMILY, StorageItemsTable.COLUMN_DATA);
       assertThat(cells.size()).isEqualTo(1);
-      assertThat(cells.get(0).getValue().toStringUtf8()).isEqualTo("seconddata" + String.format("%03d", i));
+      assertThat(cells.getFirst().getValue().toStringUtf8()).isEqualTo("seconddata" + String.format("%03d", i));
       i++;
     }
 
@@ -381,7 +383,7 @@ class StorageManagerTest {
     UUID userId = UUID.randomUUID();
     User user = new User(userId);
 
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_NAME, CONTACTS_TABLE_NAME);
 
     for (int chunk = 0; chunk < 2; chunk++) {
       final BulkMutation bulkMutation = BulkMutation.create(CONTACTS_TABLE_ID);
@@ -417,7 +419,7 @@ class StorageManagerTest {
     UUID secondUserId = UUID.randomUUID();
     User secondUser = new User(secondUserId);
 
-    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_ID, CONTACTS_TABLE_ID);
+    StorageManager contactsManager = new StorageManager(client, MANIFESTS_TABLE_NAME, CONTACTS_TABLE_NAME);
 
     client.mutateRow(RowMutation.create(MANIFESTS_TABLE_ID, userId + "#manifest",
         Mutation.create()
@@ -454,7 +456,7 @@ class StorageManagerTest {
     for (Row row : rows) {
       List<RowCell> cells = row.getCells(StorageItemsTable.FAMILY, StorageItemsTable.COLUMN_DATA);
       assertThat(cells.size()).isEqualTo(1);
-      assertThat(cells.get(0).getValue().toStringUtf8()).isEqualTo("data" + String.format("%03d", i));
+      assertThat(cells.getFirst().getValue().toStringUtf8()).isEqualTo("data" + String.format("%03d", i));
       i++;
     }
 
@@ -466,7 +468,7 @@ class StorageManagerTest {
     for (Row row : rows) {
       List<RowCell> cells = row.getCells(StorageItemsTable.FAMILY, StorageItemsTable.COLUMN_DATA);
       assertThat(cells.size()).isEqualTo(1);
-      assertThat(cells.get(0).getValue().toStringUtf8()).isEqualTo("seconddata" + String.format("%03d", i));
+      assertThat(cells.getFirst().getValue().toStringUtf8()).isEqualTo("seconddata" + String.format("%03d", i));
       i++;
     }
 
@@ -489,7 +491,7 @@ class StorageManagerTest {
     for (Row row : rows) {
       List<RowCell> cells = row.getCells(StorageItemsTable.FAMILY, StorageItemsTable.COLUMN_DATA);
       assertThat(cells.size()).isEqualTo(1);
-      assertThat(cells.get(0).getValue().toStringUtf8()).isEqualTo("seconddata" + String.format("%03d", i));
+      assertThat(cells.getFirst().getValue().toStringUtf8()).isEqualTo("seconddata" + String.format("%03d", i));
       i++;
     }
 

@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.RegisterExtension;
@@ -45,8 +46,11 @@ import org.signal.storageservice.util.Conversions;
 
 class GroupsManagerTest {
 
-  private static final String GROUPS_TABLE_ID     = "groups-table";
-  private static final String GROUP_LOGS_TABLE_ID = "group-logs-table";
+  private static final String GROUPS_TABLE_NAME = "groups-table";
+  private static final TableId GROUPS_TABLE_ID = TableId.of(GROUPS_TABLE_NAME);
+
+  private static final String GROUP_LOGS_TABLE_NAME = "group-logs-table";
+  private static final TableId GROUP_LOGS_TABLE_ID = TableId.of(GROUP_LOGS_TABLE_NAME);
 
   @RegisterExtension
   private final BigtableEmulatorExtension bigtableEmulator = BigtableEmulatorExtension.create();
@@ -56,18 +60,25 @@ class GroupsManagerTest {
   @BeforeEach
   void setup() throws IOException {
     BigtableTableAdminSettings.Builder tableAdminSettings = BigtableTableAdminSettings.newBuilderForEmulator(bigtableEmulator.getPort()).setProjectId("foo").setInstanceId("bar");
-    BigtableTableAdminClient tableAdminClient = BigtableTableAdminClient.create(tableAdminSettings.build());
+    try (BigtableTableAdminClient tableAdminClient = BigtableTableAdminClient.create(tableAdminSettings.build())) {
 
-    BigtableDataSettings.Builder dataSettings = BigtableDataSettings.newBuilderForEmulator(bigtableEmulator.getPort()).setProjectId("foo").setInstanceId("bar");
-    client = BigtableDataClient.create(dataSettings.build());
+      BigtableDataSettings.Builder dataSettings = BigtableDataSettings.newBuilderForEmulator(bigtableEmulator.getPort())
+          .setProjectId("foo").setInstanceId("bar");
+      client = BigtableDataClient.create(dataSettings.build());
 
-    tableAdminClient.createTable(CreateTableRequest.of(GROUPS_TABLE_ID).addFamily(GroupsTable.FAMILY));
-    tableAdminClient.createTable(CreateTableRequest.of(GROUP_LOGS_TABLE_ID).addFamily(GroupLogTable.FAMILY));
+      tableAdminClient.createTable(CreateTableRequest.of(GROUPS_TABLE_NAME).addFamily(GroupsTable.FAMILY));
+      tableAdminClient.createTable(CreateTableRequest.of(GROUP_LOGS_TABLE_NAME).addFamily(GroupLogTable.FAMILY));
+    }
+  }
+
+  @AfterEach
+  void teardown() {
+    client.close();
   }
 
   @Test
   void testCreateGroup() throws Exception {
-    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_NAME, GROUP_LOGS_TABLE_NAME);
 
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
@@ -90,17 +101,17 @@ class GroupsManagerTest {
     List<RowCell> versionCells= row.getCells(GroupsTable.FAMILY, GroupsTable.COLUMN_VERSION);
 
     assertThat(versionCells.size()).isEqualTo(1);
-    assertThat(versionCells.get(0).getValue().toStringUtf8()).isEqualTo("0");
+    assertThat(versionCells.getFirst().getValue().toStringUtf8()).isEqualTo("0");
 
     List<RowCell> dataCells = row.getCells(GroupsTable.FAMILY, GroupsTable.COLUMN_GROUP_DATA);
 
     assertThat(dataCells.size()).isEqualTo(1);
-    assertThat(Group.parseFrom(dataCells.get(0).getValue())).isEqualTo(group);
+    assertThat(Group.parseFrom(dataCells.getFirst().getValue())).isEqualTo(group);
   }
 
   @Test
   void testCreateGroupConflict() throws Exception {
-    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_NAME, GROUP_LOGS_TABLE_NAME);
 
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
@@ -136,18 +147,18 @@ class GroupsManagerTest {
     List<RowCell> versionCells= row.getCells(GroupsTable.FAMILY, GroupsTable.COLUMN_VERSION);
 
     assertThat(versionCells.size()).isEqualTo(1);
-    assertThat(versionCells.get(0).getValue().toStringUtf8()).isEqualTo("0");
+    assertThat(versionCells.getFirst().getValue().toStringUtf8()).isEqualTo("0");
 
     List<RowCell> dataCells = row.getCells(GroupsTable.FAMILY, GroupsTable.COLUMN_GROUP_DATA);
 
     assertThat(dataCells.size()).isEqualTo(1);
-    assertThat(Group.parseFrom(dataCells.get(0).getValue())).isEqualTo(group);
-    assertThat(Group.parseFrom(dataCells.get(0).getValue())).isNotEqualTo(conflictingGroup);
+    assertThat(Group.parseFrom(dataCells.getFirst().getValue())).isEqualTo(group);
+    assertThat(Group.parseFrom(dataCells.getFirst().getValue())).isNotEqualTo(conflictingGroup);
   }
 
   @Test
   void testUpdateGroup() throws Exception {
-    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_NAME, GROUP_LOGS_TABLE_NAME);
 
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
@@ -178,18 +189,18 @@ class GroupsManagerTest {
     List<RowCell> versionCells= row.getCells(GroupsTable.FAMILY, GroupsTable.COLUMN_VERSION);
 
     assertThat(versionCells.size()).isEqualTo(1);
-    assertThat(versionCells.get(0).getValue().toStringUtf8()).isEqualTo("1");
+    assertThat(versionCells.getFirst().getValue().toStringUtf8()).isEqualTo("1");
 
     List<RowCell> dataCells = row.getCells(GroupsTable.FAMILY, GroupsTable.COLUMN_GROUP_DATA);
 
     assertThat(dataCells.size()).isEqualTo(1);
-    assertThat(Group.parseFrom(dataCells.get(0).getValue())).isEqualTo(updated);
-    assertThat(Group.parseFrom(dataCells.get(0).getValue())).isNotEqualTo(group);
+    assertThat(Group.parseFrom(dataCells.getFirst().getValue())).isEqualTo(updated);
+    assertThat(Group.parseFrom(dataCells.getFirst().getValue())).isNotEqualTo(group);
   }
 
   @Test
   void testUpdateStaleGroup() throws Exception {
-    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_NAME, GROUP_LOGS_TABLE_NAME);
 
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
@@ -214,25 +225,25 @@ class GroupsManagerTest {
                          .build();
 
     CompletableFuture<Optional<Group>> update = groupsManager.updateGroup(groupId, updated);
-    assertThat(update.get()).isPresent();
-    assertThat(update.get().get()).isEqualTo(group);
+    assertThat(update.get()).isPresent()
+        .get().isEqualTo(group);
 
     Row row = client.readRow(GROUPS_TABLE_ID, groupId);
     List<RowCell> versionCells= row.getCells(GroupsTable.FAMILY, GroupsTable.COLUMN_VERSION);
 
     assertThat(versionCells.size()).isEqualTo(1);
-    assertThat(versionCells.get(0).getValue().toStringUtf8()).isEqualTo("0");
+    assertThat(versionCells.getFirst().getValue().toStringUtf8()).isEqualTo("0");
 
     List<RowCell> dataCells = row.getCells(GroupsTable.FAMILY, GroupsTable.COLUMN_GROUP_DATA);
 
     assertThat(dataCells.size()).isEqualTo(1);
-    assertThat(Group.parseFrom(dataCells.get(0).getValue())).isEqualTo(group);
-    assertThat(Group.parseFrom(dataCells.get(0).getValue())).isNotEqualTo(updated);
+    assertThat(Group.parseFrom(dataCells.getFirst().getValue())).isEqualTo(group);
+    assertThat(Group.parseFrom(dataCells.getFirst().getValue())).isNotEqualTo(updated);
   }
 
   @Test
   void testGetGroup() throws Exception {
-    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_NAME, GROUP_LOGS_TABLE_NAME);
 
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
@@ -258,7 +269,7 @@ class GroupsManagerTest {
 
   @Test
   void testGetGroupNotFound() throws Exception {
-    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_NAME, GROUP_LOGS_TABLE_NAME);
 
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
@@ -289,7 +300,7 @@ class GroupsManagerTest {
     when(client.readRowAsync(any(TableId.class), any(ByteString.class)))
         .thenReturn(ApiFutures.immediateFailedFuture(new RuntimeException("Bad news")));
 
-    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager groupsManager = new GroupsManager(client, GROUPS_TABLE_NAME, GROUP_LOGS_TABLE_NAME);
 
     assertThatThrownBy(() -> groupsManager.getGroup(ByteString.copyFrom(new byte[16])).get())
         .isInstanceOf(ExecutionException.class)
@@ -298,7 +309,7 @@ class GroupsManagerTest {
 
   @Test
   void testAppendLog() throws ExecutionException, InterruptedException, InvalidProtocolBufferException {
-    GroupsManager     groupsManager     = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager     groupsManager     = new GroupsManager(client, GROUPS_TABLE_NAME, GROUP_LOGS_TABLE_NAME);
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
     ByteString        groupId           = ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize());
@@ -325,22 +336,22 @@ class GroupsManagerTest {
     List<RowCell> versionCells = row.getCells(GroupLogTable.FAMILY, GroupLogTable.COLUMN_VERSION);
 
     assertThat(versionCells.size()).isEqualTo(1);
-    assertThat(versionCells.get(0).getValue().toStringUtf8()).isEqualTo("1");
+    assertThat(versionCells.getFirst().getValue().toStringUtf8()).isEqualTo("1");
 
     List<RowCell> dataCells = row.getCells(GroupLogTable.FAMILY, GroupLogTable.COLUMN_CHANGE);
 
     assertThat(dataCells.size()).isEqualTo(1);
-    assertThat(GroupChange.parseFrom(dataCells.get(0).getValue())).isEqualTo(change);
+    assertThat(GroupChange.parseFrom(dataCells.getFirst().getValue())).isEqualTo(change);
 
     List<RowCell> groupStateCells = row.getCells(GroupLogTable.FAMILY, GroupLogTable.COLUMN_STATE);
 
     assertThat(groupStateCells.size()).isEqualTo(1);
-    assertThat(Group.parseFrom(groupStateCells.get(0).getValue())).isEqualTo(groupState);
+    assertThat(Group.parseFrom(groupStateCells.getFirst().getValue())).isEqualTo(groupState);
   }
 
   @Test
   void testQueryLog() throws ExecutionException, InterruptedException, InvalidProtocolBufferException {
-    GroupsManager     groupsManager     = new GroupsManager(client, GROUPS_TABLE_ID, GROUP_LOGS_TABLE_ID);
+    GroupsManager     groupsManager     = new GroupsManager(client, GROUPS_TABLE_NAME, GROUP_LOGS_TABLE_NAME);
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
     ByteString        groupId           = ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize());

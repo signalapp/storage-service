@@ -404,7 +404,7 @@ class StorageControllerTest {
     final List<ByteString> keys = new ArrayList<>(StorageController.MAX_READ_KEYS + 1);
 
     for (int i = 0; i < StorageController.MAX_READ_KEYS + 1; i++) {
-      keys.add(ByteString.copyFromUtf8(RandomStringUtils.randomAlphabetic(16)));
+      keys.add(ByteString.copyFromUtf8(RandomStringUtils.secure().nextAlphabetic(16)));
     }
 
     Response response = resources.getJerseyTest()
