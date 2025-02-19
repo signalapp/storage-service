@@ -241,12 +241,25 @@ public class GroupValidator {
     return validatedActions;
   }
 
-  public List<GroupChange.Actions.AddMemberBannedAction> validateAddMembersBanned(Clock clock, GroupUser addedByUser, Group group, List<GroupChange.Actions.AddMemberBannedAction> actions) {
+  public List<GroupChange.Actions.AddMemberBannedAction> validateAddMembersBanned(Clock clock, GroupUser addedByUser, Group group, List<GroupChange.Actions.AddMemberBannedAction> actions,
+      final List<GroupChange.Actions.DeleteMemberBannedAction> deleteMembersBannedActions) {
     if (actions.isEmpty()) {
       return actions;
     }
 
-    Member addedBy = GroupAuth.getMember(addedByUser, group).orElseThrow(ForbiddenException::new);
+    final Set<ByteString> deletedUserIds = deleteMembersBannedActions.stream()
+        .map(GroupChange.Actions.DeleteMemberBannedAction::getDeletedUserId)
+        .collect(Collectors.toUnmodifiableSet());
+    final boolean duplicateUserIdInAddActions = actions.stream()
+        .map(action -> action.getAdded().getUserId())
+        .anyMatch(deletedUserIds::contains);
+
+    if (duplicateUserIdInAddActions) {
+      throw new BadRequestException("cannot add and delete the same user ID from banned members in the same change");
+    }
+
+    // ensure that addedByUser is a member of the group
+    GroupAuth.getMember(addedByUser, group).orElseThrow(ForbiddenException::new);
 
     List<GroupChange.Actions.AddMemberBannedAction> validatedActions = new LinkedList<>();
 

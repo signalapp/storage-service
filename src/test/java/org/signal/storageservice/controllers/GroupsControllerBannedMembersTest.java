@@ -23,6 +23,7 @@ import org.signal.storageservice.storage.protos.groups.Group;
 import org.signal.storageservice.storage.protos.groups.GroupChange;
 import org.signal.storageservice.storage.protos.groups.GroupChanges.GroupChangeState;
 import org.signal.storageservice.storage.protos.groups.Member.Role;
+import org.signal.storageservice.storage.protos.groups.MemberBanned;
 import org.signal.storageservice.util.AuthHelper;
 import org.signal.libsignal.zkgroup.auth.AuthCredentialWithPni;
 
@@ -261,6 +262,27 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     setMockGroupState(groupBuilder);
     setupGroupsManagerForWrites();
     Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
+    assertThat(response.getStatus()).isEqualTo(400);
+    verifyNoGroupWrites();
+  }
+
+  @Test
+  public void testModifyGroupBanMemberAddAndDeleteInSameChange() {
+    final Group.Builder groupBuilder = group.toBuilder();
+
+    // for the DeleteMemberBannedAction to pass validation, the user needs to be currently banned
+    groupBuilder.addMembersBannedBuilder().setUserId(validUserThreeId);
+    setMockGroupState(groupBuilder);
+
+    final GroupChange.Actions.Builder actionsBuilder = GroupChange.Actions.newBuilder();
+    actionsBuilder.addAddMembersBannedBuilder().setAdded(MemberBanned.newBuilder().setUserId(validUserThreeId).build());
+    actionsBuilder.addDeleteMembersBannedBuilder().setDeletedUserId(validUserThreeId);
+    actionsBuilder.setVersion(1);
+
+    setupGroupsManagerForWrites();
+    Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
+
+    actionsBuilder.setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
     assertThat(response.getStatus()).isEqualTo(400);
     verifyNoGroupWrites();
   }

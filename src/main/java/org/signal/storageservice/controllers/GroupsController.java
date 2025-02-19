@@ -505,7 +505,7 @@ public class GroupsController {
                                         .clearAddMembersPendingAdminApproval()
                                         .addAllAddMembersPendingAdminApproval(groupValidator.validateAddMembersPendingAdminApproval(clock, user, inviteLinkPassword, group.get(), submittedActions.getAddMembersPendingAdminApprovalList()))
                                         .clearAddMembersBanned()
-                                        .addAllAddMembersBanned(groupValidator.validateAddMembersBanned(clock, user, group.get(), submittedActions.getAddMembersBannedList()))
+                                        .addAllAddMembersBanned(groupValidator.validateAddMembersBanned(clock, user, group.get(), submittedActions.getAddMembersBannedList(), submittedActions.getDeleteMembersBannedList()))
                                         .clearModifyMemberProfileKeys()
                                         .addAllModifyMemberProfileKeys(groupValidator.validateModifyMemberProfileKeys(user, group.get(), submittedActions.getModifyMemberProfileKeysList()))
                                         .clearPromoteMembersPendingProfileKey()
