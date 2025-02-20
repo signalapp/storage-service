@@ -28,6 +28,7 @@ import org.signal.storageservice.util.AuthHelper;
 import org.signal.libsignal.zkgroup.auth.AuthCredentialWithPni;
 
 class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
+
   @Test
   public void testGetGroupJoinInfoWhenBanned() {
     final byte[] inviteLinkPassword = new byte[16];
@@ -35,36 +36,40 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     final String inviteLinkPasswordString = Base64.getUrlEncoder().encodeToString(inviteLinkPassword);
 
     final Group.Builder groupBuilder = group.toBuilder();
-
     setMockGroupState(groupBuilder);
-    Response response = getGroupJoinInfoWithPassword(inviteLinkPasswordString);
-    assertThat(response.getStatus()).isEqualTo(403);
-    assertThat(response.hasEntity()).isFalse();
-    assertThat(response.getStringHeaders()).doesNotContainKey("x-signal-forbidden-reason");
+
+    try (Response response = getGroupJoinInfoWithPassword(inviteLinkPasswordString)) {
+      assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(response.hasEntity()).isFalse();
+      assertThat(response.getStringHeaders()).doesNotContainKey("x-signal-forbidden-reason");
+    }
 
     groupBuilder.setInviteLinkPassword(ByteString.copyFrom(inviteLinkPassword));
-
     setMockGroupState(groupBuilder);
-    response = getGroupJoinInfoWithPassword(inviteLinkPasswordString);
-    assertThat(response.getStatus()).isEqualTo(403);
-    assertThat(response.hasEntity()).isFalse();
-    assertThat(response.getStringHeaders()).doesNotContainKey("x-signal-forbidden-reason");
+
+    try (Response response = getGroupJoinInfoWithPassword(inviteLinkPasswordString)) {
+      assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(response.hasEntity()).isFalse();
+      assertThat(response.getStringHeaders()).doesNotContainKey("x-signal-forbidden-reason");
+    }
 
     groupBuilder.getAccessControlBuilder().setAddFromInviteLink(AccessControl.AccessRequired.ANY);
-
     setMockGroupState(groupBuilder);
-    response = getGroupJoinInfoWithPassword(inviteLinkPasswordString);
-    assertThat(response.getStatus()).isEqualTo(200);
-    assertThat(response.hasEntity()).isTrue();
-    assertThat(response.getStringHeaders()).doesNotContainKey("x-signal-forbidden-reason");
+
+    try (Response response = getGroupJoinInfoWithPassword(inviteLinkPasswordString)) {
+      assertThat(response.getStatus()).isEqualTo(200);
+      assertThat(response.hasEntity()).isTrue();
+      assertThat(response.getStringHeaders()).doesNotContainKey("x-signal-forbidden-reason");
+    }
 
     groupBuilder.addMembersBannedBuilder().setUserId(ByteString.copyFrom(validUserFourPresentation.getUuidCiphertext().serialize())).setTimestamp(clock.millis());
-
     setMockGroupState(groupBuilder);
-    response = getGroupJoinInfoWithPassword(inviteLinkPasswordString);
-    assertThat(response.getStatus()).isEqualTo(403);
-    assertThat(response.hasEntity()).isFalse();
-    assertThat(response.getStringHeaders()).containsEntry("x-signal-forbidden-reason", List.of("banned"));
+
+    try (Response response = getGroupJoinInfoWithPassword(inviteLinkPasswordString)) {
+      assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(response.hasEntity()).isFalse();
+      assertThat(response.getStringHeaders()).containsEntry("x-signal-forbidden-reason", List.of("banned"));
+    }
   }
 
   @Test
@@ -74,9 +79,11 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     setMockGroupState(groupBuilder);
     when(groupsManager.getChangeRecords(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), isA(Group.class), any(), anyBoolean(), anyBoolean(), anyInt(), anyInt()))
         .thenReturn(CompletableFuture.completedFuture(List.of(GroupChangeState.newBuilder().setGroupState(groupBuilder).build())));
-    Response response = getGroupLogs(0);
-    assertThat(response.getStatus()).isEqualTo(200);
-    assertThat(response.hasEntity()).isTrue();
+
+    try (Response response = getGroupLogs(0)){
+      assertThat(response.getStatus()).isEqualTo(200);
+      assertThat(response.hasEntity()).isTrue();
+    }
 
     groupBuilder.addMembersBannedBuilder().setUserId(groupBuilder.getMembers(1).getUserId()).setTimestamp(clock.millis());
     groupBuilder.removeMembers(1);
@@ -84,9 +91,11 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     setMockGroupState(groupBuilder);
     when(groupsManager.getChangeRecords(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), isA(Group.class), any(), anyBoolean(), anyBoolean(), anyInt(), anyInt()))
         .thenReturn(CompletableFuture.completedFuture(List.of(GroupChangeState.newBuilder().setGroupState(groupBuilder).build())));
-    response = getGroupLogs(0);
-    assertThat(response.getStatus()).isEqualTo(403);
-    assertThat(response.hasEntity()).isFalse();
+
+    try (Response response = getGroupLogs(0)) {
+      assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(response.hasEntity()).isFalse();
+    }
   }
 
   @Test
@@ -94,17 +103,20 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     final Group.Builder groupBuilder = group.toBuilder();
 
     setMockGroupState(groupBuilder);
-    Response response = getGroup();
-    assertThat(response.getStatus()).isEqualTo(200);
-    assertThat(response.hasEntity()).isTrue();
+
+    try (Response  response = getGroup()) {
+      assertThat(response.getStatus()).isEqualTo(200);
+      assertThat(response.hasEntity()).isTrue();
+    }
 
     groupBuilder.addMembersBannedBuilder().setUserId(groupBuilder.getMembers(0).getUserId()).setTimestamp(clock.millis());
     groupBuilder.removeMembers(0);
-
     setMockGroupState(groupBuilder);
-    response = getGroup();
-    assertThat(response.getStatus()).isEqualTo(403);
-    assertThat(response.hasEntity()).isFalse();
+
+    try (Response response = getGroup()) {
+      assertThat(response.getStatus()).isEqualTo(403);
+      assertThat(response.hasEntity()).isFalse();
+    }
   }
 
   @Test
@@ -119,13 +131,15 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     groupBuilder.getMembersBuilder(0).setPresentation(ByteString.copyFrom(validUserPresentation.serialize()));
     groupBuilder.getMembersBuilder(1).setPresentation(ByteString.copyFrom(validUserTwoPresentation.serialize()));
 
-    Response response = createGroup(groupBuilder);
-    assertThat(response.getStatus()).isEqualTo(200);
+    try (Response response = createGroup(groupBuilder)) {
+      assertThat(response.getStatus()).isEqualTo(200);
+    }
 
     groupBuilder.addMembersBannedBuilder().setUserId(ByteString.copyFrom(validUserFourPresentation.getUuidCiphertext().serialize())).setTimestamp(clock.millis());
 
-    response = createGroup(groupBuilder);
-    assertThat(response.getStatus()).isEqualTo(400);
+    try (Response response = createGroup(groupBuilder)) {
+      assertThat(response.getStatus()).isEqualTo(400);
+    }
   }
 
   @Test
@@ -138,13 +152,14 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
 
     setMockGroupState(groupBuilder);
     setupGroupsManagerForWrites();
-    Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
 
-    actionsBuilder.setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
-    actionsBuilder.getAddMembersBannedBuilder(0).getAddedBuilder().setTimestamp(clock.millis());
-    groupBuilder.setVersion(1).addMembersBannedBuilder().setUserId(validUserThreeId).setTimestamp(clock.millis());
-    assertThat(response.getStatus()).isEqualTo(200);
-    verifyGroupModification(groupBuilder, actionsBuilder, 4, response, validUserId);
+    try (Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder)) {
+      actionsBuilder.setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
+      actionsBuilder.getAddMembersBannedBuilder(0).getAddedBuilder().setTimestamp(clock.millis());
+      groupBuilder.setVersion(1).addMembersBannedBuilder().setUserId(validUserThreeId).setTimestamp(clock.millis());
+      assertThat(response.getStatus()).isEqualTo(200);
+      verifyGroupModification(groupBuilder, actionsBuilder, 4, response, validUserId);
+    }
   }
 
   @Test
@@ -157,10 +172,11 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
 
     setMockGroupState(groupBuilder);
     setupGroupsManagerForWrites();
-    Response response = modifyGroup(AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL, actionsBuilder);
 
-    assertThat(response.getStatus()).isEqualTo(403);
-    verifyNoGroupWrites();
+    try (Response response = modifyGroup(AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL, actionsBuilder)) {
+      assertThat(response.getStatus()).isEqualTo(403);
+      verifyNoGroupWrites();
+    }
   }
 
   @Test
@@ -174,12 +190,13 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
 
     setMockGroupState(groupBuilder);
     setupGroupsManagerForWrites();
-    Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
 
-    actionsBuilder.setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
-    groupBuilder.setVersion(1).clearMembersBanned();
-    assertThat(response.getStatus()).isEqualTo(200);
-    verifyGroupModification(groupBuilder, actionsBuilder, 4, response, validUserId);
+    try (Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder)) {
+      actionsBuilder.setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
+      groupBuilder.setVersion(1).clearMembersBanned();
+      assertThat(response.getStatus()).isEqualTo(200);
+      verifyGroupModification(groupBuilder, actionsBuilder, 4, response, validUserId);
+    }
   }
 
   @Test
@@ -194,10 +211,11 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
 
     setMockGroupState(groupBuilder);
     setupGroupsManagerForWrites();
-    Response response = modifyGroup(AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL, actionsBuilder);
 
-    assertThat(response.getStatus()).isEqualTo(403);
-    verifyNoGroupWrites();
+    try (Response response = modifyGroup(AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL, actionsBuilder)) {
+      assertThat(response.getStatus()).isEqualTo(403);
+      verifyNoGroupWrites();
+    }
   }
 
   @Test
@@ -211,12 +229,13 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
 
     setMockGroupState(groupBuilder);
     setupGroupsManagerForWrites();
-    Response response = modifyGroup(AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL, actionsBuilder);
 
-    actionsBuilder.setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
-    groupBuilder.setVersion(1).clearMembersBanned();
-    assertThat(response.getStatus()).isEqualTo(200);
-    verifyGroupModification(groupBuilder, actionsBuilder, 4, response, validUserTwoId);
+    try (Response response = modifyGroup(AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL, actionsBuilder)) {
+      actionsBuilder.setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
+      groupBuilder.setVersion(1).clearMembersBanned();
+      assertThat(response.getStatus()).isEqualTo(200);
+      verifyGroupModification(groupBuilder, actionsBuilder, 4, response, validUserTwoId);
+    }
   }
 
   @Test
@@ -229,9 +248,11 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
 
     setMockGroupState(groupBuilder);
     setupGroupsManagerForWrites();
-    Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
-    assertThat(response.getStatus()).isEqualTo(400);
-    verifyNoGroupWrites();
+
+    try (Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder)) {
+      assertThat(response.getStatus()).isEqualTo(400);
+      verifyNoGroupWrites();
+    }
   }
 
   @Test
@@ -245,9 +266,11 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
 
     setMockGroupState(groupBuilder);
     setupGroupsManagerForWrites();
-    Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
-    assertThat(response.getStatus()).isEqualTo(400);
-    verifyNoGroupWrites();
+
+    try (Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder)) {
+      assertThat(response.getStatus()).isEqualTo(400);
+      verifyNoGroupWrites();
+    }
   }
 
   @Test
@@ -261,9 +284,11 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
 
     setMockGroupState(groupBuilder);
     setupGroupsManagerForWrites();
-    Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
-    assertThat(response.getStatus()).isEqualTo(400);
-    verifyNoGroupWrites();
+
+    try (Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder)) {
+      assertThat(response.getStatus()).isEqualTo(400);
+      verifyNoGroupWrites();
+    }
   }
 
   @Test
@@ -280,11 +305,12 @@ class GroupsControllerBannedMembersTest extends BaseGroupsControllerTest {
     actionsBuilder.setVersion(1);
 
     setupGroupsManagerForWrites();
-    Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder);
 
-    actionsBuilder.setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
-    assertThat(response.getStatus()).isEqualTo(400);
-    verifyNoGroupWrites();
+    try (Response response = modifyGroup(AuthHelper.VALID_USER_AUTH_CREDENTIAL, actionsBuilder)) {
+      actionsBuilder.setGroupId(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()));
+      assertThat(response.getStatus()).isEqualTo(400);
+      verifyNoGroupWrites();
+    }
   }
 
   private Response createGroup(Group.Builder groupBuilder) {
