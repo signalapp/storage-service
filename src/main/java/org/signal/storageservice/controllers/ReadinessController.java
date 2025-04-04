@@ -6,8 +6,8 @@ import com.google.cloud.bigtable.data.v2.models.TableId;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.Path;
 
 @Path("_ready")
 public class ReadinessController {

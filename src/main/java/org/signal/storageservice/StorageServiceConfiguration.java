@@ -15,8 +15,8 @@ import org.signal.storageservice.configuration.GroupConfiguration;
 import org.signal.storageservice.configuration.WarmupConfiguration;
 import org.signal.storageservice.configuration.ZkConfiguration;
 
-import javax.validation.Valid;
-import javax.validation.constraints.NotNull;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
 
 public class StorageServiceConfiguration extends Configuration {
 

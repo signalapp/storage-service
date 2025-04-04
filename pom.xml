@@ -15,13 +15,11 @@
         <!-- eclipse-temurin:21.0.6_7-jre-jammy -->
         <docker.image.sha256>02fc89fa8766a9ba221e69225f8d1c10bb91885ddbd3c112448e23488ba40ab6</docker.image.sha256>
 
-        <dropwizard.version>3.0.12</dropwizard.version>
+        <dropwizard.version>4.0.12</dropwizard.version>
 
         <dropwizard-metrics-datadog.version>2.0.0-RC2</dropwizard-metrics-datadog.version>
         <google-cloud-libraries.version>26.54.0</google-cloud-libraries.version>
         <jackson-bom.version>2.18.2</jackson-bom.version>
-        <jaxb-api.version>2.3.1</jaxb-api.version>
-        <jaxb-runtime.version>2.3.5</jaxb-runtime.version>
         <libsignal-server.version>0.66.1</libsignal-server.version>
         <logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
         <micrometer-bom.version>1.14.3</micrometer-bom.version>
@@ -77,11 +75,6 @@
                 <artifactId>snakeyaml</artifactId>
                 <version>${snakeyaml.version}</version>
             </dependency>
-            <dependency>
-                <groupId>org.glassfish.jaxb</groupId>
-                <artifactId>jaxb-runtime</artifactId>
-                <version>${jaxb-runtime.version}</version>
-            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -93,15 +86,6 @@
         <dependency>
             <groupId>io.dropwizard</groupId>
             <artifactId>dropwizard-auth</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>javax.xml.bind</groupId>
-            <artifactId>jaxb-api</artifactId>
-            <version>${jaxb-api.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.glassfish.jaxb</groupId>
-            <artifactId>jaxb-runtime</artifactId>
         </dependency>
         <dependency>
             <groupId>com.google.cloud</groupId>

@@ -27,7 +27,7 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.core.Response;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;

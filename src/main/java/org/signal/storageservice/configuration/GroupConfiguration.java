@@ -10,7 +10,7 @@ import org.signal.storageservice.util.HexByteArrayAdapter;
 
 import java.time.Duration;
 
-import javax.validation.constraints.Positive;
+import jakarta.validation.constraints.Positive;
 
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 

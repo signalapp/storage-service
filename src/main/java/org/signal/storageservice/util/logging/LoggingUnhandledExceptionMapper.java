@@ -6,8 +6,8 @@
 package org.signal.storageservice.util.logging;
 
 import io.dropwizard.jersey.errors.LoggingExceptionMapper;
-import javax.inject.Provider;
-import javax.ws.rs.core.Context;
+import jakarta.inject.Provider;
+import jakarta.ws.rs.core.Context;
 import org.glassfish.jersey.server.ContainerRequest;
 import org.signal.storageservice.util.UriInfoUtil;
 

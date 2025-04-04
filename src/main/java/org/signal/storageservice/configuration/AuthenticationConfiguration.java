@@ -9,7 +9,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import org.apache.commons.codec.DecoderException;
 import org.apache.commons.codec.binary.Hex;
 
-import javax.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotEmpty;
 
 public class AuthenticationConfiguration {
 

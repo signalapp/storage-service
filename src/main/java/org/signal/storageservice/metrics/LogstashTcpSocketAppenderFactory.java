@@ -21,7 +21,7 @@ import io.dropwizard.logging.common.async.AsyncAppenderFactory;
 import io.dropwizard.logging.common.filter.LevelFilterFactory;
 import io.dropwizard.logging.common.layout.LayoutFactory;
 import java.time.Duration;
-import javax.validation.constraints.NotEmpty;
+import jakarta.validation.constraints.NotEmpty;
 import net.logstash.logback.appender.LogstashTcpSocketAppender;
 import net.logstash.logback.encoder.LogstashEncoder;
 import org.signal.storageservice.StorageServiceVersion;

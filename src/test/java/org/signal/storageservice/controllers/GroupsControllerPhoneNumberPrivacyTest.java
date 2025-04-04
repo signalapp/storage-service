@@ -1,7 +1,7 @@
 package org.signal.storageservice.controllers;
 
-import javax.ws.rs.client.Entity;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.client.Entity;
+import jakarta.ws.rs.core.Response;
 import com.google.protobuf.ByteString;
 import org.junit.jupiter.api.Test;
 import org.signal.storageservice.providers.ProtocolBufferMediaType;

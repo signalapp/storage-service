@@ -15,7 +15,7 @@
  */
 package org.signal.storageservice.providers;
 
-import javax.ws.rs.core.MediaType;
+import jakarta.ws.rs.core.MediaType;
 
 public class ProtocolBufferMediaType extends MediaType {
 

@@ -31,19 +31,19 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import javax.ws.rs.BadRequestException;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.DefaultValue;
-import javax.ws.rs.ForbiddenException;
-import javax.ws.rs.GET;
-import javax.ws.rs.HeaderParam;
-import javax.ws.rs.PATCH;
-import javax.ws.rs.PUT;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.QueryParam;
-import javax.ws.rs.core.Response;
+import jakarta.ws.rs.BadRequestException;
+import jakarta.ws.rs.Consumes;
+import jakarta.ws.rs.DefaultValue;
+import jakarta.ws.rs.ForbiddenException;
+import jakarta.ws.rs.GET;
+import jakarta.ws.rs.HeaderParam;
+import jakarta.ws.rs.PATCH;
+import jakarta.ws.rs.PUT;
+import jakarta.ws.rs.Path;
+import jakarta.ws.rs.PathParam;
+import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
+import jakarta.ws.rs.core.Response;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang3.StringUtils;
 import org.signal.libsignal.zkgroup.InvalidInputException;
@@ -225,7 +225,7 @@ public class GroupsController {
   @Path("/logs/{fromVersion}")
   public CompletableFuture<Response> getGroupLogs(
       @Auth GroupUser user,
-      @HeaderParam(javax.ws.rs.core.HttpHeaders.USER_AGENT) String userAgent,
+      @HeaderParam(jakarta.ws.rs.core.HttpHeaders.USER_AGENT) String userAgent,
       @HeaderParam("Cached-Send-Endorsements") Long cachedSendEndorsementsExpiration,
       @PathParam("fromVersion") int fromVersion,
       @QueryParam("limit") @DefaultValue("64") int limit,
