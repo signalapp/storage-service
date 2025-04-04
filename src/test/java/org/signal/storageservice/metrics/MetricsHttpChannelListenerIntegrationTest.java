@@ -10,12 +10,10 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.doubleThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -58,7 +56,6 @@ import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.component.Container;
 import org.eclipse.jetty.util.component.LifeCycle;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -71,7 +68,6 @@ class MetricsHttpChannelListenerIntegrationTest {
   private static final MeterRegistry METER_REGISTRY = mock(MeterRegistry.class);
   private static final Counter REQUEST_COUNTER = mock(Counter.class);
   private static final Counter RESPONSE_BYTES_COUNTER = mock(Counter.class);
-  private static final Counter LARGE_RESPONSE_COUNTER = mock(Counter.class);
 
   private static final AtomicReference<CountDownLatch> COUNT_DOWN_LATCH_FUTURE_REFERENCE = new AtomicReference<>();
 
@@ -176,7 +172,6 @@ class MetricsHttpChannelListenerIntegrationTest {
     reset(METER_REGISTRY);
     reset(REQUEST_COUNTER);
     reset(RESPONSE_BYTES_COUNTER);
-    reset(LARGE_RESPONSE_COUNTER);
   }
 
   @ParameterizedTest
@@ -197,8 +192,6 @@ class MetricsHttpChannelListenerIntegrationTest {
             return REQUEST_COUNTER;
           } else if (MetricsHttpChannelListener.RESPONSE_BYTES_COUNTER_NAME.equals(counterName)) {
             return RESPONSE_BYTES_COUNTER;
-          } else if (MetricsHttpChannelListener.LARGE_RESPONSE_COUNTER_NAME.equals(counterName)) {
-            return LARGE_RESPONSE_COUNTER;
           } else {
             return mock(Counter.class);
           }
@@ -245,8 +238,6 @@ class MetricsHttpChannelListenerIntegrationTest {
     expectedContentLength.ifPresentOrElse(contentLength -> verify(RESPONSE_BYTES_COUNTER).increment(contentLength),
         () -> verify(RESPONSE_BYTES_COUNTER).increment(doubleThat(contentLength -> contentLength > 0)));
 
-    verify(LARGE_RESPONSE_COUNTER, never()).increment();
-
     final Iterable<Tag> tagIterable = tagCaptor.getValue();
     final Set<Tag> tags = new HashSet<>();
 
@@ -268,43 +259,10 @@ class MetricsHttpChannelListenerIntegrationTest {
         Arguments.of("/v1/test/greet/friend", "/v1/test/greet/{name}",
             String.format(TestResource.GREET_FORMAT, "friend"), 200),
         Arguments.of("/v1/test/greet/unauthorized", "/v1/test/greet/{name}", null, 401),
-        Arguments.of("/v1/test/greet/exception", "/v1/test/greet/{name}", null, 500)
+        Arguments.of("/v1/test/greet/exception", "/v1/test/greet/{name}", null, 500),
+
+        // This is large enough to significantly overrun the default 8 KiB buffer
+        Arguments.of("/v1/test/hello/4096", "/v1/test/hello/{repetitions}", "Hello!\n".repeat(4096), 200)
     );
-  }
-
-  @Test
-  void testLargeResponse() throws InterruptedException {
-
-    final CountDownLatch countDownLatch = new CountDownLatch(1);
-    COUNT_DOWN_LATCH_FUTURE_REFERENCE.set(countDownLatch);
-
-    //noinspection unchecked
-    when(METER_REGISTRY.counter(anyString(), any(Iterable.class)))
-        .thenAnswer(invocation -> {
-          final String counterName = invocation.getArgument(0);
-
-          if (MetricsHttpChannelListener.REQUEST_COUNTER_NAME.equals(counterName)) {
-            return REQUEST_COUNTER;
-          } else if (MetricsHttpChannelListener.RESPONSE_BYTES_COUNTER_NAME.equals(counterName)) {
-            return RESPONSE_BYTES_COUNTER;
-          } else if (MetricsHttpChannelListener.LARGE_RESPONSE_COUNTER_NAME.equals(counterName)) {
-            return LARGE_RESPONSE_COUNTER;
-          } else {
-            return mock(Counter.class);
-          }
-        });
-
-    final Client client = EXTENSION.client();
-
-    // If not set, the default buffer size is 8KiB; 4096 copies of "Hello!\n" will be longer than that
-    client.target(String.format("http://localhost:%d%s", EXTENSION.getLocalPort(), "/v1/test/hello/4096"))
-        .request()
-        .header(HttpHeaders.USER_AGENT, "Signal-Android/4.53.7 (Android 8.1)")
-        .get(String.class);
-
-    assertTrue(countDownLatch.await(1000, TimeUnit.MILLISECONDS));
-
-    verify(RESPONSE_BYTES_COUNTER, never()).increment(anyDouble());
-    verify(LARGE_RESPONSE_COUNTER).increment();
   }
 }

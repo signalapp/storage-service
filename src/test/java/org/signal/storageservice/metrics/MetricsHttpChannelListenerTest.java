@@ -70,7 +70,7 @@ class MetricsHttpChannelListenerTest {
 
     final Response response = mock(Response.class);
     when(response.getStatus()).thenReturn(statusCode);
-    when(response.getContentLength()).thenReturn(responseContentLength);
+    when(response.getContentCount()).thenReturn(responseContentLength);
     when(request.getResponse()).thenReturn(response);
     final ExtendedUriInfo extendedUriInfo = mock(ExtendedUriInfo.class);
     when(request.getAttribute(MetricsHttpChannelListener.URI_INFO_PROPERTY_NAME)).thenReturn(extendedUriInfo);

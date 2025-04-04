@@ -108,7 +108,6 @@ public class StorageService extends Application<StorageServiceConfiguration> {
     environment.jersey().register(new GroupsController(Clock.systemUTC(), groupsManager, serverSecretParams, policySigner, postPolicyGenerator, config.getGroupConfiguration(), externalGroupCredentialGenerator));
     environment.jersey().register(new GroupsV1Controller(Clock.systemUTC(), groupsManager, serverSecretParams, policySigner, postPolicyGenerator, config.getGroupConfiguration(), externalGroupCredentialGenerator));
 
-    environment.jersey().property(CommonProperties.OUTBOUND_CONTENT_LENGTH_BUFFER, DataSize.mebibytes(8).toBytes());
     new MetricsHttpChannelListener().configure(environment);
 
     MetricsUtil.registerSystemResourceMetrics(environment);

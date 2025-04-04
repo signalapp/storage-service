@@ -54,10 +54,6 @@ public class MetricsHttpChannelListener implements HttpChannel.Listener, Contain
       MetricsUtil.name(MetricsHttpChannelListener.class, "responseBytes");
 
   @VisibleForTesting
-  static final String LARGE_RESPONSE_COUNTER_NAME =
-      MetricsUtil.name(MetricsHttpChannelListener.class, "largeResponse");
-
-  @VisibleForTesting
   static final String URI_INFO_PROPERTY_NAME = MetricsHttpChannelListener.class.getName() + ".uriInfo";
 
   @VisibleForTesting
@@ -131,15 +127,7 @@ public class MetricsHttpChannelListener implements HttpChannel.Listener, Contain
         .and(UserAgentTagUtil.getPlatformTag(requestInfo.userAgent()));
 
     meterRegistry.counter(REQUEST_COUNTER_NAME, tags).increment();
-
-    final long contentLength = request.getResponse().getContentLength();
-
-    if (contentLength >= 0) {
-      // The content length is known, and we should measure it directly
-      meterRegistry.counter(RESPONSE_BYTES_COUNTER_NAME, tags).increment(request.getResponse().getContentLength());
-    } else {
-      meterRegistry.counter(LARGE_RESPONSE_COUNTER_NAME, tags).increment();
-    }
+    meterRegistry.counter(RESPONSE_BYTES_COUNTER_NAME, tags).increment(request.getResponse().getContentCount());
   }
 
   @Override
