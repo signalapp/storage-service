@@ -21,6 +21,9 @@
         <google-cloud-libraries.version>26.54.0</google-cloud-libraries.version>
         <jackson-bom.version>2.18.2</jackson-bom.version>
         <libsignal-server.version>0.66.1</libsignal-server.version>
+        <!-- Logback 1.5.14+ has a null pointer bug: https://github.com/qos-ch/logback/issues/929. -->
+        <logback.version>1.5.13</logback.version>
+        <logback-access.version>2.0.5</logback-access.version>
         <logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
         <micrometer-bom.version>1.14.3</micrometer-bom.version>
         <osgi-core.version>6.0.0</osgi-core.version>
@@ -65,6 +68,21 @@
                 <scope>import</scope>
             </dependency>
 
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-core</artifactId>
+                <version>${logback.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback</groupId>
+                <artifactId>logback-classic</artifactId>
+                <version>${logback.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ch.qos.logback.access</groupId>
+                <artifactId>logback-access-common</artifactId>
+                <version>${logback-access.version}</version>
+            </dependency>
             <dependency>
                 <groupId>org.osgi</groupId>
                 <artifactId>org.osgi.core</artifactId>
