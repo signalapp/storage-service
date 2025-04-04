@@ -22,6 +22,8 @@ import io.dropwizard.core.setup.Bootstrap;
 import io.dropwizard.core.setup.Environment;
 import java.time.Clock;
 import java.util.Set;
+import io.dropwizard.util.DataSize;
+import org.glassfish.jersey.CommonProperties;
 import org.signal.libsignal.zkgroup.ServerSecretParams;
 import org.signal.libsignal.zkgroup.auth.ServerZkAuthOperations;
 import org.signal.storageservice.auth.ExternalGroupCredentialGenerator;
@@ -36,7 +38,7 @@ import org.signal.storageservice.controllers.HealthCheckController;
 import org.signal.storageservice.controllers.ReadinessController;
 import org.signal.storageservice.controllers.StorageController;
 import org.signal.storageservice.filters.TimestampResponseFilter;
-import org.signal.storageservice.metrics.MetricsApplicationEventListener;
+import org.signal.storageservice.metrics.MetricsHttpChannelListener;
 import org.signal.storageservice.metrics.MetricsUtil;
 import org.signal.storageservice.providers.CompletionExceptionMapper;
 import org.signal.storageservice.providers.InvalidProtocolBufferExceptionMapper;
@@ -106,7 +108,8 @@ public class StorageService extends Application<StorageServiceConfiguration> {
     environment.jersey().register(new GroupsController(Clock.systemUTC(), groupsManager, serverSecretParams, policySigner, postPolicyGenerator, config.getGroupConfiguration(), externalGroupCredentialGenerator));
     environment.jersey().register(new GroupsV1Controller(Clock.systemUTC(), groupsManager, serverSecretParams, policySigner, postPolicyGenerator, config.getGroupConfiguration(), externalGroupCredentialGenerator));
 
-    environment.jersey().register(new MetricsApplicationEventListener());
+    environment.jersey().property(CommonProperties.OUTBOUND_CONTENT_LENGTH_BUFFER, DataSize.mebibytes(8).toBytes());
+    new MetricsHttpChannelListener().configure(environment);
 
     MetricsUtil.registerSystemResourceMetrics(environment);
   }
