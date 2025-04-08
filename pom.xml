@@ -26,7 +26,6 @@
         <logback-access.version>2.0.6</logback-access.version>
         <logstash-logback-encoder.version>8.1</logstash-logback-encoder.version>
         <micrometer-bom.version>1.14.5</micrometer-bom.version>
-        <osgi-core.version>6.0.0</osgi-core.version>
         <protobuf.version>4.29.4</protobuf.version> <!-- must be less than or equal to the value from Google libraries-bom, see https://protobuf.dev/support/cross-version-runtime-guarantee/ -->
         <semver4j.version>3.1.0</semver4j.version>
         <snakeyaml.version>2.4</snakeyaml.version>
@@ -82,11 +81,6 @@
                 <groupId>ch.qos.logback.access</groupId>
                 <artifactId>logback-access-common</artifactId>
                 <version>${logback-access.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.osgi</groupId>
-                <artifactId>org.osgi.core</artifactId>
-                <version>${osgi-core.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.yaml</groupId>
