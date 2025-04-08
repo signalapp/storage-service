@@ -15,7 +15,7 @@
         <!-- eclipse-temurin:21.0.6_7-jre-jammy -->
         <docker.image.sha256>02fc89fa8766a9ba221e69225f8d1c10bb91885ddbd3c112448e23488ba40ab6</docker.image.sha256>
 
-        <dropwizard.version>4.0.12</dropwizard.version>
+        <dropwizard.version>4.0.13</dropwizard.version>
 
         <dropwizard-metrics-datadog.version>2.0.0-RC2</dropwizard-metrics-datadog.version>
         <google-cloud-libraries.version>26.59.0</google-cloud-libraries.version>
