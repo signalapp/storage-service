@@ -18,18 +18,18 @@
         <dropwizard.version>4.0.12</dropwizard.version>
 
         <dropwizard-metrics-datadog.version>2.0.0-RC2</dropwizard-metrics-datadog.version>
-        <google-cloud-libraries.version>26.54.0</google-cloud-libraries.version>
-        <jackson-bom.version>2.18.2</jackson-bom.version>
-        <libsignal-server.version>0.66.1</libsignal-server.version>
+        <google-cloud-libraries.version>26.59.0</google-cloud-libraries.version>
+        <jackson-bom.version>2.18.3</jackson-bom.version>
+        <libsignal-server.version>0.69.0</libsignal-server.version>
         <!-- Logback 1.5.14+ has a null pointer bug: https://github.com/qos-ch/logback/issues/929. -->
         <logback.version>1.5.13</logback.version>
-        <logback-access.version>2.0.5</logback-access.version>
-        <logstash-logback-encoder.version>7.4</logstash-logback-encoder.version>
-        <micrometer-bom.version>1.14.3</micrometer-bom.version>
+        <logback-access.version>2.0.6</logback-access.version>
+        <logstash-logback-encoder.version>8.1</logstash-logback-encoder.version>
+        <micrometer-bom.version>1.14.5</micrometer-bom.version>
         <osgi-core.version>6.0.0</osgi-core.version>
-        <protobuf.version>3.25.5</protobuf.version> <!-- must be greater than or equal to the value from Google libraries-bom, see https://protobuf.dev/support/cross-version-runtime-guarantee/ -->
+        <protobuf.version>4.29.4</protobuf.version> <!-- must be less than or equal to the value from Google libraries-bom, see https://protobuf.dev/support/cross-version-runtime-guarantee/ -->
         <semver4j.version>3.1.0</semver4j.version>
-        <snakeyaml.version>2.3</snakeyaml.version>
+        <snakeyaml.version>2.4</snakeyaml.version>
         <syslog4j.version>0.9.30</syslog4j.version>
 
         <!-- test -->
