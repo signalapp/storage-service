@@ -18,21 +18,21 @@
         <dropwizard.version>4.0.16</dropwizard.version>
 
         <dropwizard-metrics-datadog.version>2.0.0-RC2</dropwizard-metrics-datadog.version>
-        <google-cloud-libraries.version>26.67.0</google-cloud-libraries.version>
-        <jackson-bom.version>2.20.0</jackson-bom.version>
-        <libsignal-server.version>0.79.0</libsignal-server.version>
+        <google-cloud-libraries.version>26.71.0</google-cloud-libraries.version>
+        <jackson-bom.version>2.20.1</jackson-bom.version>
+        <libsignal-server.version>0.85.2</libsignal-server.version>
         <!-- Logback 1.5.14+ has a null pointer bug: https://github.com/qos-ch/logback/issues/929. -->
-        <logback.version>1.5.18</logback.version>
-        <logback-access.version>2.0.6</logback-access.version>
+        <logback.version>1.5.20</logback.version>
+        <logback-access.version>2.0.7</logback-access.version>
         <logstash-logback-encoder.version>8.1</logstash-logback-encoder.version>
-        <micrometer-bom.version>1.15.3</micrometer-bom.version>
+        <micrometer-bom.version>1.15.5</micrometer-bom.version>
         <protobuf.version>4.29.4</protobuf.version> <!-- must be less than or equal to the value from Google libraries-bom, see https://protobuf.dev/support/cross-version-runtime-guarantee/ -->
         <semver4j.version>3.1.0</semver4j.version>
-        <snakeyaml.version>2.4</snakeyaml.version>
+        <snakeyaml.version>2.5</snakeyaml.version>
         <syslog4j.version>0.9.30</syslog4j.version>
 
         <!-- test -->
-        <assertj-core.version>3.27.4</assertj-core.version>
+        <assertj-core.version>3.27.6</assertj-core.version>
     </properties>
 
     <dependencyManagement>
@@ -195,7 +195,7 @@
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
                 <artifactId>versions-maven-plugin</artifactId>
-                <version>2.18.0</version>
+                <version>2.19.1</version>
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -228,7 +228,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.14.0</version>
+                <version>3.14.1</version>
                 <configuration>
                     <source>21</source>
                     <target>21</target>
@@ -237,7 +237,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.9.0</version>
                 <executions>
                     <execution>
                         <phase>initialize</phase>
@@ -282,7 +282,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.5.3</version>
+                <version>3.5.4</version>
                 <configuration>
                     <argLine>-javaagent:${org.mockito:mockito-core:jar}</argLine>
                 </configuration>
@@ -308,7 +308,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.6.1</version>
+                <version>3.6.2</version>
                 <executions>
                     <execution>
                         <goals>
