@@ -49,23 +49,14 @@ public class GroupAuth {
   public static Optional<ByteString> selectChangeSource(final GroupUser user, final Group existingGroup, final Supplier<Group> modifiedGroupSupplier) {
 
     // Members that match user in the existingGroup
-    final Iterator<ByteString> matchingSourceIds = Stream.<Supplier<Stream<ByteString>>>of(
+    final Optional<ByteString> matchInExistingGroup = Stream.<Supplier<Stream<ByteString>>>of(
             () -> GroupAuth.getMember(user, existingGroup).stream().map(Member::getUserId),
-            () -> GroupAuth.getMatchingMembersPendingProfileKey(user, existingGroup).map(pending -> pending.getMember().getUserId()),
+            () -> GroupAuth.getMatchingMembersPendingProfileKey(user, existingGroup).map(pending -> pending.getMember().getUserId()).filter(user::aciMatches),
             () -> GroupAuth.getMatchingMembersPendingAdminApproval(user, existingGroup).map(MemberPendingAdminApproval::getUserId))
         .flatMap(Supplier::get)
-        .iterator();
+        .findFirst();
 
-    // If an ACI is present in the existing group, select that
-    ByteString sourceUuid = null;
-    while(matchingSourceIds.hasNext()) {
-      sourceUuid = matchingSourceIds.next();
-      if (user.aciMatches(sourceUuid)) {
-        break;
-      }
-    }
-    return Optional
-        .ofNullable(sourceUuid)
+    return matchInExistingGroup
         .or(() -> {
           // otherwise, the source of the change only appears after the change is made
           final Group modifiedGroup = modifiedGroupSupplier.get();

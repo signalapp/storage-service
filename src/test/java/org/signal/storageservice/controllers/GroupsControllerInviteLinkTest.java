@@ -430,6 +430,71 @@ class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
     verifyNoGroupWrites();
   }
 
+  @Test
+  void testAddMembersPendingAdminApproval_pniPendingProfileKey() throws Exception {
+    final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
+    final Group group = this.group.toBuilder()
+                                  .setAccessControl(this.group.getAccessControl().toBuilder().setAddFromInviteLink(AccessControl.AccessRequired.ADMINISTRATOR))
+                                  .setInviteLinkPassword(ByteString.copyFrom(inviteLinkPassword))
+                                  .addMembersPendingProfileKey(MemberPendingProfileKey.newBuilder()
+                                      .setAddedByUserId(this.group.getMembers(0).getUserId())
+                                      .setTimestamp(clock.millis())
+                                      .setMember(Member.newBuilder()
+                                          .setUserId(validUserThreePniId)
+                                          .setRole(Member.Role.DEFAULT)
+                                          .build())
+                                      .build())
+                                  .build();
+
+    setupGroupsManagerBehaviors(group);
+
+    GroupChange.Actions actions = GroupChange.Actions.newBuilder()
+                                                     .setVersion(1)
+                                                     .addAddMembersPendingAdminApproval(GroupChange.Actions.AddMemberPendingAdminApprovalAction.newBuilder()
+                                                                                                                                               .setAdded(MemberPendingAdminApproval.newBuilder()
+                                                                                                                                                                                   .setPresentation(ByteString.copyFrom(validUserThreePresentation.serialize()))
+                                                                                                                                                                                   .build()))
+                                                     .build();
+
+    final Response response = resources.getJerseyTest()
+                                       .target("/v1/groups/")
+                                       .queryParam("inviteLinkPassword", Base64.encodeBase64URLSafeString(inviteLinkPassword))
+                                       .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+                                       .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_THREE_AUTH_CREDENTIAL))
+                                       .method("PATCH", Entity.entity(actions.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    assertThat(response.hasEntity()).isTrue();
+    assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
+
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
+
+    ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
+    ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
+
+    verify(groupsManager).updateGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), captor.capture());
+    verify(groupsManager).appendChangeRecord(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(1), changeCaptor.capture(), any(Group.class));
+
+    assertThat(captor.getValue().getVersion()).isEqualTo(1);
+    assertThat(captor.getValue().getMembersPendingAdminApprovalList()).hasSize(1).allMatch(memberPendingAdminApproval -> memberPendingAdminApproval.getUserId().equals(validUserThreeId));
+
+    assertThat(captor.getValue().toBuilder()
+                     .setVersion(0)
+                     .clearMembersPendingAdminApproval()
+                     .build())
+            .isEqualTo(group);
+
+    assertThat(signedChange).isEqualTo(changeCaptor.getValue());
+    assertThat(GroupChange.Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
+    // If this fails, the change was probably attributed to the PNI instead, because it was part of
+    // the group state before. But the PNI's presence in the group hasn't changed, and the action
+    // didn't require the PNI!
+    assertThat(GroupChange.Actions.parseFrom(signedChange.getActions()).getSourceUserId()).isEqualTo(validUserThreeId);
+
+    AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
+                                                                   new NotarySignature(signedChange.getServerSignature().toByteArray()));
+  }
+
   private Response setupForTestAddMembers(final byte[] inviteLinkPasswordQueryParam, final Function<Group.Builder, Group.Builder> groupBuilderFunction) {
     final Group group = groupBuilderFunction.apply(this.group.toBuilder()).build();
     setupGroupsManagerBehaviors(group);
@@ -520,6 +585,52 @@ class GroupsControllerInviteLinkTest extends BaseGroupsControllerTest {
                               .setInviteLinkPassword(ByteString.copyFrom(inviteLinkPassword)));
     assertThat(response.getStatus()).isEqualTo(403);
     verifyNoGroupWrites();
+  }
+
+  @Test
+  void testAddMembers_pniPendingProfileKey() throws Exception {
+    final byte[] inviteLinkPassword = createGroupInviteLinkPassword();
+    final Function<Group.Builder, Group.Builder> groupBuilderFunction = builder -> builder.mergeAccessControl(AccessControl.newBuilder().setAddFromInviteLink(AccessControl.AccessRequired.ANY).build())
+        .setInviteLinkPassword(ByteString.copyFrom(inviteLinkPassword))
+        .addMembersPendingProfileKey(MemberPendingProfileKey.newBuilder()
+            .setAddedByUserId(this.group.getMembers(0).getUserId())
+            .setTimestamp(clock.millis())
+            .setMember(Member.newBuilder()
+                .setUserId(validUserThreePniId)
+                .setRole(Member.Role.DEFAULT)));
+    final Response response = setupForTestAddMembers(inviteLinkPassword, groupBuilderFunction);
+
+    assertThat(response.getStatus()).isEqualTo(200);
+    assertThat(response.hasEntity()).isTrue();
+    assertThat(response.getMediaType().toString()).isEqualTo("application/x-protobuf");
+
+    GroupChange signedChange = GroupChange.parseFrom(response.readEntity(InputStream.class).readAllBytes());
+
+    ArgumentCaptor<Group>       captor       = ArgumentCaptor.forClass(Group.class      );
+    ArgumentCaptor<GroupChange> changeCaptor = ArgumentCaptor.forClass(GroupChange.class);
+
+    verify(groupsManager).updateGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), captor.capture());
+    verify(groupsManager).appendChangeRecord(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(1), changeCaptor.capture(), any(Group.class));
+
+    assertThat(captor.getValue().getVersion()).isEqualTo(1);
+    assertThat(captor.getValue().getMembersList()).hasSize(3).last().matches(member -> member.getUserId().equals(ByteString.copyFrom(validUserThreePresentation.getUuidCiphertext().serialize())));
+
+    assertThat(captor.getValue().toBuilder()
+        .setVersion(0)
+        .removeMembers(2)
+        .build())
+        .isEqualTo(groupBuilderFunction.apply(group.toBuilder()).build());
+
+    assertThat(signedChange).isEqualTo(changeCaptor.getValue());
+    assertThat(GroupChange.Actions.parseFrom(signedChange.getActions()).getVersion()).isEqualTo(1);
+    // If this fails, the change was probably attributed to the PNI instead, because it was part of
+    // the group state before. But the PNI's presence in the group hasn't changed, and the action
+    // didn't require the PNI!
+    assertThat(GroupChange.Actions.parseFrom(signedChange.getActions()).getSourceUserId()).isEqualTo(ByteString.copyFrom(validUserThreePresentation.getUuidCiphertext().serialize()));
+    assertThat(GroupChange.Actions.parseFrom(signedChange.getActions()).getAddMembersList()).hasSize(1).allMatch(GroupChange.Actions.AddMemberAction::getJoinFromInviteLink);
+
+    AuthHelper.GROUPS_SERVER_KEY.getPublicParams().verifySignature(signedChange.getActions().toByteArray(),
+        new NotarySignature(signedChange.getServerSignature().toByteArray()));
   }
 
   @Test

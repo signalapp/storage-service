@@ -17,6 +17,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -32,6 +33,7 @@ import org.signal.storageservice.controllers.GroupsController;
 import org.signal.storageservice.storage.protos.groups.AccessControl;
 import org.signal.storageservice.storage.protos.groups.Group;
 import org.signal.storageservice.storage.protos.groups.GroupChange;
+import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.DeleteMemberPendingProfileKeyAction;
 import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.ModifyMemberProfileKeyAction;
 import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.PromoteMemberPendingPniAciProfileKeyAction;
 import org.signal.storageservice.storage.protos.groups.GroupChange.Actions.PromoteMemberPendingProfileKeyAction;
@@ -366,6 +368,58 @@ public class GroupValidator {
     } catch (InvalidInputException | VerificationFailedException e) {
       throw new BadRequestException(e);
     }
+  }
+
+  /**
+   * For any actions that require a special change source, verifies that using such a source won't
+   * be a problem.
+   *
+   * Normally change sources are always ACIs, but for PNI-related requests we may need an override.
+   * To ensure this doesn't result in PNIs being used as the source of any other change actions,
+   * this method enforces that such requests only contain the single PNI-related action.
+   *
+   * @throws BadRequestException if a "special change source" action is present and there are
+   * <em>any</em> other actions in the set
+   * @return the custom change source, if any, to be used later
+   */
+  public Optional<ByteString> validateSpecialChangeSourceActions(GroupUser user, Group group, GroupChange.Actions submittedActions) throws BadRequestException {
+    // Today, this only applies to PNI-related actions, so we can early-exit if the user doesn't have one.
+    final ByteString userPni = user.getPniCiphertext().orElse(null);
+    if (userPni == null) {
+      return Optional.empty();
+    }
+
+    // There are two PNI-related actions: accepting a PNI invite, and declining one.
+    List<PromoteMemberPendingPniAciProfileKeyAction> promotePniActions = submittedActions
+        .getPromoteMembersPendingPniAciProfileKeyList();
+    if (promotePniActions.stream().anyMatch(action -> action.getPni().isEmpty() || action.getPni().equals(userPni))) {
+      // In practice, clients will not have set the PNI field here; they pass the presentation alone.
+      // So we'll always be in the "isEmpty" case. But checking for equality is there for completeness.
+      if (promotePniActions.size() != 1) {
+        throw new BadRequestException("cannot promote own PNI while promoting others");
+      }
+      if (!submittedActions.toBuilder().clearPromoteMembersPendingPniAciProfileKey().clearVersion().build().equals(GroupChange.Actions.getDefaultInstance())) {
+        throw new BadRequestException("cannot promote PNI alongside other actions");
+      }
+      return Optional.of(userPni);
+    }
+
+    List<DeleteMemberPendingProfileKeyAction> deletePendingMemberActions = submittedActions
+        .getDeleteMembersPendingProfileKeyList();
+    // An administrator can clear out arbitrary invites; if one of them happens to be their own PNI,
+    // we shouldn't prevent them.
+    if (deletePendingMemberActions.stream().anyMatch(action -> action.getDeletedUserId().equals(userPni)) &&
+        !GroupAuth.isAdministrator(user, group)) {
+      if (deletePendingMemberActions.size() != 1) {
+        throw new BadRequestException("cannot reject own PNI invite and also others");
+      }
+      if (!submittedActions.toBuilder().clearDeleteMembersPendingProfileKey().clearVersion().build().equals(GroupChange.Actions.getDefaultInstance())) {
+        throw new BadRequestException("cannot reject PNI invite alongside other actions");
+      }
+      return Optional.of(userPni);
+    }
+
+    return Optional.empty();
   }
 
   public boolean isValidAvatarUrl(String url, ByteString groupId) {

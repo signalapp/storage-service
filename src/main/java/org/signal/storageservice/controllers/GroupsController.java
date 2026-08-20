@@ -535,7 +535,7 @@ public class GroupsController {
         throw new BadRequestException("No such group exists");
       }
 
-      if (group.get().getVersion() >= submittedActions.getVersion() || group.get().getVersion() != submittedActions.getVersion() - 1) {
+      if (group.get().getVersion() != submittedActions.getVersion() - 1) {
         return CompletableFuture.completedFuture(Response.status(Response.Status.CONFLICT).build());
       }
 
@@ -547,6 +547,8 @@ public class GroupsController {
       if (group.get().getTerminated()) {
         throw new WebApplicationException("Group is terminated", 423);
       }
+
+      final Optional<ByteString> overridingChangeSource = groupValidator.validateSpecialChangeSourceActions(user, group.get(), submittedActions);
 
       Actions actions = submittedActions.toBuilder()
                                         .setGroupId(user.getGroupId())
@@ -643,9 +645,11 @@ public class GroupsController {
       // this must be the last change applied
       groupChangeApplicator.applyEnsureSomeAdminsExist(actionsBuilder, modifiedGroupBuilder);
 
-      final ByteString sourceUuid = GroupAuth
-          .selectChangeSource(user, group.get(), modifiedGroupBuilder::build)
-          .orElseThrow(ForbiddenException::new);
+      final ByteString sourceUuid = overridingChangeSource.orElseGet(() -> {
+          return GroupAuth
+              .selectChangeSource(user, group.get(), modifiedGroupBuilder::build)
+              .orElseThrow(ForbiddenException::new);
+      });
 
       actions = actionsBuilder.setSourceUserId(sourceUuid).build();
 
