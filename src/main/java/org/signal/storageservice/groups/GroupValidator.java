@@ -398,7 +398,12 @@ public class GroupValidator {
       if (promotePniActions.size() != 1) {
         throw new BadRequestException("cannot promote own PNI while promoting others");
       }
-      if (!submittedActions.toBuilder().clearPromoteMembersPendingPniAciProfileKey().clearVersion().build().equals(GroupChange.Actions.getDefaultInstance())) {
+      if (!submittedActions.toBuilder()
+          .clearPromoteMembersPendingPniAciProfileKey()
+          .clearVersion()
+          .clearSourceUserId()
+          .build()
+          .equals(GroupChange.Actions.getDefaultInstance())) {
         throw new BadRequestException("cannot promote PNI alongside other actions");
       }
       return Optional.of(userPni);
@@ -413,7 +418,12 @@ public class GroupValidator {
       if (deletePendingMemberActions.size() != 1) {
         throw new BadRequestException("cannot reject own PNI invite and also others");
       }
-      if (!submittedActions.toBuilder().clearDeleteMembersPendingProfileKey().clearVersion().build().equals(GroupChange.Actions.getDefaultInstance())) {
+      if (!submittedActions.toBuilder()
+          .clearDeleteMembersPendingProfileKey()
+          .clearVersion()
+          .clearSourceUserId()
+          .build()
+          .equals(GroupChange.Actions.getDefaultInstance())) {
         throw new BadRequestException("cannot reject PNI invite alongside other actions");
       }
       return Optional.of(userPni);

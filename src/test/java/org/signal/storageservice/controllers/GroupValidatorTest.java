@@ -66,6 +66,7 @@ public class GroupValidatorTest extends BaseGroupsControllerTest {
         GroupChange.Actions
             .newBuilder()
             .setVersion(1)
+            .setSourceUserId(ByteString.copyFrom(new byte[16]))
             .addPromoteMembersPendingPniAciProfileKey(PromoteMemberPendingPniAciProfileKeyAction
                 .newBuilder()
                 .setPni(validUserThreePniId)
@@ -84,6 +85,7 @@ public class GroupValidatorTest extends BaseGroupsControllerTest {
         GroupChange.Actions
             .newBuilder()
             .setVersion(1)
+            .setSourceUserId(ByteString.copyFrom(new byte[16]))
             .addDeleteMembersPendingProfileKey(DeleteMemberPendingProfileKeyAction
                 .newBuilder()
                 .setDeletedUserId(validUserThreePniId))
