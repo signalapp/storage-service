@@ -33,20 +33,20 @@
         <docker.image>eclipse-temurin:25-jre-resolute@sha256:17ddcc32b1f296155738c4b2f689208e46bf0cf4eb0b215c717717deb8b74b90</docker.image>
 
         <dropwizard.version>5.0.2</dropwizard.version>
-        <google-cloud-libraries.version>26.85.1</google-cloud-libraries.version>
-        <jackson-bom.version>2.22.1</jackson-bom.version>
+        <google-cloud-libraries.version>26.87.0</google-cloud-libraries.version>
+        <jackson-bom.version>2.22.2</jackson-bom.version>
         <kotlin.version>2.4.10</kotlin.version>
-        <libsignal-server.version>0.100.0</libsignal-server.version>
-        <logback.version>1.5.38</logback.version>
-        <logback-access.version>2.0.14</logback-access.version>
-        <micrometer-bom.version>1.17.0</micrometer-bom.version>
+        <libsignal-server.version>0.101.2</libsignal-server.version>
+        <logback.version>1.6.3</logback.version>
+        <logback-access.version>2.0.15</logback-access.version>
+        <micrometer-bom.version>1.17.1</micrometer-bom.version>
         <!-- There are a few sneaky compatibility issues with protobuf versions:
 
         1. This must be less than or equal to the value from Google libraries-bom; see
            https://protobuf.dev/support/cross-version-runtime-guarantee/
         2. This must be greater than or equal to the protobuf version used to generate the entities in OpenTelemetry
         -->
-        <protobuf.version>4.35.1</protobuf.version>
+        <protobuf.version>4.36.0</protobuf.version>
         <semver4j.version>3.1.0</semver4j.version>
         <snakeyaml.version>2.6</snakeyaml.version>
         <syslog4j.version>0.9.30</syslog4j.version>
@@ -102,14 +102,14 @@
             <dependency>
                 <groupId>io.opentelemetry</groupId>
                 <artifactId>opentelemetry-bom</artifactId>
-                <version>1.64.0</version>
+                <version>1.65.0</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>io.opentelemetry.instrumentation</groupId>
                 <artifactId>opentelemetry-instrumentation-bom</artifactId>
-                <version>2.30.0</version>
+                <version>2.31.1</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -216,7 +216,7 @@
           <groupId>io.opentelemetry.instrumentation</groupId>
           <artifactId>opentelemetry-logback-appender-1.0</artifactId>
           <!-- *all* opentelemetry-logback-appender versions are "alpha" despite the advanced version number -->
-          <version>2.30.0-alpha</version>
+          <version>2.31.1-alpha</version>
           <exclusions>
             <!-- incubator packages aren't included in the opentelemetry BOM, and we don't use them -->
             <exclusion>
