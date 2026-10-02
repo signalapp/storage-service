@@ -128,7 +128,7 @@ class StorageControllerTest {
   }
 
   @Test
-  void testGetManifestIfDifferentFromVersionNoUpdate() throws IOException {
+  void testGetManifestIfDifferentFromVersionNoUpdate() {
     when(storageManager.getManifestIfNotVersion(eq(new User(AuthHelper.VALID_USER.getRawUUID())), eq(22L)))
         .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
@@ -146,7 +146,7 @@ class StorageControllerTest {
 
 
   @Test
-  void testGetManifestUnauthorized() throws IOException {
+  void testGetManifestUnauthorized() {
     when(storageManager.getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID()))))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(StorageManifest.newBuilder()
             .setVersion(22)
@@ -164,7 +164,7 @@ class StorageControllerTest {
   }
 
   @Test
-  void testGetManifestFiveHundred() throws IOException {
+  void testGetManifestFiveHundred() {
     when(storageManager.getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID()))))
         .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Bad news")));
 
@@ -181,9 +181,9 @@ class StorageControllerTest {
   }
 
   @Test
-  void testGetManifestNotFound() throws IOException {
-    when(storageManager.getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID())))).thenReturn(
-        CompletableFuture.completedFuture(Optional.empty()));
+  void testGetManifestNotFound() {
+    when(storageManager.getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID()))))
+        .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
     Response response = resources.getJerseyTest()
         .target("/v1/storage/manifest")
@@ -229,14 +229,15 @@ class StorageControllerTest {
         .addDeleteKey(deleteThree)
         .build();
 
-    Response response = resources.getJerseyTest()
+    try (Response response = resources.getJerseyTest()
         .target("/v1/storage/")
         .request()
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-        .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+        .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF))) {
 
-    assertThat(response.getStatus()).isEqualTo(200);
-    assertThat(response.hasEntity()).isFalse();
+      assertThat(response.getStatus()).isEqualTo(200);
+      assertThat(response.hasEntity()).isFalse();
+    }
 
     ArgumentCaptor<List<StorageItem>> insertCaptor = ArgumentCaptor.forClass(List.class);
     ArgumentCaptor<List<ByteString>> deleteCaptor = ArgumentCaptor.forClass(List.class);
@@ -288,13 +289,14 @@ class StorageControllerTest {
         .addDeleteKey(deleteThree)
         .build();
 
-    Response response = resources.getJerseyTest()
+    try (Response response = resources.getJerseyTest()
         .target("/v1/storage/")
         .request()
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.INVALID_USER, AuthHelper.INVALID_PASSWORD))
-        .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+        .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF))) {
 
-    assertThat(response.getStatus()).isEqualTo(401);
+      assertThat(response.getStatus()).isEqualTo(401);
+    }
 
     verifyNoMoreInteractions(storageManager);
   }
@@ -340,25 +342,27 @@ class StorageControllerTest {
         .addDeleteKey(deleteThree)
         .build();
 
-    Response response = resources.getJerseyTest()
+    try (Response response = resources.getJerseyTest()
         .target("/v1/storage/")
         // a null value will exclude the parameter altogether, rather than sending `?sendRemoteManifestOnConflict=`
         .queryParam("sendRemoteManifestOnConflict", sendRemoteManifestOnConflict)
         .request()
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-        .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+        .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF))) {
 
-    assertThat(response.getStatus()).isEqualTo(409);
-    if (sendRemoteManifestOnConflict == null || sendRemoteManifestOnConflict) {
-      assertThat(response.hasEntity()).isTrue();
-      assertThat(response.getMediaType().toString()).isEqualTo(ProtocolBufferMediaType.APPLICATION_PROTOBUF);
+      assertThat(response.getStatus()).isEqualTo(409);
 
-      final byte[] entity = response.readEntity(InputStream.class).readAllBytes();
-      StorageManifest manifest = StorageManifest.parseFrom(entity);
+      if (sendRemoteManifestOnConflict == null || sendRemoteManifestOnConflict) {
+        assertThat(response.hasEntity()).isTrue();
+        assertThat(response.getMediaType().toString()).isEqualTo(ProtocolBufferMediaType.APPLICATION_PROTOBUF);
 
-      assertThat(manifest).isEqualTo(currentManifest);
-    } else {
-      assertThat(response.hasEntity()).isFalse();
+        final byte[] entity = response.readEntity(InputStream.class).readAllBytes();
+        StorageManifest manifest = StorageManifest.parseFrom(entity);
+
+        assertThat(manifest).isEqualTo(currentManifest);
+      } else {
+        assertThat(response.hasEntity()).isFalse();
+      }
     }
 
     verify(storageManager, times(1)).set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), eq(stale), anyList(),
@@ -394,53 +398,57 @@ class StorageControllerTest {
 
     WriteOperation writeOperation = builder.build();
 
-    Response response = resources.getJerseyTest()
+    try (Response response = resources.getJerseyTest()
         .target("/v1/storage/")
         .request()
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-        .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+        .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF))) {
 
-    assertThat(response.getStatus()).isEqualTo(413);
+      assertThat(response.getStatus()).isEqualTo(413);
+    }
 
     verifyNoInteractions(storageManager);
   }
 
   @Test
   void testWriteNull() {
-    Response response = resources.getJerseyTest()
+    try (Response response = resources.getJerseyTest()
         .target("/v1/storage")
         .request()
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
         // required for `null` entity with PUT
         .property(ClientProperties.SUPPRESS_HTTP_COMPLIANCE_VALIDATION, true)
-        .method("PUT");
+        .method("PUT")) {
 
-    assertThat(response.getStatus()).isEqualTo(422);
+      assertThat(response.getStatus()).isEqualTo(422);
+    }
   }
 
   @Test
   void testReadNull() {
-    Response response = resources.getJerseyTest()
+    try (Response response = resources.getJerseyTest()
         .target("/v1/storage/read")
         .request()
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
         // required for `null` entity with PUT
         .property(ClientProperties.SUPPRESS_HTTP_COMPLIANCE_VALIDATION, true)
-        .method("PUT");
+        .method("PUT")) {
 
-    assertThat(response.getStatus()).isEqualTo(422);
+      assertThat(response.getStatus()).isEqualTo(422);
+    }
   }
 
   @Test
   void testReadEmpty() {
-    Response response = resources.getJerseyTest()
+    try (Response response = resources.getJerseyTest()
         .target("/v1/storage/read")
         .request()
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
         .put(Entity.entity(ReadOperation.newBuilder().build().toByteArray(),
-            ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+            ProtocolBufferMediaType.APPLICATION_PROTOBUF))) {
 
-    assertThat(response.getStatus()).isEqualTo(400);
+      assertThat(response.getStatus()).isEqualTo(400);
+    }
     verifyNoMoreInteractions(storageManager);
   }
 
@@ -452,14 +460,16 @@ class StorageControllerTest {
       keys.add(ByteString.copyFromUtf8(RandomStringUtils.secure().nextAlphabetic(16)));
     }
 
-    Response response = resources.getJerseyTest()
+    try (Response response = resources.getJerseyTest()
         .target("/v1/storage/read")
         .request()
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
         .put(Entity.entity(ReadOperation.newBuilder().addAllReadKey(keys).build().toByteArray(),
-            ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+            ProtocolBufferMediaType.APPLICATION_PROTOBUF))) {
 
-    assertThat(response.getStatus()).isEqualTo(Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode());
+      assertThat(response.getStatus()).isEqualTo(Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode());
+    }
+
     verifyNoMoreInteractions(storageManager);
   }
 
@@ -483,16 +493,18 @@ class StorageControllerTest {
         .addReadKey(queryTwo.getKey())
         .build();
 
-    Response response = resources.getJerseyTest()
+    final byte[] entity;
+    try (Response response = resources.getJerseyTest()
         .target("/v1/storage/read")
         .request()
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-        .put(Entity.entity(readOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+        .put(Entity.entity(readOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF))) {
 
-    assertThat(response.getStatus()).isEqualTo(200);
-    assertThat(response.hasEntity()).isTrue();
+      assertThat(response.getStatus()).isEqualTo(200);
+      assertThat(response.hasEntity()).isTrue();
 
-    byte[] entity = response.readEntity(InputStream.class).readAllBytes();
+      entity = response.readEntity(InputStream.class).readAllBytes();
+    }
 
     StorageItems contacts = StorageItems.parseFrom(entity);
     assertThat(contacts.getContactsList().size()).isEqualTo(2);
@@ -513,14 +525,15 @@ class StorageControllerTest {
   void testDelete() {
     when(storageManager.delete(any())).thenReturn(CompletableFuture.completedFuture(null));
 
-    Response response = resources.getJerseyTest()
+    try (Response response = resources.getJerseyTest()
         .target("/v1/storage")
         .request()
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-        .delete();
+        .delete()) {
 
-    assertThat(response.getStatus()).isEqualTo(200);
-    assertThat(response.hasEntity()).isFalse();
+      assertThat(response.getStatus()).isEqualTo(200);
+      assertThat(response.hasEntity()).isFalse();
+    }
 
     verify(storageManager).delete(eq(new User(AuthHelper.VALID_USER.getRawUUID())));
     verifyNoMoreInteractions(storageManager);
@@ -530,13 +543,14 @@ class StorageControllerTest {
   void testDeleteUnauthorized() {
     when(storageManager.clearItems(any())).thenReturn(CompletableFuture.completedFuture(null));
 
-    Response response = resources.getJerseyTest()
+    try (Response response = resources.getJerseyTest()
         .target("/v1/storage")
         .request()
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.INVALID_USER, AuthHelper.INVALID_PASSWORD))
-        .delete();
+        .delete()) {
 
-    assertThat(response.getStatus()).isEqualTo(401);
+      assertThat(response.getStatus()).isEqualTo(401);
+    }
 
     verify(storageManager, never()).clearItems(any());
   }
