@@ -16,12 +16,14 @@ import io.micrometer.core.instrument.Timer;
 import jakarta.validation.constraints.NotNull;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
+import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.GET;
 import jakarta.ws.rs.HeaderParam;
 import jakarta.ws.rs.PUT;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.QueryParam;
 import jakarta.ws.rs.WebApplicationException;
 import jakarta.ws.rs.core.HttpHeaders;
 import jakarta.ws.rs.core.Response;
@@ -85,7 +87,10 @@ public class StorageController {
   @PUT
   @Consumes(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
   @Produces(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
-  public CompletableFuture<Response> write(@Auth User user, @HeaderParam(HttpHeaders.USER_AGENT) String userAgent, @NotNull WriteOperation writeOperation) {
+  public CompletableFuture<Response> write(@Auth User user,
+                                           @HeaderParam(HttpHeaders.USER_AGENT) String userAgent,
+                                           @QueryParam("sendRemoteManifestOnConflict") @DefaultValue("true") boolean sendRemoteManifestOnConflict,
+                                           @NotNull WriteOperation writeOperation) {
     final Timer timer = Metrics.timer(name(StorageController.class, "write"));
     final Timer.Sample sample = Timer.start();
 
@@ -119,10 +124,16 @@ public class StorageController {
     return clearAllFuture.thenCompose(ignored -> storageManager.set(user, writeOperation.getManifest(), writeOperation.getInsertItemList(), writeOperation.getDeleteKeyList()))
       .thenApply(
         manifest -> {
-          if (manifest.isPresent())
-            return Response.status(409).entity(manifest.get()).build();
-          else
+          if (manifest.isPresent()) {
+            // Clients that would fetch the manifest again anyway can opt out of receiving it here, since it can be sizable.
+            final Response.ResponseBuilder conflict = Response.status(409);
+            if (sendRemoteManifestOnConflict) {
+              conflict.entity(manifest.get());
+            }
+            return conflict.build();
+          } else {
             return Response.status(200).build();
+          }
         }).whenComplete((_result, _throwable) -> sample.stop(timer));
   }
 

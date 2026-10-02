@@ -34,6 +34,9 @@ import org.apache.commons.lang3.RandomStringUtils;
 import org.glassfish.jersey.client.ClientProperties;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.signal.storageservice.auth.User;
 import org.signal.storageservice.providers.InvalidProtocolBufferExceptionMapper;
@@ -49,6 +52,7 @@ import org.signal.storageservice.storage.protos.contacts.StorageManifest;
 import org.signal.storageservice.storage.protos.contacts.WriteOperation;
 import org.signal.storageservice.util.AuthHelper;
 import org.signal.storageservice.util.SystemMapper;
+import javax.annotation.Nullable;
 
 @ExtendWith(DropwizardExtensionsSupport.class)
 class StorageControllerTest {
@@ -71,15 +75,15 @@ class StorageControllerTest {
   void testGetManifest() throws IOException {
     when(storageManager.getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID()))))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(StorageManifest.newBuilder()
-                                                                                 .setVersion(22)
-                                                                                 .setValue(ByteString.copyFromUtf8("A manifest"))
-                                                                                 .build())));
+            .setVersion(22)
+            .setValue(ByteString.copyFromUtf8("A manifest"))
+            .build())));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v1/storage/manifest")
-                                 .request()
-                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-                                 .get();
+        .target("/v1/storage/manifest")
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
+        .get();
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.hasEntity()).isTrue();
@@ -99,15 +103,15 @@ class StorageControllerTest {
   void testGetManifestIfDifferentFromVersionSuccess() throws IOException {
     when(storageManager.getManifestIfNotVersion(eq(new User(AuthHelper.VALID_USER.getRawUUID())), eq(21L)))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(StorageManifest.newBuilder()
-                                                                                 .setVersion(22)
-                                                                                 .setValue(ByteString.copyFromUtf8("A manifest"))
-                                                                                 .build())));
+            .setVersion(22)
+            .setValue(ByteString.copyFromUtf8("A manifest"))
+            .build())));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v1/storage/manifest/version/21")
-                                 .request()
-                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-                                 .get();
+        .target("/v1/storage/manifest/version/21")
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
+        .get();
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.hasEntity()).isTrue();
@@ -129,10 +133,10 @@ class StorageControllerTest {
         .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v1/storage/manifest/version/22")
-                                 .request()
-                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-                                 .get();
+        .target("/v1/storage/manifest/version/22")
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
+        .get();
 
     assertThat(response.getStatus()).isEqualTo(204);
 
@@ -145,15 +149,15 @@ class StorageControllerTest {
   void testGetManifestUnauthorized() throws IOException {
     when(storageManager.getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID()))))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(StorageManifest.newBuilder()
-                                                                                 .setVersion(22)
-                                                                                 .setValue(ByteString.copyFromUtf8("A manifest"))
-                                                                                 .build())));
+            .setVersion(22)
+            .setValue(ByteString.copyFromUtf8("A manifest"))
+            .build())));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v1/storage/manifest")
-                                 .request()
-                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.INVALID_USER, AuthHelper.INVALID_PASSWORD))
-                                 .get();
+        .target("/v1/storage/manifest")
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.INVALID_USER, AuthHelper.INVALID_PASSWORD))
+        .get();
 
     assertThat(response.getStatus()).isEqualTo(401);
     verifyNoMoreInteractions(storageManager);
@@ -165,10 +169,10 @@ class StorageControllerTest {
         .thenReturn(CompletableFuture.failedFuture(new RuntimeException("Bad news")));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v1/storage/manifest")
-                                 .request()
-                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-                                 .get();
+        .target("/v1/storage/manifest")
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
+        .get();
 
     assertThat(response.getStatus()).isEqualTo(500);
 
@@ -178,13 +182,14 @@ class StorageControllerTest {
 
   @Test
   void testGetManifestNotFound() throws IOException {
-    when(storageManager.getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID())))).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+    when(storageManager.getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID())))).thenReturn(
+        CompletableFuture.completedFuture(Optional.empty()));
 
     Response response = resources.getJerseyTest()
-                                 .target("/v1/storage/manifest")
-                                 .request()
-                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-                                 .get();
+        .target("/v1/storage/manifest")
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
+        .get();
 
     assertThat(response.getStatus()).isEqualTo(404);
     verify(storageManager, times(1)).getManifest(eq(new User(AuthHelper.VALID_USER.getRawUUID())));
@@ -193,50 +198,51 @@ class StorageControllerTest {
 
   @Test
   void testWrite() {
-    when(storageManager.set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), any(StorageManifest.class), anyList(), anyList())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+    when(storageManager.set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), any(StorageManifest.class), anyList(),
+        anyList())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
     StorageManifest manifest = StorageManifest.newBuilder()
-                                              .setVersion(1337)
-                                              .setValue(ByteString.copyFromUtf8("A manifest"))
-                                              .build();
+        .setVersion(1337)
+        .setValue(ByteString.copyFromUtf8("A manifest"))
+        .build();
 
     StorageItem insertOne = StorageItem.newBuilder()
-                                       .setKey(ByteString.copyFromUtf8("keyOne"))
-                                       .setValue(ByteString.copyFromUtf8("valueOne"))
-                                       .build();
+        .setKey(ByteString.copyFromUtf8("keyOne"))
+        .setValue(ByteString.copyFromUtf8("valueOne"))
+        .build();
 
     StorageItem insertTwo = StorageItem.newBuilder()
-                                       .setKey(ByteString.copyFromUtf8("keyTwo"))
-                                       .setValue(ByteString.copyFromUtf8("valueTwo"))
-                                       .build();
+        .setKey(ByteString.copyFromUtf8("keyTwo"))
+        .setValue(ByteString.copyFromUtf8("valueTwo"))
+        .build();
 
-    ByteString deleteOne   = ByteString.copyFromUtf8("deleteKeyOne"  );
-    ByteString deleteTwo   = ByteString.copyFromUtf8("deleteKeyTwo"  );
+    ByteString deleteOne = ByteString.copyFromUtf8("deleteKeyOne");
+    ByteString deleteTwo = ByteString.copyFromUtf8("deleteKeyTwo");
     ByteString deleteThree = ByteString.copyFromUtf8("deleteKeyThree");
 
-
     WriteOperation writeOperation = WriteOperation.newBuilder()
-                                                  .setManifest(manifest)
-                                                  .addInsertItem(insertOne)
-                                                  .addInsertItem(insertTwo)
-                                                  .addDeleteKey(deleteOne)
-                                                  .addDeleteKey(deleteTwo)
-                                                  .addDeleteKey(deleteThree)
-                                                  .build();
+        .setManifest(manifest)
+        .addInsertItem(insertOne)
+        .addInsertItem(insertTwo)
+        .addDeleteKey(deleteOne)
+        .addDeleteKey(deleteTwo)
+        .addDeleteKey(deleteThree)
+        .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v1/storage/")
-                                 .request()
-                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-                                 .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+        .target("/v1/storage/")
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
+        .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.hasEntity()).isFalse();
 
     ArgumentCaptor<List<StorageItem>> insertCaptor = ArgumentCaptor.forClass(List.class);
-    ArgumentCaptor<List<ByteString>>  deleteCaptor = ArgumentCaptor.forClass(List.class);
+    ArgumentCaptor<List<ByteString>> deleteCaptor = ArgumentCaptor.forClass(List.class);
 
-    verify(storageManager, times(1)).set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), eq(manifest), insertCaptor.capture(), deleteCaptor.capture());
+    verify(storageManager, times(1)).set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), eq(manifest),
+        insertCaptor.capture(), deleteCaptor.capture());
     verifyNoMoreInteractions(storageManager);
 
     assertThat(insertCaptor.getValue().size()).isEqualTo(2);
@@ -251,104 +257,112 @@ class StorageControllerTest {
 
   @Test
   void testWriteUnauthorized() {
-    when(storageManager.set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), any(StorageManifest.class), anyList(), anyList())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+    when(storageManager.set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), any(StorageManifest.class), anyList(),
+        anyList())).thenReturn(CompletableFuture.completedFuture(Optional.empty()));
 
     StorageManifest manifest = StorageManifest.newBuilder()
-                                              .setVersion(1337)
-                                              .setValue(ByteString.copyFromUtf8("A manifest"))
-                                              .build();
+        .setVersion(1337)
+        .setValue(ByteString.copyFromUtf8("A manifest"))
+        .build();
 
     StorageItem insertOne = StorageItem.newBuilder()
-                                       .setKey(ByteString.copyFromUtf8("keyOne"))
-                                       .setValue(ByteString.copyFromUtf8("valueOne"))
-                                       .build();
+        .setKey(ByteString.copyFromUtf8("keyOne"))
+        .setValue(ByteString.copyFromUtf8("valueOne"))
+        .build();
 
     StorageItem insertTwo = StorageItem.newBuilder()
-                                       .setKey(ByteString.copyFromUtf8("keyTwo"))
-                                       .setValue(ByteString.copyFromUtf8("valueTwo"))
-                                       .build();
+        .setKey(ByteString.copyFromUtf8("keyTwo"))
+        .setValue(ByteString.copyFromUtf8("valueTwo"))
+        .build();
 
-    ByteString deleteOne   = ByteString.copyFromUtf8("deleteKeyOne"  );
-    ByteString deleteTwo   = ByteString.copyFromUtf8("deleteKeyTwo"  );
+    ByteString deleteOne = ByteString.copyFromUtf8("deleteKeyOne");
+    ByteString deleteTwo = ByteString.copyFromUtf8("deleteKeyTwo");
     ByteString deleteThree = ByteString.copyFromUtf8("deleteKeyThree");
 
-
     WriteOperation writeOperation = WriteOperation.newBuilder()
-                                                  .setManifest(manifest)
-                                                  .addInsertItem(insertOne)
-                                                  .addInsertItem(insertTwo)
-                                                  .addDeleteKey(deleteOne)
-                                                  .addDeleteKey(deleteTwo)
-                                                  .addDeleteKey(deleteThree)
-                                                  .build();
+        .setManifest(manifest)
+        .addInsertItem(insertOne)
+        .addInsertItem(insertTwo)
+        .addDeleteKey(deleteOne)
+        .addDeleteKey(deleteTwo)
+        .addDeleteKey(deleteThree)
+        .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v1/storage/")
-                                 .request()
-                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.INVALID_USER, AuthHelper.INVALID_PASSWORD))
-                                 .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+        .target("/v1/storage/")
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.INVALID_USER, AuthHelper.INVALID_PASSWORD))
+        .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(401);
 
     verifyNoMoreInteractions(storageManager);
   }
 
-  @Test
-  void testWriteStale() throws IOException {
+  @ParameterizedTest
+  @NullSource
+  @ValueSource(booleans = {true, false})
+  void testWriteStale(@Nullable final Boolean sendRemoteManifestOnConflict) throws IOException {
     StorageManifest currentManifest = StorageManifest.newBuilder()
-                                                     .setVersion(1000)
-                                                     .setValue(ByteString.copyFromUtf8("Current manifest"))
-                                                     .build();
+        .setVersion(1000)
+        .setValue(ByteString.copyFromUtf8("Current manifest"))
+        .build();
 
-    when(storageManager.set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), any(StorageManifest.class), anyList(), anyList()))
+    when(storageManager.set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), any(StorageManifest.class), anyList(),
+        anyList()))
         .thenReturn(CompletableFuture.completedFuture(Optional.of(currentManifest)));
 
     StorageManifest stale = StorageManifest.newBuilder()
-                                           .setVersion(1000)
-                                           .setValue(ByteString.copyFromUtf8("Some manifest"))
-                                           .build();
+        .setVersion(1000)
+        .setValue(ByteString.copyFromUtf8("Some manifest"))
+        .build();
 
     StorageItem insertOne = StorageItem.newBuilder()
-                                       .setKey(ByteString.copyFromUtf8("keyOne"))
-                                       .setValue(ByteString.copyFromUtf8("valueOne"))
-                                       .build();
+        .setKey(ByteString.copyFromUtf8("keyOne"))
+        .setValue(ByteString.copyFromUtf8("valueOne"))
+        .build();
 
     StorageItem insertTwo = StorageItem.newBuilder()
-                                       .setKey(ByteString.copyFromUtf8("keyTwo"))
-                                       .setValue(ByteString.copyFromUtf8("valueTwo"))
-                                       .build();
+        .setKey(ByteString.copyFromUtf8("keyTwo"))
+        .setValue(ByteString.copyFromUtf8("valueTwo"))
+        .build();
 
-    ByteString deleteOne   = ByteString.copyFromUtf8("deleteKeyOne"  );
-    ByteString deleteTwo   = ByteString.copyFromUtf8("deleteKeyTwo"  );
+    ByteString deleteOne = ByteString.copyFromUtf8("deleteKeyOne");
+    ByteString deleteTwo = ByteString.copyFromUtf8("deleteKeyTwo");
     ByteString deleteThree = ByteString.copyFromUtf8("deleteKeyThree");
 
-
     WriteOperation writeOperation = WriteOperation.newBuilder()
-                                                  .setManifest(stale)
-                                                  .addInsertItem(insertOne)
-                                                  .addInsertItem(insertTwo)
-                                                  .addDeleteKey(deleteOne)
-                                                  .addDeleteKey(deleteTwo)
-                                                  .addDeleteKey(deleteThree)
-                                                  .build();
+        .setManifest(stale)
+        .addInsertItem(insertOne)
+        .addInsertItem(insertTwo)
+        .addDeleteKey(deleteOne)
+        .addDeleteKey(deleteTwo)
+        .addDeleteKey(deleteThree)
+        .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v1/storage/")
-                                 .request()
-                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-                                 .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+        .target("/v1/storage/")
+        // a null value will exclude the parameter altogether, rather than sending `?sendRemoteManifestOnConflict=`
+        .queryParam("sendRemoteManifestOnConflict", sendRemoteManifestOnConflict)
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
+        .put(Entity.entity(writeOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(409);
-    assertThat(response.hasEntity()).isTrue();
-    assertThat(response.getMediaType().toString()).isEqualTo(ProtocolBufferMediaType.APPLICATION_PROTOBUF);
+    if (sendRemoteManifestOnConflict == null || sendRemoteManifestOnConflict) {
+      assertThat(response.hasEntity()).isTrue();
+      assertThat(response.getMediaType().toString()).isEqualTo(ProtocolBufferMediaType.APPLICATION_PROTOBUF);
 
+      final byte[] entity = response.readEntity(InputStream.class).readAllBytes();
+      StorageManifest manifest = StorageManifest.parseFrom(entity);
 
-    byte[]          entity   = response.readEntity(InputStream.class).readAllBytes();
-    StorageManifest manifest = StorageManifest.parseFrom(entity);
+      assertThat(manifest).isEqualTo(currentManifest);
+    } else {
+      assertThat(response.hasEntity()).isFalse();
+    }
 
-    assertThat(manifest).isEqualTo(currentManifest);
-
-    verify(storageManager, times(1)).set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), eq(stale), anyList(), anyList());
+    verify(storageManager, times(1)).set(eq(new User(AuthHelper.VALID_USER.getRawUUID())), eq(stale), anyList(),
+        anyList());
     verifyNoMoreInteractions(storageManager);
   }
 
@@ -360,10 +374,11 @@ class StorageControllerTest {
         .setValue(ByteString.copyFromUtf8("A manifest"))
         .build();
 
-    final int insertCount = StorageController.MAX_BULK_MUTATION_PAGES * (1 + (StorageItemsTable.MAX_MUTATIONS / 2 / StorageItemsTable.MUTATIONS_PER_INSERT));
+    final int insertCount = StorageController.MAX_BULK_MUTATION_PAGES * (1 + (StorageItemsTable.MAX_MUTATIONS / 2
+        / StorageItemsTable.MUTATIONS_PER_INSERT));
     final int deleteCount = StorageController.MAX_BULK_MUTATION_PAGES * (1 + StorageItemsTable.MAX_MUTATIONS / 2);
 
-   final WriteOperation.Builder builder = WriteOperation.newBuilder()
+    final WriteOperation.Builder builder = WriteOperation.newBuilder()
         .setManifest(manifest);
 
     for (int i = 0; i < insertCount; i++) {
@@ -419,10 +434,11 @@ class StorageControllerTest {
   @Test
   void testReadEmpty() {
     Response response = resources.getJerseyTest()
-                                 .target("/v1/storage/read")
-                                 .request()
-                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-                                 .put(Entity.entity(ReadOperation.newBuilder().build().toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+        .target("/v1/storage/read")
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
+        .put(Entity.entity(ReadOperation.newBuilder().build().toByteArray(),
+            ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(400);
     verifyNoMoreInteractions(storageManager);
@@ -440,7 +456,8 @@ class StorageControllerTest {
         .target("/v1/storage/read")
         .request()
         .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-        .put(Entity.entity(ReadOperation.newBuilder().addAllReadKey(keys).build().toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+        .put(Entity.entity(ReadOperation.newBuilder().addAllReadKey(keys).build().toByteArray(),
+            ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(Status.REQUEST_ENTITY_TOO_LARGE.getStatusCode());
     verifyNoMoreInteractions(storageManager);
@@ -449,29 +466,28 @@ class StorageControllerTest {
   @Test
   void testRead() throws IOException {
     StorageItem queryOne = StorageItem.newBuilder()
-                                      .setKey(ByteString.copyFromUtf8("keyOne"))
-                                      .setValue(ByteString.copyFromUtf8("valueOne"))
-                                      .build();
+        .setKey(ByteString.copyFromUtf8("keyOne"))
+        .setValue(ByteString.copyFromUtf8("valueOne"))
+        .build();
 
     StorageItem queryTwo = StorageItem.newBuilder()
-                                      .setKey(ByteString.copyFromUtf8("keyTwo"))
-                                      .setValue(ByteString.copyFromUtf8("valueTwo"))
-                                      .build();
+        .setKey(ByteString.copyFromUtf8("keyTwo"))
+        .setValue(ByteString.copyFromUtf8("valueTwo"))
+        .build();
 
     when(storageManager.getItems(eq(new User(AuthHelper.VALID_USER.getRawUUID())), anyList()))
         .thenReturn(CompletableFuture.completedFuture(List.of(queryOne, queryTwo)));
 
-
     ReadOperation readOperation = ReadOperation.newBuilder()
-                                               .addReadKey(queryOne.getKey())
-                                               .addReadKey(queryTwo.getKey())
-                                               .build();
+        .addReadKey(queryOne.getKey())
+        .addReadKey(queryTwo.getKey())
+        .build();
 
     Response response = resources.getJerseyTest()
-                                 .target("/v1/storage/read")
-                                 .request()
-                                 .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-                                 .put(Entity.entity(readOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+        .target("/v1/storage/read")
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
+        .put(Entity.entity(readOperation.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.hasEntity()).isTrue();
@@ -498,10 +514,10 @@ class StorageControllerTest {
     when(storageManager.delete(any())).thenReturn(CompletableFuture.completedFuture(null));
 
     Response response = resources.getJerseyTest()
-            .target("/v1/storage")
-            .request()
-            .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
-            .delete();
+        .target("/v1/storage")
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.VALID_USER, AuthHelper.VALID_PASSWORD))
+        .delete();
 
     assertThat(response.getStatus()).isEqualTo(200);
     assertThat(response.hasEntity()).isFalse();
@@ -515,10 +531,10 @@ class StorageControllerTest {
     when(storageManager.clearItems(any())).thenReturn(CompletableFuture.completedFuture(null));
 
     Response response = resources.getJerseyTest()
-            .target("/v1/storage")
-            .request()
-            .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.INVALID_USER, AuthHelper.INVALID_PASSWORD))
-            .delete();
+        .target("/v1/storage")
+        .request()
+        .header("Authorization", AuthHelper.getAuthHeader(AuthHelper.INVALID_USER, AuthHelper.INVALID_PASSWORD))
+        .delete();
 
     assertThat(response.getStatus()).isEqualTo(401);
 
