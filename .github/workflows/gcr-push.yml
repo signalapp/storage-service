@@ -23,6 +23,13 @@ jobs:
         with:
           path: repo
 
+      - name: Install APT packages
+        run: |
+          apt update
+          # Maven Wrapper requires `unzip`; see https://github.com/apache/maven-wrapper/issues/425
+          # setup-java requires gpg
+          apt install -y unzip gpg
+
       - name: Set up JDK
         uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
