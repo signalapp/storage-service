@@ -2,10 +2,6 @@ version: 2
 updates:
   - package-ecosystem: maven
     directory: /
-    ignore:
-      - dependency-name: "*"
-        update-types:
-          - version-update:semver-major
     schedule:
       interval: monthly
     groups:
@@ -15,6 +11,16 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - version-update:semver-major
+
+      # Temporary exclusions, pending upstream fixes
+      #  https://github.com/dropwizard/dropwizard/pull/11273
+      - dependency-name: "ch.qos.logback:*"
+        versions: [ ">=1.6.0" ]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
