@@ -33,15 +33,15 @@
         <docker.image>eclipse-temurin:25-jre-resolute@sha256:17ddcc32b1f296155738c4b2f689208e46bf0cf4eb0b215c717717deb8b74b90</docker.image>
 
         <dropwizard.version>5.0.2</dropwizard.version>
-        <google-cloud-libraries.version>26.90.0</google-cloud-libraries.version>
+        <google-cloud-libraries.version>26.91.0</google-cloud-libraries.version>
         <jackson-bom.version>2.22.4</jackson-bom.version>
         <kotlin.version>2.4.21</kotlin.version>
-        <libsignal-server.version>0.105.1</libsignal-server.version>
+        <libsignal-server.version>0.106.1</libsignal-server.version>
         <logback.version>1.5.38</logback.version>
         <logback-access.version>2.0.15</logback-access.version>
-        <micrometer-bom.version>1.17.1</micrometer-bom.version>
+        <micrometer-bom.version>1.17.2</micrometer-bom.version>
         <!-- Instrumentation releases target upstream opentelemetry versions and include that BOM by reference -->
-        <opentelemetry-instrumentation.version>2.32.0</opentelemetry-instrumentation.version>
+        <opentelemetry-instrumentation.version>2.33.1</opentelemetry-instrumentation.version>
         <!-- There are a few sneaky compatibility issues with protobuf versions:
 
         1. This must be less than or equal to the value from Google libraries-bom; see
@@ -211,7 +211,7 @@
           <groupId>io.opentelemetry.instrumentation</groupId>
           <artifactId>opentelemetry-logback-appender-1.0</artifactId>
           <!-- *all* opentelemetry-logback-appender versions are "alpha" despite the advanced version number -->
-          <version>2.32.0-alpha</version>
+          <version>2.33.1-alpha</version>
           <exclusions>
             <!-- incubator packages aren't included in the opentelemetry BOM, and we don't use them -->
             <exclusion>
@@ -357,7 +357,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.6.0</version>
+                <version>3.6.1</version>
                 <configuration>
                     <argLine>-javaagent:${org.mockito:mockito-core:jar}</argLine>
                 </configuration>
@@ -383,7 +383,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-enforcer-plugin</artifactId>
-                <version>3.6.3</version>
+                <version>3.7.0</version>
                 <executions>
                     <execution>
                         <goals>
