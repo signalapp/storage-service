@@ -32,6 +32,10 @@
 
         <docker.image>eclipse-temurin:27-jre-resolute@sha256:7520762e9fac9c34ae0ef3a898ff0e9fc652b019860ab859728b17df41f2b497</docker.image>
 
+        <!-- Weird stuff can happen with parameter annotation counts under Java 27 with versions of Byte Buddy older
+        than 1.18.9, so we need to pull in a newer version than we'd get via Dropwizard -> Mockito -> Byte Buddy. We can
+        drop this when Dropwizard updates and pulls in a newer version of Byte Buddy. -->
+        <byte-buddy.version>1.18.15-jdk5</byte-buddy.version>
         <dropwizard.version>5.0.2</dropwizard.version>
         <google-cloud-libraries.version>26.91.0</google-cloud-libraries.version>
         <jackson-bom.version>2.22.4</jackson-bom.version>
@@ -59,6 +63,16 @@
 
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy</artifactId>
+                <version>${byte-buddy.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>net.bytebuddy</groupId>
+                <artifactId>byte-buddy-agent</artifactId>
+                <version>${byte-buddy.version}</version>
+            </dependency>
             <dependency>
                 <groupId>com.fasterxml.jackson</groupId>
                 <artifactId>jackson-bom</artifactId>
