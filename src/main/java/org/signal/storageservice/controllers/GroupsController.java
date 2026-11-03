@@ -276,7 +276,11 @@ public class GroupsController {
 
       final int latestGroupVersion = group.get().getVersion();
       if (latestGroupVersion + 1 <= fromVersion) {
-        return CompletableFuture.completedFuture(Response.ok(GroupChanges.newBuilder().build()).build());
+        final GroupChanges.Builder groupChangesBuilder = GroupChanges.newBuilder();
+        if (shouldIssueSendEndorsements(user.getGroupId(), group.get(), cachedSendEndorsementsTtl, List.of())) {
+          groupChangesBuilder.setGroupSendEndorsementsResponse(getSerializedGroupSendEndorsements(group.get()));
+        }
+        return CompletableFuture.completedFuture(Response.ok(groupChangesBuilder.build()).build());
       }
 
       final int logVersionLimit = Math.max(1, Math.min(limit, LOG_VERSION_LIMIT)); // 1 ≤ limit ≤ LOG_VERSION_LIMIT
@@ -308,12 +312,7 @@ public class GroupsController {
                               final GroupChanges.Builder groupChangesBuilder = GroupChanges.newBuilder()
                                   .addAllGroupChanges(records);
 
-                              // don't send a GSE if the group is terminated, since the user can't send messages to it;
-                              // also don't send one unless the requester indicates their cached endorsement is stale or
-                              // something has changed (possibly including the set of group members) in the logs they're asking for
-                              if (!group.get().getTerminated() &&
-                                  (cachedSendEndorsementsTtl.compareTo(groupConfiguration.groupSendEndorsementMinimumLifetime()) < 0 ||
-                                      hasAnyMembershipChanges(user.getGroupId(), records))) {
+                              if (shouldIssueSendEndorsements(user.getGroupId(), group.get(), cachedSendEndorsementsTtl, records)) {
                                 groupChangesBuilder.setGroupSendEndorsementsResponse(getSerializedGroupSendEndorsements(group.get()));
                               }
 
@@ -325,6 +324,13 @@ public class GroupsController {
               .record(resp.getLength());
           return resp;
     }).whenComplete((_result, _throwable) -> sample.stop(getGroupLogsTimer));
+  }
+
+  /// @return true if the final page of a group logs response should carry a fresh set of group send endorsements.
+  private boolean shouldIssueSendEndorsements(ByteString groupId, Group group, Duration cachedSendEndorsementsTtl, List<GroupChangeState> records) {
+    return !group.getTerminated() &&
+        (cachedSendEndorsementsTtl.compareTo(groupConfiguration.groupSendEndorsementMinimumLifetime()) < 0 ||
+            hasAnyMembershipChanges(groupId, records));
   }
 
   private static boolean hasAnyMembershipChanges(ByteString groupId, Iterable<GroupChangeState> records) {
