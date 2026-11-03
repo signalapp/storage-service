@@ -438,6 +438,8 @@
                         </platforms>
                     </from>
                     <container>
+                        <!-- See https://github.com/GoogleContainerTools/jib/blob/master/docs/faq.md#i-am-seeing-unsupported-class-file-major-version-when-building -->
+                        <mainClass>org.signal.storageservice.StorageService</mainClass>
                         <jvmFlags>
                             <jvmFlag>-server</jvmFlag>
                             <jvmFlag>-Djava.awt.headless=true</jvmFlag>
