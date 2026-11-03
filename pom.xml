@@ -30,7 +30,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <docker.image>eclipse-temurin:25-jre-resolute@sha256:17ddcc32b1f296155738c4b2f689208e46bf0cf4eb0b215c717717deb8b74b90</docker.image>
+        <docker.image>eclipse-temurin:27-jre-resolute@sha256:7520762e9fac9c34ae0ef3a898ff0e9fc652b019860ab859728b17df41f2b497</docker.image>
 
         <dropwizard.version>5.0.2</dropwizard.version>
         <google-cloud-libraries.version>26.91.0</google-cloud-libraries.version>
@@ -305,8 +305,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.16.0</version>
                 <configuration>
-                    <source>25</source>
-                    <target>25</target>
+                    <source>27</source>
+                    <target>27</target>
                 </configuration>
             </plugin>
             <plugin>
