@@ -20,10 +20,10 @@ import org.signal.storageservice.storage.protos.contacts.StorageManifest;
 
 public class StorageManifestsTable extends Table {
 
-  static final String FAMILY         = "m";
+  public static final String FAMILY = "m";
 
   static final String COLUMN_VERSION = "ver";
-  static final String COLUMN_DATA    = "dat";
+  static final String COLUMN_DATA = "dat";
 
   public StorageManifestsTable(BigtableDataClient client, String tableId) {
     super(client, tableId);

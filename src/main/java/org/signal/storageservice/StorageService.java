@@ -9,7 +9,6 @@ import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.google.cloud.bigtable.data.v2.BigtableDataClient;
-import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.dropwizard.auth.AuthFilter;
@@ -75,11 +74,7 @@ public class StorageService extends Application<StorageServiceConfiguration> {
 
     UncaughtExceptionHandler.register();
 
-    BigtableDataSettings bigtableDataSettings = BigtableDataSettings.newBuilder()
-                                                                    .setProjectId(config.getBigTableConfiguration().getProjectId())
-                                                                    .setInstanceId(config.getBigTableConfiguration().getInstanceId())
-                                                                    .build();
-    BigtableDataClient bigtableDataClient = BigtableDataClient.create(bigtableDataSettings);
+    BigtableDataClient bigtableDataClient = config.getBigTableConfiguration().buildDataClient();
     ServerSecretParams serverSecretParams = new ServerSecretParams(config.getZkConfiguration().getServerSecret());
     StorageManager     storageManager     = new StorageManager(bigtableDataClient, config.getBigTableConfiguration().getContactManifestsTableId(), config.getBigTableConfiguration().getContactsTableId());
     GroupsManager      groupsManager      = new GroupsManager(bigtableDataClient, config.getBigTableConfiguration().getGroupsTableId(), config.getBigTableConfiguration().getGroupLogsTableId());

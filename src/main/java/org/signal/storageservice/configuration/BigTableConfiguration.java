@@ -6,10 +6,18 @@
 package org.signal.storageservice.configuration;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.cloud.bigtable.data.v2.BigtableDataClient;
+import com.google.cloud.bigtable.data.v2.BigtableDataSettings;
+import io.dropwizard.jackson.Discoverable;
+import java.io.IOException;
 
 import jakarta.validation.constraints.NotEmpty;
 
-public class BigTableConfiguration {
+@JsonTypeName("default")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = BigTableConfiguration.class)
+public class BigTableConfiguration implements Discoverable {
 
   @JsonProperty
   @NotEmpty
@@ -58,5 +66,12 @@ public class BigTableConfiguration {
 
   public String getGroupLogsTableId() {
     return groupLogsTableId;
+  }
+
+  public BigtableDataClient buildDataClient() throws IOException {
+    return BigtableDataClient.create(BigtableDataSettings.newBuilder()
+        .setProjectId(getProjectId())
+        .setInstanceId(getInstanceId())
+        .build());
   }
 }
