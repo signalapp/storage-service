@@ -226,7 +226,9 @@ public class GroupChangeApplicator {
     }
 
     for (GroupChange.Actions.ModifyMemberProfileKeyAction action : modifyMembers) {
-      List<Member> currentMembers = modifiedGroupBuilder.getMembersList();
+      // copy: if a RepeatedFieldBuilder is installed (e.g. by applyModifyMemberLabel), getMembersList() is a live view
+      // that clearMembers() below would empty before the replacement list is built
+      List<Member> currentMembers = List.copyOf(modifiedGroupBuilder.getMembersList());
       Member member = currentMembers.stream()
                                     .filter(candidate -> candidate.getUserId().equals(action.getUserId()))
                                     .findFirst()

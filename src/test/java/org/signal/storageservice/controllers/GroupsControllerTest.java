@@ -2799,6 +2799,75 @@ class GroupsControllerTest extends BaseGroupsControllerTest {
   }
 
   @Test
+  void testModifyMemberLabelAndProfileKeyInSameChangePreservesMembers() throws Exception {
+    GroupSecretParams groupSecretParams = GroupSecretParams.generate();
+    GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
+
+    ProfileKeyCredentialPresentation validUserPresentation          = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_PROFILE_CREDENTIAL    );
+    ProfileKeyCredentialPresentation validUserTwoPresentation       = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
+    ProfileKeyCredentialPresentation validUserTwoPresentationUpdate = new ClientZkProfileOperations(AuthHelper.GROUPS_SERVER_KEY.getPublicParams()).createProfileKeyCredentialPresentation(groupSecretParams, AuthHelper.VALID_USER_TWO_PROFILE_CREDENTIAL);
+
+    final ByteString userTwoId = ByteString.copyFrom(validUserTwoPresentation.getUuidCiphertext().serialize());
+
+    Group group = Group.newBuilder()
+                       .setPublicKey(ByteString.copyFrom(groupPublicParams.serialize()))
+                       .setAccessControl(AccessControl.newBuilder()
+                                                      .setMembers(AccessControl.AccessRequired.MEMBER)
+                                                      .setAttributes(AccessControl.AccessRequired.MEMBER)
+                                                      .setMemberLabel(AccessControl.AccessRequired.ADMINISTRATOR))
+                       .setTitle(ByteString.copyFromUtf8("Some title"))
+                       .setAvatarUrl(avatarFor(groupPublicParams.getGroupIdentifier().serialize()))
+                       .setVersion(0)
+                       .addMembers(Member.newBuilder()
+                                         .setUserId(ByteString.copyFrom(validUserPresentation.getUuidCiphertext().serialize()))
+                                         .setProfileKey(ByteString.copyFrom(validUserPresentation.getProfileKeyCiphertext().serialize()))
+                                         .setRole(Member.Role.ADMINISTRATOR)
+                                         .build())
+                       .addMembers(Member.newBuilder()
+                                         .setUserId(userTwoId)
+                                         .setProfileKey(ByteString.copyFrom(validUserTwoPresentation.getProfileKeyCiphertext().serialize()))
+                                         .setRole(Member.Role.DEFAULT)
+                                         .setLabelString(ByteString.copyFromUtf8("old label"))
+                                         .build())
+                       .build();
+
+    when(groupsManager.getGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize()))))
+        .thenReturn(CompletableFuture.completedFuture(Optional.of(group)));
+
+    when(groupsManager.updateGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), any(Group.class)))
+        .thenReturn(CompletableFuture.completedFuture(Optional.empty()));
+
+    when(groupsManager.appendChangeRecord(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), eq(1), any(GroupChange.class), any(Group.class)))
+        .thenReturn(CompletableFuture.completedFuture(true));
+
+    // a DEFAULT member clears their own label (allowed for any role) and updates their own profile key
+    GroupChange.Actions groupChange = GroupChange.Actions.newBuilder()
+                                                         .setVersion(1)
+                                                         .addModifyMemberLabels(Actions.ModifyMemberLabelAction.newBuilder()
+                                                                                                               .setUserId(userTwoId))
+                                                         .addModifyMemberProfileKeys(Actions.ModifyMemberProfileKeyAction.newBuilder()
+                                                                                                                         .setPresentation(ByteString.copyFrom(validUserTwoPresentationUpdate.serialize())))
+                                                         .build();
+
+    Response response = resources.getJerseyTest()
+                                 .target("/v2/groups/")
+                                 .request(ProtocolBufferMediaType.APPLICATION_PROTOBUF)
+                                 .header("Authorization", AuthHelper.getAuthHeader(groupSecretParams, AuthHelper.VALID_USER_TWO_AUTH_CREDENTIAL))
+                                 .method("PATCH", Entity.entity(groupChange.toByteArray(), ProtocolBufferMediaType.APPLICATION_PROTOBUF));
+
+    assertThat(response.getStatus()).isEqualTo(200);
+
+    ArgumentCaptor<Group> captor = ArgumentCaptor.forClass(Group.class);
+    verify(groupsManager).updateGroup(eq(ByteString.copyFrom(groupPublicParams.getGroupIdentifier().serialize())), captor.capture());
+
+    assertThat(captor.getValue().getMembersCount()).as("members persisted after label + profile key change").isEqualTo(2);
+    assertThat(captor.getValue().getMembers(0)).isEqualTo(group.getMembers(0));
+    assertThat(captor.getValue().getMembers(1).getUserId()).isEqualTo(userTwoId);
+    assertThat(captor.getValue().getMembers(1).getLabelString()).isEmpty();
+    assertThat(captor.getValue().getMembers(1).getProfileKey()).isEqualTo(ByteString.copyFrom(validUserTwoPresentationUpdate.getProfileKeyCiphertext().serialize()));
+  }
+
+  @Test
   void testModifyMemberPresentationTerminated() throws Exception {
     GroupSecretParams groupSecretParams = GroupSecretParams.generate();
     GroupPublicParams groupPublicParams = groupSecretParams.getPublicParams();
