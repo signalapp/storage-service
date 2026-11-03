@@ -348,7 +348,9 @@ public class GroupChangeApplicator {
     }
 
     for (GroupChange.Actions.PromoteMemberPendingProfileKeyAction action : promoteMembersPendingProfileKey) {
-      List<MemberPendingProfileKey> membersPendingProfileKey = modifiedGroupBuilder.getMembersPendingProfileKeyList();
+      // copy: if a RepeatedFieldBuilder is installed, getMembersPendingProfileKeyList() is a live view that
+      // clearMembersPendingProfileKey() below would empty before the replacement list is built
+      List<MemberPendingProfileKey> membersPendingProfileKey = List.copyOf(modifiedGroupBuilder.getMembersPendingProfileKeyList());
       MemberPendingProfileKey memberPendingProfileKey = membersPendingProfileKey.stream()
                                                                                 .filter(candidate -> candidate.getMember().getUserId().equals(action.getUserId()))
                                                                                 .findFirst()
