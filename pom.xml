@@ -30,7 +30,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-        <docker.image>eclipse-temurin:27-jre-resolute@sha256:7520762e9fac9c34ae0ef3a898ff0e9fc652b019860ab859728b17df41f2b497</docker.image>
+        <docker.image>eclipse-temurin:27-jre-resolute@sha256:16a0cae9bfb17ab4257ac64e3d7585fc49233e7bdf3d376c4545289eaf193929</docker.image>
 
         <!-- Weird stuff can happen with parameter annotation counts under Java 27 with versions of Byte Buddy older
         than 1.18.9, so we need to pull in a newer version than we'd get via Dropwizard -> Mockito -> Byte Buddy. We can
