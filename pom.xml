@@ -474,6 +474,7 @@
                             <jvmFlag>-Xmx8192m</jvmFlag>
                             <jvmFlag>-Xss512k</jvmFlag>
                             <jvmFlag>-XX:+HeapDumpOnOutOfMemoryError</jvmFlag>
+                            <jvmFlag>-XX:-UseBASE64Intrinsics</jvmFlag>
                         </jvmFlags>
                         <args>
                             <arg>server</arg>
